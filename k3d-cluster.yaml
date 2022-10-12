@@ -1,0 +1,27 @@
+---
+apiVersion: k3d.io/v1alpha4
+kind: Simple
+metadata:
+  name: spielwiese
+servers: 3
+agents: 3
+ports:
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  - port: 30001:30001
+    nodeFilters:
+      - agents:*
+registries:
+  create:
+    name: ocregistry.localhost
+    host: "0.0.0.0"
+    hostPort: "5002"
+  config: |
+    mirrors:
+      "ocregistry.localhost":
+        endpoint:
+          - http://ocregistry.localhost:5002
+options:
+  k3d:
+    wait: true
