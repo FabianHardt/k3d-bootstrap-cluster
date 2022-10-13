@@ -22,6 +22,15 @@ registries:
       "ocregistry.localhost":
         endpoint:
           - http://ocregistry.localhost:5002
+volumes:
+  - volume: ${ACT_DIR}/calico.yaml:/var/lib/rancher/k3s/server/manifests/calico.yaml
+    nodeFilters:
+      - servers:*
 options:
   k3d:
     wait: true
+  k3s:
+    extraArgs:
+      - arg: --flannel-backend=none
+        nodeFilters:
+          - servers:*

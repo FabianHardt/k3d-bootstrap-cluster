@@ -1,9 +1,15 @@
 #!/bin/bash
+set -o errexit
 
 # Prepare local /etc/hosts - add container registry hostname
 grep -qxF '# Local K8s registry' /etc/hosts || echo "# Local K8s registry
 127.0.0.1 ocregistry.localhost
 # End of section" | sudo tee -a /etc/hosts
+echo 'Created /etc/hosts entry for local registry!'
+
+# Get actual directory
+ACT_DIR=$(pwd)
+echo "Actual directory $ACT_DIR"
 
 # Create K8s cluster
 k3d cluster create -c k3d-cluster.yaml
