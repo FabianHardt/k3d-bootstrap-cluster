@@ -2,6 +2,10 @@
 
 In this small compilation, an example K3d cluster, including a local container registry, is created.
 
+### Preconditions
+
+You should have installed *k3d* on your system. See official installation guide: https://k3d.io/v5.4.6/#installation
+
 
 ### Sample Cluster incl. demo deployments
 
@@ -46,9 +50,9 @@ options:
 
 ```
 
-A cluster is created with 3 master and 3 worker nodes. In addition, a local registry and an external load balancer are created in front of the cluster.
+A cluster is created with **3 master and 3 worker** nodes. In addition, a local **registry** and an external **load balancer** are created in front of the cluster. This cluster is installed with **Calico** instead of default Flannel.
 
-When the start script is called, an httpbin deployment is then carried out in the *demo* namespace. 
+When the start script is called, an **httpbin deployment** is then carried out in the *demo* namespace. 
 The container from https://kennethreitz.org/ is used here.
 
-This pod is published via both Ingress and NodePort. So you have an example for both variants.
+This pod is published via both **Ingress** and **NodePort**. So you have an example for both variants.
