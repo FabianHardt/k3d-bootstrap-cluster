@@ -1,0 +1,46 @@
+---
+apiVersion: k3d.io/v1alpha4
+kind: Simple
+metadata:
+  name: ${CLUSTER_NAME}
+servers: ${SERVERS}
+agents: ${AGENTS}
+ports:
+  - port: ${HTTP_PORT}:80
+    nodeFilters:
+      - loadbalancer
+  - port: ${HTTPS_PORT}:443
+    nodeFilters:
+      - loadbalancer
+  - port: 30001:30001
+    nodeFilters:
+      - agents:*
+registries:
+  create:
+    name: ${REGISTRY_NAME}.localhost
+    host: "0.0.0.0"
+    hostPort: "5002"
+  config: |
+    mirrors:
+      "${REGISTRY_NAME}.localhost":
+        endpoint:
+          - http://${REGISTRY_NAME}.localhost:5002
+volumes:$(if [ $NGINX_FLAG == 1 ];
+  then echo -e "\n  - volume: ${ACT_DIR}/manifests/nginx-helm.yaml:/var/lib/rancher/k3s/server/manifests/nginx-helm.yaml
+    nodeFilters:
+      - servers:*"; fi)$(if [ $CALICO_FLAG == 1 ];
+  then echo -e "\n  - volume: ${ACT_DIR}/manifests/calico.yaml:/var/lib/rancher/k3s/server/manifests/calico.yaml
+    nodeFilters:
+      - servers:*"; fi)
+options:
+  k3d:
+    wait: true
+  k3s:
+    extraArgs:$(if [ $NGINX_FLAG == 1 ];
+      then echo -e "\n      - arg: --no-deploy=traefik
+        nodeFilters:
+          - servers:*"; fi)
+      $(if [ $CALICO_FLAG == 1 ];
+      then echo -e "- arg: --flannel-backend=none
+        nodeFilters:
+          - servers:*"; fi)
