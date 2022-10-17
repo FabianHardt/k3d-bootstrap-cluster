@@ -23,7 +23,10 @@ registries:
         endpoint:
           - http://ocregistry.localhost:5002
 volumes:
-  - volume: ${ACT_DIR}/calico.yaml:/var/lib/rancher/k3s/server/manifests/calico.yaml
+  - volume: ${ACT_DIR}/manifests/calico.yaml:/var/lib/rancher/k3s/server/manifests/calico.yaml
+    nodeFilters:
+      - servers:*
+  - volume: ${ACT_DIR}/manifests/nginx-helm.yaml:/var/lib/rancher/k3s/server/manifests/nginx-helm.yaml
     nodeFilters:
       - servers:*
 options:
@@ -31,6 +34,9 @@ options:
     wait: true
   k3s:
     extraArgs:
+      - arg: --no-deploy=traefik
+        nodeFilters:
+          - servers:*
       - arg: --flannel-backend=none
         nodeFilters:
           - servers:*
