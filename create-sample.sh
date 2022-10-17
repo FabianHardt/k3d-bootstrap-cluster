@@ -8,7 +8,7 @@ grep -qxF '# Local K8s registry' /etc/hosts || echo "# Local K8s registry
 echo 'Created /etc/hosts entry for local registry!'
 
 # Get actual directory
-ACT_DIR=$(pwd)
+export ACT_DIR=$(pwd)
 echo "Actual directory $ACT_DIR"
 
 # Create K8s cluster
