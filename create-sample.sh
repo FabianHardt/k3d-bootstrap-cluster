@@ -1,26 +1,64 @@
 #!/bin/bash
 set -o errexit
 
-# Prepare local /etc/hosts - add container registry hostname
-grep -qxF '# Local K8s registry' /etc/hosts || echo "# Local K8s registry
-127.0.0.1 ocregistry.localhost
-# End of section" | sudo tee -a /etc/hosts
-echo 'Created /etc/hosts entry for local registry!'
+CLUSTER_NAME=demo
+SERVERS=1
+AGENTS=1
+HTTP_PORT=8080
+HTTPS_PORT=8081
+NGINX_FLAG=Yes
+CALICO_FLAG=Yes
+PV_FLAG=Yes
+HTTPBIN_SAMPLE_FLAG=Yes
+
+source helpers.sh
+
+# Configuration of cluster
+configValues
+configureEtcHosts
+uninstallCluster
 
 # Get actual directory
 export ACT_DIR=$(pwd)
-echo "Actual directory $ACT_DIR"
+top "Actual directory"
+echo "$ACT_DIR"
+bottom
+
+templateClusterConfig
 
 # Create K8s cluster
+top "Creating K3D cluster"
 k3d cluster create -c k3d-cluster.yaml
+bottom
 
-# Get images to local registry
-docker pull kennethreitz/httpbin
-docker tag kennethreitz/httpbin ocregistry.localhost:5002/kennethreitz/httpbin
-docker push ocregistry.localhost:5002/kennethreitz/httpbin
+top "Update kubeconfig"
+  sleep 5
 
-# Deploy demo app
-kubectl create ns demo
-kubectl create deployment httpbin -n demo --image=ocregistry.localhost:5002/kennethreitz/httpbin
-kubectl apply -n demo -f sample-svc-nodeport.yaml
-kubectl apply -n demo -f sample-ingress.yaml
+  kubectl config use-context k3d-${CLUSTER_NAME}
+  kubectl cluster-info
+bottom
+
+if (($PV_FLAG == 1)); then
+  top "Provisioning Persistent Volume"
+  cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: k3d-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k3dvol
+EOF
+  bottom
+fi
+
+if (($HTTPBIN_SAMPLE_FLAG == 1)); then
+  deploySamples
+fi
