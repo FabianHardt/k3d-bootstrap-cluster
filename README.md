@@ -1,10 +1,10 @@
 # Sample K3d Cluster
 
-In this small compilation, an example K3d cluster, including a local container registry, is created.
+This project creates an k3d demo cluster. It comes with an interactive setup, which allows you to setup a Kubernetes cluster for demo and showcase purposes.
 
 ### Preconditions
 
-You should have installed *k3d* on your system. See official installation guide: https://k3d.io/v5.4.6/#installation
+You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.4.6/#installation
 
 
 ### Sample Cluster incl. demo deployments
@@ -15,6 +15,12 @@ The creation of the cluster and a simple sample deployment from the local regist
 bash create-sample.sh
 ```
 
+You will be asked some questions about the cluster deployment, like numer of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. It's also possible to deploy **NGINX Ingress Controller** instead of Traefik.
+
+At least you have the option to deploy **httpbin sample deployment**, which is deployed to the namespace *demo*.
+The container from https://kennethreitz.org/ is used here. The sample uses the Ingress, also a *NodePort* is exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
+The httpbin demo is deployed from the **local running container registry**, just for demo purpose, to show the usage of a user defined registry with k3d.
+
 ### More details
 
 The default parameters look like this:
@@ -24,11 +30,14 @@ The default parameters look like this:
 apiVersion: k3d.io/v1alpha4
 kind: Simple
 metadata:
-  name: spielwiese
-servers: 3
-agents: 3
+  name: demo
+servers: 1
+agents: 1
 ports:
   - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  - port: 8081:443
     nodeFilters:
       - loadbalancer
   - port: 30001:30001
@@ -41,18 +50,12 @@ registries:
     hostPort: "5002"
   config: |
     mirrors:
-      "ocregistry.localhost":
+      "registry.localhost":
         endpoint:
-          - http://ocregistry.localhost:5002
+          - http://registry.localhost:5002
 options:
   k3d:
     wait: true
 
 ```
 
-A cluster is created with **3 master and 3 worker** nodes. In addition, a local **registry** and an external **load balancer** are created in front of the cluster. This cluster is installed with **Calico** instead of default Flannel.
-
-When the start script is called, an **httpbin deployment** is then carried out in the *demo* namespace. 
-The container from https://kennethreitz.org/ is used here.
-
-This pod is published via both **Ingress** and **NodePort**. So you have an example for both variants.

@@ -8,6 +8,8 @@ HTTP_PORT=8080
 HTTPS_PORT=8081
 NGINX_FLAG=Yes
 CALICO_FLAG=Yes
+PV_FLAG=Yes
+HTTPBIN_SAMPLE_FLAG=Yes
 
 source helpers.sh
 
@@ -22,33 +24,41 @@ top "Actual directory"
 echo "$ACT_DIR"
 bottom
 
-rm -f k3d-cluster.yaml temp.yaml
-( echo "cat <<EOF >k3d-cluster.yaml";
-  cat k3d-cluster-template.yaml;
-  echo "EOF";
-) >temp.yaml
-. temp.yaml
-cat k3d-cluster.yaml
-rm -f temp.yaml
+templateClusterConfig
 
 # Create K8s cluster
 top "Creating K3D cluster"
 k3d cluster create -c k3d-cluster.yaml
 bottom
 
-#TODO: add PV
+top "Update kubeconfig"
+  sleep 5
 
-# Get images to local registry
-docker pull kennethreitz/httpbin
-docker tag kennethreitz/httpbin ${REGISTRY_NAME}.localhost:5002/kennethreitz/httpbin
-docker push ${REGISTRY_NAME}.localhost:5002/kennethreitz/httpbin
+  kubectl config use-context k3d-${CLUSTER_NAME}
+  kubectl cluster-info
+bottom
 
-# Deploy demo app
-kubectl create ns demo
-kubectl create deployment httpbin -n demo --image=${REGISTRY_NAME}.localhost:5002/kennethreitz/httpbin
-kubectl apply -n demo -f sample-svc-nodeport.yaml
-if (($NGINX_FLAG == 1)); then
-    kubectl apply -n demo -f sample-ingress-nginx.yaml
-else
-    kubectl apply -n demo -f sample-ingress.yaml
+if (($PV_FLAG == 1)); then
+  top "Provisioning Persistent Volume"
+  cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: k3d-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k3dvol
+EOF
+  bottom
+fi
+
+if (($HTTPBIN_SAMPLE_FLAG == 1)); then
+  deploySamples
 fi
