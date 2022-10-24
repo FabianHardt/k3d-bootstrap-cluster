@@ -1,0 +1,19 @@
+servers:
+- zones:
+  - zone: .
+  port: 53
+  plugins:
+  - name: etcd
+    parameters: example.com
+    configBlock: |-
+      stubzones
+      path /skydns
+      endpoint http://${ETCD_SERVICE_IP}:2379
+  - name: debug
+  - name: errors
+  - name: health
+    configBlock: |-
+      lameduck 5s
+  - name: ready
+  - name: reload
+  - name: loadbalance
