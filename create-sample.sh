@@ -8,7 +8,6 @@ HTTP_PORT=8080
 HTTPS_PORT=8081
 NGINX_FLAG=Yes
 CALICO_FLAG=Yes
-PV_FLAG=Yes
 HTTPBIN_SAMPLE_FLAG=Yes
 
 source helpers.sh
@@ -24,7 +23,7 @@ top "Actual directory"
 echo "$ACT_DIR"
 bottom
 
-templateClusterConfig
+templateConfigFile "k3d-cluster-template.yaml" "k3d-cluster.yaml"
 
 # Create K8s cluster
 top "Creating K3D cluster"
@@ -38,7 +37,7 @@ top "Update kubeconfig"
   kubectl cluster-info
 bottom
 
-if (($PV_FLAG == 1)); then
+if (($HTTPBIN_SAMPLE_FLAG == 1)); then
   top "Provisioning Persistent Volume"
   cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -57,8 +56,5 @@ spec:
     path: /k3dvol
 EOF
   bottom
-fi
-
-if (($HTTPBIN_SAMPLE_FLAG == 1)); then
   deploySamples
 fi

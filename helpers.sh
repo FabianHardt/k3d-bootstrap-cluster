@@ -26,7 +26,9 @@ bottom()
 
 configValues ()
 {
-  REGISTRY_NAME=ocregistry
+  REGISTRY_NAME=registry
+  REGISTRY_PORT=5002
+  REGISTRY_FLAG=$(isYes "Yes")
   read_value "Cluster Name" "${CLUSTER_NAME}"
   CLUSTER_NAME=${INPUT_VALUE}
   read_value "Number of Servers" "${SERVERS}"
@@ -41,8 +43,6 @@ configValues ()
   NGINX_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install Calico Network? ${yes_no}" "${CALICO_FLAG}"
   CALICO_FLAG=$(isYes ${INPUT_VALUE})
-  read_value "Create PV to host? ${yes_no}" "${PV_FLAG}"
-  PV_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Deploy httpbin sample? ${yes_no}" "${HTTPBIN_SAMPLE_FLAG}"
   HTTPBIN_SAMPLE_FLAG=$(isYes ${INPUT_VALUE})
 }
@@ -59,11 +59,11 @@ isYes()
 
 configureEtcHosts()
 {
-  # Prepare local /etc/hosts - add container registry hostname
-  grep -qxF '# Local K8s registry' /etc/hosts || echo "# Local K8s registry
-  127.0.0.1 ${REGISTRY_NAME}.localhost
-  # End of section" | sudo tee -a /etc/hosts
-  echo 'Created /etc/hosts entry for local registry!'
+# Prepare local /etc/hosts - add container registry hostname
+grep -qxF '# Local K8s registry' /etc/hosts || echo "# Local K8s registry
+127.0.0.1 ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost
+# End of section" | sudo tee -a /etc/hosts
+echo 'Created /etc/hosts entry for local registry!'
 }
 
 uninstallCluster()
@@ -73,15 +73,15 @@ uninstallCluster()
   bottom
 }
 
-templateClusterConfig()
+templateConfigFile()
 {
-    rm -f k3d-cluster.yaml temp.yaml
-  ( echo "cat <<EOF >k3d-cluster.yaml";
-    cat k3d-cluster-template.yaml;
+    rm -f $2 temp.yaml
+  ( echo "cat <<EOF >$2";
+    cat $1;
     echo "EOF";
   ) >temp.yaml
   . temp.yaml
-  cat k3d-cluster.yaml
+  cat $2
   rm -f temp.yaml
 }
 
@@ -89,8 +89,10 @@ deploySamples()
 {
   # Get images to local registry
   docker pull kennethreitz/httpbin
-  docker tag kennethreitz/httpbin ${REGISTRY_NAME}.localhost:5002/kennethreitz/httpbin
-  docker push ${REGISTRY_NAME}.localhost:5002/kennethreitz/httpbin
+  docker tag kennethreitz/httpbin ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
+  docker push ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
+
+  templateConfigFile "samples/httpbin-template.yaml" "samples/httpbin.yaml"
 
   # Deploy demo app
   kubectl apply -n demo -f samples/httpbin.yaml

@@ -17,13 +17,5 @@ spec:
   valuesContent: |-
     fullnameOverride: ingress-nginx
     controller:
-      kind: DaemonSet
-      hostNetwork: true
-      hostPort:
-        enabled: true
-      service:
-        enabled: false
-      publishService:
-        enabled: false
       config:
         use-forwarded-headers: "true"
