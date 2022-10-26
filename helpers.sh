@@ -92,13 +92,13 @@ deploySamples()
   docker tag kennethreitz/httpbin ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
   docker push ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
 
-  templateConfigFile "samples/httpbin-template.yaml" "samples/httpbin.yaml"
+  templateConfigFile "httpbin/httpbin-template.yaml" "httpbin/httpbin.yaml"
 
   # Deploy demo app
-  kubectl apply -n demo -f samples/httpbin.yaml
+  kubectl apply -n demo -f httpbin/httpbin.yaml
   if (($NGINX_FLAG == 1)); then
-      kubectl apply -n demo -f samples/sample-ingress-nginx.yaml
+      kubectl apply -n demo -f httpbin/sample-ingress-nginx.yaml
   else
-      kubectl apply -n demo -f samples/sample-ingress.yaml
+      kubectl apply -n demo -f httpbin/sample-ingress.yaml
   fi
 }
