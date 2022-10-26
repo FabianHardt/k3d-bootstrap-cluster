@@ -2,3 +2,4 @@
 k3d-cluster.yaml
 httpbin/httpbin.yaml
 examples/external-dns/values.yaml
+examples/vault/init-keys.json
