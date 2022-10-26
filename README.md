@@ -59,3 +59,12 @@ options:
 
 ```
 
+## Manual examples
+
+There are some samples included, which are not deployed automatically. They are useful to demonstrate the usage of some commonly used Kubernetes tools.
+
+Samples included under the **examples** folder:
+
+- ExternalDNS - https://github.com/kubernetes-sigs/external-dns
+
+  - Intallation is documented here [README](examples/external-dns/README.md)

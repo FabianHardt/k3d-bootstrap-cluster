@@ -1,4 +1,4 @@
 .DS_Store
 k3d-cluster.yaml
-samples/httpbin.yaml
-external-dns/values.yaml
+httpbin/httpbin.yaml
+examples/external-dns/values.yaml
