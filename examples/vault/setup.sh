@@ -7,8 +7,9 @@ helm repo update
 
 helm upgrade --install vault hashicorp/vault --set "injector.enabled=false" --namespace vault --create-namespace
 
-echo "Waiting 60 seconds!"
-sleep 60
+kubectl wait --for=jsonpath='{.status.phase}'=Running pod vault-0 -n vault --timeout=300s || exit 1
+# echo "Waiting 60 seconds!"
+# sleep 60
 kubectl -n vault exec vault-0 -- vault operator init -key-shares=1 -key-threshold=1 \
       -format=json > init-keys.json
 VAULT_UNSEAL_KEY=$(cat init-keys.json | jq -r ".unseal_keys_b64[]")
@@ -53,14 +54,14 @@ helm upgrade --install cert-manager jetstack/cert-manager --set installCRDs=true
 kubectl -n demo create serviceaccount issuer
 
 # K8s > 1.24+
-# echo 'apiVersion: v1
-# kind: Secret
-# metadata:
-#   name: issuer-token-lmzpj
-#   namespace: cert-manager
-#   annotations:
-#     kubernetes.io/service-account.name: issuer
-# type: kubernetes.io/service-account-token' | kubectl apply -f -
+echo 'apiVersion: v1
+kind: Secret
+metadata:
+  name: issuer-token-lmzpj
+  namespace: demo
+  annotations:
+    kubernetes.io/service-account.name: issuer
+type: kubernetes.io/service-account-token' | kubectl apply -f -
 ISSUER_SECRET_REF=$(kubectl get secrets -n demo --output=json | jq -r '.items[].metadata | select(.name|startswith("issuer-token-")).name')
 echo $ISSUER_SECRET_REF
 echo "
