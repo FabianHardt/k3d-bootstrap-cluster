@@ -14,7 +14,10 @@ source helpers.sh
 
 # Configuration of cluster
 configValues
-configureEtcHosts
+if [ $DEMO_DOMAIN != "127-0-0-1.nip.io" ]
+then
+  configureEtcHosts
+fi
 uninstallCluster
 
 # Get actual directory

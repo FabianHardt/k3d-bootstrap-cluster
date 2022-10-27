@@ -38,7 +38,7 @@ spec:
           persistentVolumeClaim:
             claimName: demo-pvc
       containers:
-      - image: ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
+      - image: ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
         name: httpbin
         resources:
           requests:
