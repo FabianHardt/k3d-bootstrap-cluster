@@ -4,7 +4,8 @@ This project creates an k3d demo cluster. It comes with an interactive setup, wh
 
 ### Preconditions
 
-You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.4.6/#installation
+- You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.4.6/#installation
+- For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 
 
 ### Sample Cluster incl. demo deployments
@@ -12,7 +13,8 @@ You should have installed *k3d* with it's dependencies on your system. See offic
 The creation of the cluster and a simple sample deployment from the local registry can be called up as follows:
 
 ```bash
-bash create-sample.sh
+sudo bash create-sample.sh
+# sudo is needed, cause the script adds an dummy entry for the registry to /etc/hosts
 ```
 
 You will be asked some questions about the cluster deployment, like numer of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. It's also possible to deploy **NGINX Ingress Controller** instead of Traefik.
@@ -68,3 +70,5 @@ Samples included under the **examples** folder:
 - ExternalDNS - https://github.com/kubernetes-sigs/external-dns
 
   - Intallation is documented here [README](examples/external-dns/README.md)
+- Vault https://github.com/hashicorp/vault & cert-manager https://github.com/cert-manager/cert-manager
+  - Installation is documented here [README](examples/vault/README.md)

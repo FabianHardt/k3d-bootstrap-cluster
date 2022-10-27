@@ -31,9 +31,9 @@ configValues ()
   REGISTRY_FLAG=$(isYes "Yes")
   read_value "Cluster Name" "${CLUSTER_NAME}"
   CLUSTER_NAME=${INPUT_VALUE}
-  read_value "Number of Servers" "${SERVERS}"
+  read_value "Number of Masters" "${SERVERS}"
   SERVERS=${INPUT_VALUE}
-  read_value "Number of Agents" "${AGENTS}"
+  read_value "Number of Workers" "${AGENTS}"
   AGENTS=${INPUT_VALUE}
   read_value "LoadBalancer HTTP Port" "${HTTP_PORT}"
   HTTP_PORT=${INPUT_VALUE}
