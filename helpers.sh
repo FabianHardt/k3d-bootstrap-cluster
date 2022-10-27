@@ -26,8 +26,7 @@ bottom()
 
 configValues ()
 {
-  # DEMO_DOMAIN=127-0-0-1.nip.io
-  DEMO_DOMAIN=local
+  DEMO_DOMAIN=127-0-0-1.nip.io
   REGISTRY_NAME=registry
   REGISTRY_PORT=5002
   REGISTRY_FLAG=$(isYes "Yes")
