@@ -92,8 +92,8 @@ deploySamples()
 {
   # Get images to local registry
   docker pull kennethreitz/httpbin
-  docker tag kennethreitz/httpbin ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
-  docker push ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
+  docker tag kennethreitz/httpbin ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
+  docker push ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
 
   templateConfigFile "httpbin/httpbin-template.yaml" "httpbin/httpbin.yaml"
 
