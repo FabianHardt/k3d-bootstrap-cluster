@@ -44,6 +44,8 @@ configValues ()
   NGINX_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install Calico Network? ${yes_no}" "${CALICO_FLAG}"
   CALICO_FLAG=$(isYes ${INPUT_VALUE})
+  read_value "Install K8s Dashboard? ${yes_no}" "${DASHBOARD_FLAG}"
+  DASHBOARD_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Deploy httpbin sample? ${yes_no}" "${HTTPBIN_SAMPLE_FLAG}"
   HTTPBIN_SAMPLE_FLAG=$(isYes ${INPUT_VALUE})
 }

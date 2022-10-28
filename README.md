@@ -6,6 +6,7 @@ This project creates an k3d demo cluster. It comes with an interactive setup, wh
 
 - You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.4.6/#installation
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
+- jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
 
 
 ### Sample Cluster incl. demo deployments
@@ -22,6 +23,8 @@ You will be asked some questions about the cluster deployment, like numer of nod
 At least you have the option to deploy **httpbin sample deployment**, which is deployed to the namespace *demo*.
 The container from https://kennethreitz.org/ is used here. The sample uses the Ingress, also a *NodePort* is exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
 The httpbin demo is deployed from the **local running container registry**, just for demo purpose, to show the usage of a user defined registry with k3d.
+
+*Optional (K8s > 1.24 needed):* Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/#/login). The nessecary login token you can get with the following command: `kubectl -n k8s-dashboard describe secrets dashboard-admin-token | grep token:`
 
 ### More details
 
