@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o errexit
 
 source ../../helpers.sh
 helm repo add hashicorp https://helm.releases.hashicorp.com
