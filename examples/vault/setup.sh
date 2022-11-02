@@ -30,19 +30,19 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write /pki/config
 ###########
 
 # kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/root/generate/internal \
-#     common_name=nip.io \
+#     common_name=example.com \
 #     ttl=8760h
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/config/urls \
     issuing_certificates="http://vault.vault:8200/v1/pki/ca" \
     crl_distribution_points="http://vault.vault:8200/v1/pki/crl"
-kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/roles/nip-io \
-    allowed_domains=nip.io \
+kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/roles/example-com \
+    allowed_domains=example.com \
     allow_subdomains=true \
     max_ttl=72h
 kubectl -n vault exec --stdin=true vault-0 -- vault policy write pki - <<EOF
 path "pki*"                        { capabilities = ["read", "list"] }
-path "pki/sign/nip-io"             { capabilities = ["create", "update"] }
-path "pki/issue/nip-io"            { capabilities = ["create"] }
+path "pki/sign/example-com"             { capabilities = ["create", "update"] }
+path "pki/issue/example-com"            { capabilities = ["create"] }
 EOF
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault auth enable kubernetes
 K8S_IP=$(kubectl -n vault exec vault-0 -- sh -c 'echo $KUBERNETES_PORT_443_TCP_ADDR')
@@ -85,7 +85,7 @@ metadata:
 spec:
   vault:
     server: http://vault.vault.svc.cluster.local:8200
-    path: pki/sign/nip-io
+    path: pki/sign/example-com
     auth:
       kubernetes:
         mountPath: /v1/auth/kubernetes
@@ -98,14 +98,14 @@ echo '
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: nip-io
+  name: example-com
   namespace: demo
 spec:
-  secretName: nip-io-tls
+  secretName: example-com-tls
   issuerRef:
     name: vault-issuer
-  commonName: www.nip.io
+  commonName: www.example.com
   dnsNames:
-  - www.nip.io' | kubectl apply -f -
+  - www.example.com' | kubectl apply -f -
 
 kubectl -n demo apply -f cert-ingress.yaml

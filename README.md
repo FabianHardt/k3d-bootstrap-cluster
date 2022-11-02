@@ -48,9 +48,15 @@ ports:
   - port: 30001:30001
     nodeFilters:
       - agents:*
+  - port: 30053:30053/udp
+    nodeFilters:
+      - servers:*
+  - port: 30053:30053/tcp
+    nodeFilters:
+      - servers:*
 registries:
   create:
-    name: ocregistry.localhost
+    name: registry.localhost
     host: "0.0.0.0"
     hostPort: "5002"
   config: |
