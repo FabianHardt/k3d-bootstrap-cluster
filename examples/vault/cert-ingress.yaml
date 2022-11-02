@@ -5,8 +5,14 @@ metadata:
   namespace: demo
   annotations:
     ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/issuer: "vault-issuer"
+    cert-manager.io/common-name: "httpbin.example.com"
 spec:
   ingressClassName: nginx
+  tls:
+  - hosts:
+    - httpbin.example.com
+    secretName: httpbin-tls-secret
   rules:
   - host: httpbin.example.com
     http:

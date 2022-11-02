@@ -1,7 +1,9 @@
+serviceType: NodePort
 servers:
 - zones:
   - zone: .
   port: 53
+  nodePort: 30053
   plugins:
   - name: etcd
     parameters: example.com

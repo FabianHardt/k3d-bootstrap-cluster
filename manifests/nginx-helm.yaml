@@ -17,5 +17,7 @@ spec:
   valuesContent: |-
     fullnameOverride: ingress-nginx
     controller:
+      ingressClassResource:
+        default: true
       config:
         use-forwarded-headers: "true"

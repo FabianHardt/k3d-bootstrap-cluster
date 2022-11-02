@@ -26,14 +26,15 @@ bottom()
 
 configValues ()
 {
+  DEMO_DOMAIN=127-0-0-1.nip.io
   REGISTRY_NAME=registry
   REGISTRY_PORT=5002
   REGISTRY_FLAG=$(isYes "Yes")
   read_value "Cluster Name" "${CLUSTER_NAME}"
   CLUSTER_NAME=${INPUT_VALUE}
-  read_value "Number of Servers" "${SERVERS}"
+  read_value "Number of Masters" "${SERVERS}"
   SERVERS=${INPUT_VALUE}
-  read_value "Number of Agents" "${AGENTS}"
+  read_value "Number of Workers" "${AGENTS}"
   AGENTS=${INPUT_VALUE}
   read_value "LoadBalancer HTTP Port" "${HTTP_PORT}"
   HTTP_PORT=${INPUT_VALUE}
@@ -43,6 +44,8 @@ configValues ()
   NGINX_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install Calico Network? ${yes_no}" "${CALICO_FLAG}"
   CALICO_FLAG=$(isYes ${INPUT_VALUE})
+  read_value "Install K8s Dashboard? ${yes_no}" "${DASHBOARD_FLAG}"
+  DASHBOARD_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Deploy httpbin sample? ${yes_no}" "${HTTPBIN_SAMPLE_FLAG}"
   HTTPBIN_SAMPLE_FLAG=$(isYes ${INPUT_VALUE})
 }
@@ -59,11 +62,13 @@ isYes()
 
 configureEtcHosts()
 {
+top "Creating DEMO_DOMAIN entry in /etc/hosts"
 # Prepare local /etc/hosts - add container registry hostname
 grep -qxF '# Local K8s registry' /etc/hosts || echo "# Local K8s registry
-127.0.0.1 ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost
+127.0.0.1 ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}
 # End of section" | sudo tee -a /etc/hosts
 echo 'Created /etc/hosts entry for local registry!'
+bottom
 }
 
 uninstallCluster()
@@ -89,8 +94,8 @@ deploySamples()
 {
   # Get images to local registry
   docker pull kennethreitz/httpbin
-  docker tag kennethreitz/httpbin ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
-  docker push ${REGISTRY_NAME}-${CLUSTER_NAME}.localhost:${REGISTRY_PORT}/kennethreitz/httpbin
+  docker tag kennethreitz/httpbin ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
+  docker push ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
 
   templateConfigFile "httpbin/httpbin-template.yaml" "httpbin/httpbin.yaml"
 

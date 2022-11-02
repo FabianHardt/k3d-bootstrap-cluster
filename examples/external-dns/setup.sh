@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../helpers.sh
+source ../../helpers.sh
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo add coredns https://coredns.github.io/helm
 helm repo update

@@ -8,13 +8,17 @@ HTTP_PORT=8080
 HTTPS_PORT=8081
 NGINX_FLAG=Yes
 CALICO_FLAG=Yes
+DASHBOARD_FLAG=No
 HTTPBIN_SAMPLE_FLAG=Yes
 
 source helpers.sh
 
 # Configuration of cluster
 configValues
-configureEtcHosts
+if [ $DEMO_DOMAIN != "127-0-0-1.nip.io" ]
+then
+  configureEtcHosts
+fi
 uninstallCluster
 
 # Get actual directory

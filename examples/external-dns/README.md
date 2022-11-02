@@ -10,6 +10,7 @@ With this small script an etc, coredns and ExternalDNS is installed:
 
 ```bash
 # Installation of etcd, coredns and ExternalDNS
+cd examples/external-dns
 bash setup.sh
 
 # Test DNS queries with test container
@@ -66,5 +67,11 @@ metadata:
     kubernetes.io/name: CoreDNS
   name: coredns-coredns
   namespace: dns-sample
+```
+
+After successful installation DNS is exposed to your host via NodePort 30053. You can test the DNS resoltion directly on your host:
+
+```bash
+dig @localhost httpbin.example.com -p 30053
 ```
 
