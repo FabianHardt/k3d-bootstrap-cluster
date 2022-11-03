@@ -2,6 +2,9 @@
 set -o errexit
 
 source ../../helpers.sh
+
+CLUSTER_NAME=$(kubectl config current-context | cut -c 5-)
+
 helm repo add hashicorp https://helm.releases.hashicorp.com
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
@@ -58,11 +61,13 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubern
 helm upgrade --install cert-manager jetstack/cert-manager --set installCRDs=true --namespace cert-manager --create-namespace
 
 # cert-manager configuration
+kubectl -n demo delete serviceaccount issuer || true
 kubectl -n demo create serviceaccount issuer
 
-K8S_VERSION=$(kubectl get nodes k3d-demo-agent-0 -o json | jq .status.nodeInfo.kubeletVersion | cut -c 3-6)
+K8S_VERSION=$(kubectl get nodes k3d-${CLUSTER_NAME}-agent-0 -o json | jq .status.nodeInfo.kubeletVersion | cut -c 3-6)
 if [ $K8S_VERSION \> 1.23 ]
 then
+kubectl -n demo delete secret issuer-token-lmzpj || true
 echo "K8s version is greater than 1.24!"
 echo 'apiVersion: v1
 kind: Secret
