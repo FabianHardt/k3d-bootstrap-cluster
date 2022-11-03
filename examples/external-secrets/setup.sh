@@ -3,11 +3,20 @@ set -o errexit
 
 source ../../helpers.sh
 # include Hashicorp Vault setup first
+
+VAULT_EXISTS=$(kubectl get ns vault || echo "false")
+
+if [ $VAULT_EXISTS == "false" ]
+then
 cd ../vault/
 bash setup.sh
+else
+echo "Skipping vault deployment. Already there."
+VAULT_ROOT_TOKEN=$(cat ../vault/init-keys.json | jq -r ".root_token")
+fi
 
 # configure Vault KV store
-kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault secrets enable -version=2 kv
+kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault secrets enable -version=2 kv || true 
 kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault kv put kv/supersecret hello=world
 
 cd ../external-secrets/
@@ -18,7 +27,19 @@ helm repo update
 
 helm upgrade --install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true
 
-echo "apiVersion: external-secrets.io/v1beta1
+kubectl wait deployment -n external-secrets external-secrets --for condition=Available=True --timeout=300s
+kubectl wait deployment -n external-secrets external-secrets-webhook --for condition=Available=True --timeout=300s
+kubectl wait deployment -n external-secrets external-secrets-cert-controller --for condition=Available=True --timeout=300s
+
+echo "apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-root-token
+  namespace: external-secrets
+stringData:
+  token: ${VAULT_ROOT_TOKEN}
+---
+apiVersion: external-secrets.io/v1beta1
 kind: ClusterSecretStore
 metadata:
   name: vault-backend
@@ -32,15 +53,7 @@ spec:
         tokenSecretRef:
           name: vault-root-token
           namespace: external-secrets
-          key: token
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: vault-root-token
-  namespace: external-secrets
-stringData:
-  token: ${VAULT_ROOT_TOKEN}" | kubectl apply -f -
+          key: token" | kubectl apply -f -
 
 echo 'apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
