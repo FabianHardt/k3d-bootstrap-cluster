@@ -73,8 +73,8 @@ bottom
 
 uninstallCluster()
 {
-  top "Deleting existing cluster"
-  k3d cluster delete ${CLUSTER_NAME}
+  top "Deleting all existing clusters"
+  k3d cluster delete --all
   bottom
 }
 

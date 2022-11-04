@@ -6,17 +6,16 @@ source ../../helpers.sh
 
 VAULT_EXISTS=$(kubectl get ns vault || echo "false")
 
-if [ $VAULT_EXISTS == "false" ]
+if [ "$VAULT_EXISTS" == "false" ]
 then
 cd ../vault/
 bash setup.sh
 else
 echo "Skipping vault deployment. Already there."
-VAULT_ROOT_TOKEN=$(cat ../vault/init-keys.json | jq -r ".root_token")
 fi
 
 # configure Vault KV store
-kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault secrets enable -version=2 kv || true 
+kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault secrets enable -version=2 kv || true
 kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault kv put kv/supersecret hello=world
 
 cd ../external-secrets/
@@ -30,6 +29,8 @@ helm upgrade --install external-secrets external-secrets/external-secrets -n ext
 kubectl wait deployment -n external-secrets external-secrets --for condition=Available=True --timeout=300s
 kubectl wait deployment -n external-secrets external-secrets-webhook --for condition=Available=True --timeout=300s
 kubectl wait deployment -n external-secrets external-secrets-cert-controller --for condition=Available=True --timeout=300s
+
+VAULT_ROOT_TOKEN=$(cat ../vault/init-keys.json | jq -r ".root_token")
 
 echo "apiVersion: v1
 kind: Secret
@@ -55,6 +56,7 @@ spec:
           namespace: external-secrets
           key: token" | kubectl apply -f -
 
+# templating method - get values from Vault and map them to an user defined key
 echo 'apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -66,11 +68,29 @@ spec:
     name: vault-backend
     kind: ClusterSecretStore
   target:
-    name: supersecret
+    name: k8s-secret
     template:
       data:
-        test1: "{{ .hello }}"
+        helloKey: "{{ .hello }}"
     creationPolicy: Owner
   dataFrom:
     - extract:
         key: supersecret' | kubectl apply -f -
+
+# simple method - get key/values from Vault 1:1
+echo 'apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: example-secret2
+  namespace: demo
+spec:
+  refreshInterval: 1m
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: k8s-secret2
+    creationPolicy: Owner
+  dataFrom:
+  - extract:
+      key: supersecret' | kubectl apply -f -

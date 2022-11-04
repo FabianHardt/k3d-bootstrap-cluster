@@ -43,7 +43,7 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/roles/e
     allow_subdomains=true \
     max_ttl=72h
 kubectl -n vault exec --stdin=true vault-0 -- vault policy write pki - <<EOF
-path "pki*"                        { capabilities = ["read", "list"] }
+path "pki*"                             { capabilities = ["read", "list"] }
 path "pki/sign/example-com"             { capabilities = ["create", "update"] }
 path "pki/issue/example-com"            { capabilities = ["create"] }
 EOF

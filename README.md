@@ -81,6 +81,9 @@ Samples included under the **examples** folder:
   - Intallation is documented here [README](examples/external-dns/README.md)
 - Vault https://github.com/hashicorp/vault & cert-manager https://github.com/cert-manager/cert-manager
   - Installation is documented here [README](examples/vault/README.md)
+- External Secrets Operator (ESO) - https://github.com/external-secrets/external-secrets
+  - Installation is documented here [README](examples/external-secrets/README.md)
+
 
 ### Troubleshooting
 
