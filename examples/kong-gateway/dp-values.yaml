@@ -1,0 +1,110 @@
+---
+namespace: "kong-dp"
+
+# -----------------------------------------------------------------------------
+# Kong parameters
+# -----------------------------------------------------------------------------
+
+env:
+  role: "data_plane"
+  database: "off"
+  cluster_cert: /etc/secrets/kong-wildcard-crt/tls.crt
+  cluster_cert_key: /etc/secrets/kong-wildcard-crt/tls.key
+  lua_ssl_trusted_certificate: /etc/secrets/kong-wildcard-crt/ca.crt
+  cluster_ca_cert: /etc/secrets/kong-wildcard-crt/ca.crt
+  cluster_mtls: pki
+  cluster_server_name: "kong-cluster.example.com"
+  cluster_control_plane: "kong-kong-cluster.kong-cp.svc.cluster.local:8005"
+  cluster_telemetry_server_name: "kong-clustertelemetry.example.com"
+  cluster_telemetry_endpoint: "kong-kong-clustertelemetry.kong-cp.svc.cluster.local:8006"
+  ssl_cert: /etc/secrets/kong-wildcard-crt/tls.crt
+  ssl_cert_key: /etc/secrets/kong-wildcard-crt/tls.key
+
+image:
+  # Kong Enterprise
+  repository: kong/kong-gateway
+  tag: "3.0.1.0"
+
+# Workaround - status endpoint needs some time :-(
+# readinessProbe for Kong pods
+readinessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 100
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 20
+
+# livenessProbe for Kong pods
+livenessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 200
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 30
+
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 2
+    memory: 4Gi
+  requests:
+    cpu: 2
+    memory: 2Gi
+
+admin:
+  enabled: false
+
+cluster:
+  enabled: false
+
+proxy:
+  enabled: true
+  type: LoadBalancer
+
+  http:
+    enabled: false
+  tls:
+    # Enable HTTPS listen for the proxy
+    enabled: true
+
+  ingress:
+    enabled: false
+
+secretVolumes:
+  - kong-wildcard-crt
+
+# -----------------------------------------------------------------------------
+# Ingress Controller parameters
+# -----------------------------------------------------------------------------
+
+ingressController:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# Kong Enterprise parameters
+# -----------------------------------------------------------------------------
+
+enterprise:
+  enabled: true
+  license_secret: kong-enterprise-license
+
+manager:
+  enabled: false
+
+portal:
+  enabled: false
+
+portalapi:
+  enabled: false
+
+clustertelemetry:
+  enabled: false

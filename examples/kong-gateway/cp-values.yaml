@@ -5,36 +5,63 @@ namespace: "kong-cp"
 # Kong parameters
 # -----------------------------------------------------------------------------
 env:
+  #log_level: debug
   role: "control_plane"
   cluster_cert: /etc/secrets/kong-wildcard-crt/tls.crt
   cluster_cert_key: /etc/secrets/kong-wildcard-crt/tls.key
   cluster_ca_cert: /etc/secrets/kong-wildcard-crt/ca.crt
   cluster_mtls: pki
-  #cluster_server_name: "{{ kong_hosts.kong_cluster.host }}"
-  #cluster_telemetry_server_name: "{{ kong_hosts.kong_cluster_telemetry.host }}"
+  cluster_server_name: "kong-cluster.example.com"
+  cluster_telemetry_server_name: "kong-clustertelemetry.example.com"
   database: "postgres"
-  admin_gui_ssl_cert: /etc/secrets/kong-manager-cert/tls.crt
-  admin_gui_ssl_cert_key: /etc/secrets/kong-manager-cert/tls.key
-  admin_ssl_cert: /etc/secrets/kong-api-cert/tls.crt
-  admin_ssl_cert_key: /etc/secrets/kong-api-cert/tls.key
-  portal_api_ssl_cert: /etc/secrets/kong-portalapi-cert/tls.crt
-  portal_api_ssl_cert_key: /etc/secrets/kong-portalapi-cert/tls.key
-  portal_gui_ssl_cert: /etc/secrets/kong-portal-cert/tls.crt
-  portal_gui_ssl_cert_key: /etc/secrets/kong-portal-cert/tls.key
+  admin_gui_url: https://kong-manager.example.com:8081
+  admin_api_uri: https://kong-admin.example.com:8081
+  portal_api_url: https://kong-portalapi.example.com:8081
   password:
     valueFrom:
       secretKeyRef:
         name: kong-config-secret
         key: kong_admin_password
 
+image:
+  # Kong Enterprise
+  repository: kong/kong-gateway
+  tag: "3.0.1.0"
+
+# Workaround - status endpoint needs some time :-(
+# readinessProbe for Kong pods
+readinessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 100
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 20
+
+# livenessProbe for Kong pods
+livenessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 200
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 30
+
 admin:
   enabled: true
   type: ClusterIP
 
   http:
-    enabled: false
-  tls:
     enabled: true
+
+  tls:
+    enabled: false
     parameters: []
 
   ingress:
@@ -45,6 +72,15 @@ admin:
     annotations:
       cert-manager.io/issuer: "vault-issuer"
       cert-manager.io/common-name: "kong-admin.example.com"
+
+status:
+  enabled: true
+  http:
+    enabled: true
+
+  tls:
+    enabled: false
+    parameters: []
 
 cluster:
   enabled: true
@@ -128,9 +164,10 @@ manager:
   type: ClusterIP
 
   http:
-    enabled: false
-  tls:
     enabled: true
+
+  tls:
+    enabled: false
 
   ingress:
     enabled: true
@@ -146,6 +183,9 @@ portal:
   type: ClusterIP
 
   http:
+    enabled: true
+
+  tls:
     enabled: false
 
   ingress:
@@ -162,9 +202,10 @@ portalapi:
   type: ClusterIP
 
   http:
-    enabled: false
-  tls:
     enabled: true
+
+  tls:
+    enabled: false
 
   ingress:
     enabled: true
@@ -187,13 +228,3 @@ clustertelemetry:
     ingressClassName: kong
     hostname: kong-clustertelemetry.example.com
     annotations: {}
-
-extraSecrets:
-  - name: kong-manager-crt
-    mountPath: /etc/secrets/kong-manager-cert
-  - name: kong-admin-crt
-    mountPath: /etc/secrets/kong-api-cert
-  - name: kong-portalapi-crt
-    mountPath: /etc/secrets/kong-portalapi-cert
-  - name: kong-portal-crt
-    mountPath: /etc/secrets/kong-portal-cert
