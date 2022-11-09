@@ -18,8 +18,14 @@ echo "Skipping vault deployment. Already there."
 fi
 
 # Remove NGINX Ingress - replace with Kong Ingress
+NGINX_EXISTS=$(kubectl get ns ingress-nginx || echo "false")
+if [ "$NGINX_EXISTS" == "false" ]
+then
+echo "Skipping deletion of NGINX ingress..."
+else
 kubectl delete -f ../../manifests/nginx-helm.yaml || true
 kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission || true
+fi
 
 cd ../kong-gateway/
 
