@@ -1,5 +1,7 @@
 #!/bin/bash
 
+LICENSE_FILE=license.json
+
 installControlPlane()
 {
 # Preconditions
@@ -11,11 +13,15 @@ kubectl create secret generic kong-config-secret -n kong-cp \
     --from-literal=kong_admin_password=kong \
     --from-literal=password=kong
 
-# free mode
-# kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
+if [ -f "$LICENSE_FILE" ]; then
+  echo "$LICENSE_FILE exists. Using it!"
+  kubectl create secret generic kong-enterprise-license --from-file=license=$LICENSE_FILE -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
+else
+  echo "$LICENSE_FILE does not exists. Using free version!"
+  kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
+fi
 
 # Enterprise mode
-kubectl create secret generic kong-enterprise-license --from-file=license=license.json -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n kong-cp delete serviceaccount issuer || true
 kubectl -n kong-cp create serviceaccount issuer
@@ -78,11 +84,13 @@ installDataPlane()
 # Preconditions
 kubectl create namespace kong-dp
 
-# free mode
-# kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-dp --dry-run=client -o yaml | kubectl apply -f -
-
-# Enterprise mode
-kubectl create secret generic kong-enterprise-license --from-file=license=license.json -n kong-dp --dry-run=client -o yaml | kubectl apply -f -
+if [ -f "$LICENSE_FILE" ]; then
+  echo "$LICENSE_FILE exists. Using it!"
+  kubectl create secret generic kong-enterprise-license --from-file=license=$LICENSE_FILE -n kong-dp --dry-run=client -o yaml | kubectl apply -f -
+else
+  echo "$LICENSE_FILE does not exists. Using free version!"
+  kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-dp --dry-run=client -o yaml | kubectl apply -f -
+fi
 
 kubectl -n kong-dp delete serviceaccount issuer || true
 kubectl -n kong-dp create serviceaccount issuer
