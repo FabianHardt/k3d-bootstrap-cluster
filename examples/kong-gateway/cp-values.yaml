@@ -70,7 +70,7 @@ admin:
     tls: kong-admin-crt
     hostname: kong-admin.example.com
     annotations:
-      cert-manager.io/issuer: "vault-issuer"
+      cert-manager.io/cluster-issuer: "vault-issuer"
       cert-manager.io/common-name: "kong-admin.example.com"
 
 status:
@@ -94,7 +94,7 @@ cluster:
     ingressClassName: kong
     hostname: kong-cluster.example.com
     annotations:
-      cert-manager.io/issuer: "vault-issuer"
+      cert-manager.io/cluster-issuer: "vault-issuer"
       cert-manager.io/common-name: "kong-cluster.example.com"
 
 proxy:
@@ -175,7 +175,7 @@ manager:
     ingressClassName: kong
     hostname: kong-manager.example.com
     annotations:
-      cert-manager.io/issuer: "vault-issuer"
+      cert-manager.io/cluster-issuer: "vault-issuer"
       cert-manager.io/common-name: "kong-manager.example.com"
 
 portal:
@@ -194,7 +194,7 @@ portal:
     tls: kong-portal-crt
     hostname: kong-portal.example.com
     annotations:
-      cert-manager.io/issuer: "vault-issuer"
+      cert-manager.io/cluster-issuer: "vault-issuer"
       cert-manager.io/common-name: "kong-portal.example.com"
 
 portalapi:
@@ -213,7 +213,7 @@ portalapi:
     tls: kong-portalapi-crt
     hostname: kong-portalapi.example.com
     annotations:
-      cert-manager.io/issuer: "vault-issuer"
+      cert-manager.io/cluster-issuer: "vault-issuer"
       cert-manager.io/common-name: "kong-portalapi.example.com"
 
 clustertelemetry:

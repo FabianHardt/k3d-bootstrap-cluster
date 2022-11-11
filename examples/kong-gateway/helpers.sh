@@ -24,40 +24,6 @@ else
   kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
 fi
 
-kubectl -n kong-cp delete serviceaccount issuer || true
-kubectl -n kong-cp create serviceaccount issuer
-
-echo 'apiVersion: v1
-kind: Secret
-metadata:
-  name: issuer-token-lmzpj
-  namespace: kong-cp
-  annotations:
-    kubernetes.io/service-account.name: issuer
-type: kubernetes.io/service-account-token' | kubectl apply -f -
-
-kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubernetes/role/issuer bound_service_account_names=issuer bound_service_account_namespaces=kong-cp,kong-dp policies=pki ttl=20m
-
-ISSUER_SECRET_REF=$(kubectl get secrets -n kong-cp --output=json | jq -r '.items[].metadata | select(.name|startswith("issuer-token-")).name')
-
-echo "
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  name: vault-issuer
-  namespace: kong-cp
-spec:
-  vault:
-    server: http://vault.vault.svc.cluster.local:8200
-    path: pki/sign/example-com
-    auth:
-      kubernetes:
-        mountPath: /v1/auth/kubernetes
-        role: issuer
-        secretRef:
-          name: ${ISSUER_SECRET_REF}
-          key: token" | kubectl apply -f -
-
 echo "
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -67,7 +33,7 @@ metadata:
 spec:
   secretName: kong-wildcard-crt
   issuerRef:
-    kind: Issuer
+    kind: ClusterIssuer
     name: vault-issuer
   commonName: '*.example.com'
   dnsNames:
@@ -89,40 +55,6 @@ else
   kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-dp --dry-run=client -o yaml | kubectl apply -f -
 fi
 
-kubectl -n kong-dp delete serviceaccount issuer || true
-kubectl -n kong-dp create serviceaccount issuer
-
-echo 'apiVersion: v1
-kind: Secret
-metadata:
-  name: issuer-token-lmzpj
-  namespace: kong-dp
-  annotations:
-    kubernetes.io/service-account.name: issuer
-type: kubernetes.io/service-account-token' | kubectl apply -f -
-
-kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubernetes/role/issuer bound_service_account_names=issuer bound_service_account_namespaces=kong-cp,kong-dp policies=pki ttl=20m
-
-ISSUER_SECRET_REF=$(kubectl get secrets -n kong-dp --output=json | jq -r '.items[].metadata | select(.name|startswith("issuer-token-")).name')
-echo $ISSUER_SECRET_REF
-echo "
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  name: vault-issuer
-  namespace: kong-dp
-spec:
-  vault:
-    server: http://vault.vault.svc.cluster.local:8200
-    path: pki/sign/example-com
-    auth:
-      kubernetes:
-        mountPath: /v1/auth/kubernetes
-        role: issuer
-        secretRef:
-          name: ${ISSUER_SECRET_REF}
-          key: token" | kubectl apply -f -
-
 echo "
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -132,7 +64,7 @@ metadata:
 spec:
   secretName: kong-wildcard-crt
   issuerRef:
-    kind: Issuer
+    kind: ClusterIssuer
     name: vault-issuer
   commonName: '*.example.com'
   dnsNames:
