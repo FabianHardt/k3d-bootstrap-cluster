@@ -5,7 +5,7 @@ metadata:
   namespace: demo
   annotations:
     ingress.kubernetes.io/ssl-redirect: "false"
-    cert-manager.io/issuer: "vault-issuer"
+    cert-manager.io/cluster-issuer: "vault-issuer"
     cert-manager.io/common-name: "httpbin.example.com"
 spec:
   ingressClassName: nginx

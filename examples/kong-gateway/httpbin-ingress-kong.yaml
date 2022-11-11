@@ -6,9 +6,10 @@ metadata:
   annotations:
     ingress.kubernetes.io/ssl-redirect: "false"
 spec:
-  ingressClassName: nginx
+  ingressClassName: kong
   rules:
-  - http:
+  - host: httpbin.example.com
+    http:
       paths:
       - path: /
         pathType: Prefix

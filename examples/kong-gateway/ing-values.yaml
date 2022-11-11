@@ -1,0 +1,71 @@
+---
+# -----------------------------------------------------------------------------
+# Deployment parameters
+# -----------------------------------------------------------------------------
+
+deployment:
+  kong:
+    enabled: false
+
+namespace: "kong-cp"
+
+# -----------------------------------------------------------------------------
+# Ingress Controller parameters
+# -----------------------------------------------------------------------------
+
+# Workaround - status endpoint needs some time :-(
+# readinessProbe for Kong pods
+readinessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 100
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 20
+
+# livenessProbe for Kong pods
+livenessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 200
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 30
+
+replicaCount: 1
+
+ingressController:
+  enabled: true
+  podAnnotations:
+    kuma.io/sidecar-injection: disabled
+  env:
+    #controller_log_level: "debug"
+    kong_admin_url: "http://kong-kong-admin.kong-cp.svc.cluster.local:8001"
+    kong_admin_tls_skip_verify: true
+    kong_admin_token:
+      valueFrom:
+        secretKeyRef:
+          name: kong-config-secret
+          key: kong_admin_password
+    # kong_workspace: "demo"
+    publish_service: "kong-dp/kong-kong-proxy"
+  ingressClass: kong
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage:
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80

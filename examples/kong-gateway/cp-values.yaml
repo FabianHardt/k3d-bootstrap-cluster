@@ -1,0 +1,230 @@
+---
+namespace: "kong-cp"
+
+# -----------------------------------------------------------------------------
+# Kong parameters
+# -----------------------------------------------------------------------------
+env:
+  #log_level: debug
+  role: "control_plane"
+  cluster_cert: /etc/secrets/kong-wildcard-crt/tls.crt
+  cluster_cert_key: /etc/secrets/kong-wildcard-crt/tls.key
+  cluster_ca_cert: /etc/secrets/kong-wildcard-crt/ca.crt
+  cluster_mtls: pki
+  cluster_server_name: "kong-cluster.example.com"
+  cluster_telemetry_server_name: "kong-clustertelemetry.example.com"
+  database: "postgres"
+  admin_gui_url: https://kong-manager.example.com:8081
+  admin_api_uri: https://kong-admin.example.com:8081
+  portal_api_url: https://kong-portalapi.example.com:8081
+  password:
+    valueFrom:
+      secretKeyRef:
+        name: kong-config-secret
+        key: kong_admin_password
+
+image:
+  # Kong Enterprise
+  repository: kong/kong-gateway
+  tag: "3.0.1.0"
+
+# Workaround - status endpoint needs some time :-(
+# readinessProbe for Kong pods
+readinessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 100
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 20
+
+# livenessProbe for Kong pods
+livenessProbe:
+  httpGet:
+    path: "/status"
+    port: status
+    scheme: HTTP
+  initialDelaySeconds: 200
+  timeoutSeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 30
+
+admin:
+  enabled: true
+  type: ClusterIP
+
+  http:
+    enabled: true
+
+  tls:
+    enabled: false
+    parameters: []
+
+  ingress:
+    enabled: true
+    ingressClassName: kong
+    tls: kong-admin-crt
+    hostname: kong-admin.example.com
+    annotations:
+      cert-manager.io/cluster-issuer: "vault-issuer"
+      cert-manager.io/common-name: "kong-admin.example.com"
+
+status:
+  enabled: true
+  http:
+    enabled: true
+
+  tls:
+    enabled: false
+    parameters: []
+
+cluster:
+  enabled: true
+  type: ClusterIP
+
+  tls:
+    enabled: true
+
+  ingress:
+    enabled: false
+    ingressClassName: kong
+    hostname: kong-cluster.example.com
+    annotations:
+      cert-manager.io/cluster-issuer: "vault-issuer"
+      cert-manager.io/common-name: "kong-cluster.example.com"
+
+proxy:
+  enabled: false
+
+secretVolumes:
+  - kong-wildcard-crt
+
+# -----------------------------------------------------------------------------
+# Ingress Controller parameters
+# -----------------------------------------------------------------------------
+ingressController:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# Postgres sub-chart parameters
+# -----------------------------------------------------------------------------
+postgresql:
+  enabled: true
+  auth:
+    username: "kong"
+    database: "kong"
+    password: "kong"
+    postgresPassword: "kong"
+  service:
+    port: 5432
+
+# -----------------------------------------------------------------------------
+# Miscellaneous parameters
+# -----------------------------------------------------------------------------
+
+waitImage:
+  enabled: true
+  pullPolicy: IfNotPresent
+
+autoscaling:
+  enabled: false
+  minReplicas: 3
+  maxReplicas: 5
+  targetCPUUtilizationPercentage:
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+# -----------------------------------------------------------------------------
+# Kong Enterprise parameters
+# -----------------------------------------------------------------------------
+
+enterprise:
+  enabled: true
+  license_secret: kong-enterprise-license
+  vitals:
+    enabled: true
+  portal:
+    enabled: true
+  rbac:
+    enabled: true
+    admin_gui_auth: basic-auth
+    session_conf_secret: kong-config-secret
+
+manager:
+  enabled: true
+  type: ClusterIP
+
+  http:
+    enabled: true
+
+  tls:
+    enabled: false
+
+  ingress:
+    enabled: true
+    tls: kong-manager-crt
+    ingressClassName: kong
+    hostname: kong-manager.example.com
+    annotations:
+      cert-manager.io/cluster-issuer: "vault-issuer"
+      cert-manager.io/common-name: "kong-manager.example.com"
+
+portal:
+  enabled: true
+  type: ClusterIP
+
+  http:
+    enabled: true
+
+  tls:
+    enabled: false
+
+  ingress:
+    enabled: true
+    ingressClassName: kong
+    tls: kong-portal-crt
+    hostname: kong-portal.example.com
+    annotations:
+      cert-manager.io/cluster-issuer: "vault-issuer"
+      cert-manager.io/common-name: "kong-portal.example.com"
+
+portalapi:
+  enabled: true
+  type: ClusterIP
+
+  http:
+    enabled: true
+
+  tls:
+    enabled: false
+
+  ingress:
+    enabled: true
+    ingressClassName: kong
+    tls: kong-portalapi-crt
+    hostname: kong-portalapi.example.com
+    annotations:
+      cert-manager.io/cluster-issuer: "vault-issuer"
+      cert-manager.io/common-name: "kong-portalapi.example.com"
+
+clustertelemetry:
+  enabled: true
+  type: ClusterIP
+
+  tls:
+    enabled: true
+
+  ingress:
+    enabled: true
+    ingressClassName: kong
+    hostname: kong-clustertelemetry.example.com
+    annotations: {}

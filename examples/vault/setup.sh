@@ -54,39 +54,39 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubern
     kubernetes_host="https://$K8S_IP:443"
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubernetes/role/issuer \
     bound_service_account_names=issuer \
-    bound_service_account_namespaces=demo \
+    bound_service_account_namespaces=cert-manager \
     policies=pki \
     ttl=20m
 
 helm upgrade --install cert-manager jetstack/cert-manager --set installCRDs=true --namespace cert-manager --create-namespace
 
 # cert-manager configuration
-kubectl -n demo delete serviceaccount issuer || true
-kubectl -n demo create serviceaccount issuer
+kubectl -n cert-manager delete serviceaccount issuer || true
+kubectl -n cert-manager create serviceaccount issuer
 
 K8S_VERSION=$(kubectl get nodes k3d-${CLUSTER_NAME}-agent-0 -o json | jq .status.nodeInfo.kubeletVersion | cut -c 3-6)
 if [ $K8S_VERSION \> 1.23 ]
 then
-kubectl -n demo delete secret issuer-token-lmzpj || true
+kubectl -n cert-manager delete secret issuer-token-secret || true
 echo "K8s version is greater than 1.24!"
 echo 'apiVersion: v1
 kind: Secret
 metadata:
-  name: issuer-token-lmzpj
-  namespace: demo
+  name: issuer-token-secret
+  namespace: cert-manager
   annotations:
     kubernetes.io/service-account.name: issuer
 type: kubernetes.io/service-account-token' | kubectl apply -f -
 fi
 
-ISSUER_SECRET_REF=$(kubectl get secrets -n demo --output=json | jq -r '.items[].metadata | select(.name|startswith("issuer-token-")).name')
+ISSUER_SECRET_REF=$(kubectl get secrets -n cert-manager --output=json | jq -r '.items[].metadata | select(.name|startswith("issuer-token-")).name')
 echo $ISSUER_SECRET_REF
 echo "
 apiVersion: cert-manager.io/v1
-kind: Issuer
+kind: ClusterIssuer
 metadata:
   name: vault-issuer
-  namespace: demo
+  namespace: cert-manager
 spec:
   vault:
     server: http://vault.vault.svc.cluster.local:8200
@@ -108,6 +108,7 @@ metadata:
 spec:
   secretName: example-com-tls
   issuerRef:
+    kind: ClusterIssuer
     name: vault-issuer
   commonName: www.example.com
   dnsNames:

@@ -83,6 +83,9 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](examples/vault/README.md)
 - External Secrets Operator (ESO) - https://github.com/external-secrets/external-secrets
   - Installation is documented here [README](examples/external-secrets/README.md)
+- Kong API Gateway (Enterprise) - https://github.com/Kong/kong
+  - Installation is documented here [README](examples/kong-gateway/README.md)
+
 
 
 ### Troubleshooting

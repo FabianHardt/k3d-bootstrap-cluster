@@ -2,8 +2,8 @@
 set -o errexit
 
 source ../../helpers.sh
-# include Hashicorp Vault setup first
 
+# include Hashicorp Vault setup first
 VAULT_EXISTS=$(kubectl get ns vault || echo "false")
 
 if [ "$VAULT_EXISTS" == "false" ]
