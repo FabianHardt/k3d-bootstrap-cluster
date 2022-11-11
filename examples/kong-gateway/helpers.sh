@@ -5,7 +5,10 @@ LICENSE_FILE=license.json
 installControlPlane()
 {
 # Preconditions
-kubectl create namespace kong-cp
+kubectl create namespace kong-cp || true
+
+kubectl delete secret kong-config-secret -n kong-cp || true
+
 kubectl create secret generic kong-config-secret -n kong-cp \
     --from-literal=portal_session_conf='{"storage":"kong","secret":"superfhasecret","cookie_name":"portal_session","cookie_samesite":"off","cookie_secure":false}' \
     --from-literal=admin_gui_session_conf='{"storage":"kong","secret":"superfhasecret","cookie_name":"admin_session","cookie_samesite":"off","cookie_secure":false}' \
@@ -21,16 +24,8 @@ else
   kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
 fi
 
-# Enterprise mode
-
 kubectl -n kong-cp delete serviceaccount issuer || true
 kubectl -n kong-cp create serviceaccount issuer
-
-kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubernetes/role/issuer \
-    bound_service_account_names=issuer \
-    bound_service_account_namespaces=kong-cp \
-    policies=pki \
-    ttl=20m
 
 echo 'apiVersion: v1
 kind: Secret
@@ -40,6 +35,8 @@ metadata:
   annotations:
     kubernetes.io/service-account.name: issuer
 type: kubernetes.io/service-account-token' | kubectl apply -f -
+
+kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubernetes/role/issuer bound_service_account_names=issuer bound_service_account_namespaces=kong-cp,kong-dp policies=pki ttl=20m
 
 ISSUER_SECRET_REF=$(kubectl get secrets -n kong-cp --output=json | jq -r '.items[].metadata | select(.name|startswith("issuer-token-")).name')
 
@@ -82,7 +79,7 @@ helm upgrade --install kong kong/kong --values cp-values.yaml --namespace kong-c
 installDataPlane()
 {
 # Preconditions
-kubectl create namespace kong-dp
+kubectl create namespace kong-dp || true
 
 if [ -f "$LICENSE_FILE" ]; then
   echo "$LICENSE_FILE exists. Using it!"
@@ -95,12 +92,6 @@ fi
 kubectl -n kong-dp delete serviceaccount issuer || true
 kubectl -n kong-dp create serviceaccount issuer
 
-kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubernetes/role/issuer \
-    bound_service_account_names=issuer \
-    bound_service_account_namespaces=kong-dp \
-    policies=pki \
-    ttl=20m
-
 echo 'apiVersion: v1
 kind: Secret
 metadata:
@@ -109,6 +100,8 @@ metadata:
   annotations:
     kubernetes.io/service-account.name: issuer
 type: kubernetes.io/service-account-token' | kubectl apply -f -
+
+kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubernetes/role/issuer bound_service_account_names=issuer bound_service_account_namespaces=kong-cp,kong-dp policies=pki ttl=20m
 
 ISSUER_SECRET_REF=$(kubectl get secrets -n kong-dp --output=json | jq -r '.items[].metadata | select(.name|startswith("issuer-token-")).name')
 echo $ISSUER_SECRET_REF

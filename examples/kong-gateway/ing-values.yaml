@@ -53,7 +53,7 @@ ingressController:
         secretKeyRef:
           name: kong-config-secret
           key: kong_admin_password
-    kong_workspace: "demo"
+    # kong_workspace: "demo"
     publish_service: "kong-dp/kong-kong-proxy"
   ingressClass: kong
 
