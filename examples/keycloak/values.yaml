@@ -1,0 +1,22 @@
+---
+service:
+  type: ClusterIP
+
+auth:
+  adminUser: admin
+  adminPassword: password
+
+image:
+  registry: quay.io
+  repository: keycloak/keycloak
+  tag: 19.0.3
+
+args: ["start-dev"]
+
+keycloakConfigCli:
+  enabled: true
+  existingConfigmap: "keycloak-config-realm"
+  image:
+    registry: docker.io
+    repository: bitnami/keycloak-config-cli
+    tag: 5.5.0-debian-11-r4
