@@ -12,7 +12,7 @@ kubectl delete secret kong-config-secret -n kong-cp || true
 kubectl create secret generic kong-config-secret -n kong-cp \
     --from-literal=portal_session_conf='{"storage":"kong","secret":"superfhasecret","cookie_name":"portal_session","cookie_samesite":"off","cookie_secure":false}' \
     --from-literal=admin_gui_session_conf='{"storage":"kong","secret":"superfhasecret","cookie_name":"admin_session","cookie_samesite":"off","cookie_secure":false}' \
-    --from-literal=pg_host="enterprise-postgresql.kong.svc.cluster.local" \
+    --from-literal=pg_host="enterprise-postgresql.kong-cp.svc.cluster.local" \
     --from-literal=kong_admin_password=kong \
     --from-literal=password=kong
 

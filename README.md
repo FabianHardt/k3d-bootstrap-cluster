@@ -85,6 +85,9 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](examples/external-secrets/README.md)
 - Kong API Gateway (Enterprise) - https://github.com/Kong/kong
   - Installation is documented here [README](examples/kong-gateway/README.md)
+- Keycloak (for demo purposes with Kong) - https://github.com/keycloak/keycloak
+  - Installation is documented here [README](examples/keycloak/README.md)
+
 
 
 
