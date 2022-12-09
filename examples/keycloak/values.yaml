@@ -13,8 +13,17 @@ image:
 
 args: ["start-dev"]
 
+# proxy: edge
+
+ingress:
+  enabled: true
+  ingressClassName: "kong"
+  pathType: Prefix
+  hostname: keycloak.example.com
+
 keycloakConfigCli:
   enabled: true
+  backoffLimit: 10
   existingConfigmap: "keycloak-config-realm"
   image:
     registry: docker.io
