@@ -1,13 +1,12 @@
 #!/bin/bash
 set -o errexit
 
-#helm repo add kuma https://kumahq.github.io/charts
-#helm repo update
-#
-#helm upgrade --install kuma kuma/kuma \
-#    --values kuma-cp-values.yaml \
-#    --namespace kuma-cp --create-namespace
+helm repo add kuma https://kumahq.github.io/charts
+helm repo update
 
+helm upgrade --install kuma kuma/kuma \
+    --values kuma-cp-values.yaml \
+    --namespace kuma-cp --create-namespace
 
 echo "
 apiVersion: networking.k8s.io/v1
