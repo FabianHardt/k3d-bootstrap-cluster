@@ -1,0 +1,349 @@
+global:
+  image:
+    registry: "docker.io/kumahq"
+    tag:
+  imagePullSecrets: []
+
+patchSystemNamespace: true
+
+installCrdsOnUpgrade:
+  enabled: true
+  imagePullSecrets: []
+
+controlPlane:
+  extraLabels: {}
+  logLevel: "info"
+  mode: "standalone"
+
+  zone:
+  kdsGlobalAddress: ""
+  replicas: 1
+  podAnnotations: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+  nodeSelector:
+    kubernetes.io/os: linux
+
+  podDisruptionBudget:
+    enabled: false
+    maxUnavailable: 1
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - '{{ include "kuma.name" . }}'
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - '{{ .Release.Name }}'
+              - key: app
+                operator: In
+                values:
+                  - '{{ include "kuma.name" . }}-control-plane'
+          topologyKey: kubernetes.io/hostname
+
+  topologySpreadConstraints:
+  injectorFailurePolicy: Fail
+
+  service:
+    enabled: true
+    name:
+    type: ClusterIP
+    annotations: { }
+
+  ingress:
+    enabled: false
+    ingressClassName:
+    hostname:
+    annotations: {}
+    path: /
+    pathType: ImplementationSpecific
+
+  globalZoneSyncService:
+    enabled: true
+    type: LoadBalancer
+    loadBalancerIP:
+    annotations: { }
+    port: 5685
+
+  defaults:
+    skipMeshCreation: false
+
+  automountServiceAccountToken: true
+
+  lifecycle: {}
+
+  terminationGracePeriodSeconds: 30
+
+  tls:
+    general:
+      secretName: ""
+      caSecretName: ""
+      caBundle: ""
+    apiServer:
+      secretName: ""
+      clientCertsSecretName: ""
+    kdsGlobalServer:
+      secretName: ""
+      create: false
+      cert: ""
+      key: ""
+    kdsZoneClient:
+      secretName: ""
+      create: false
+      cert: ""
+
+  image:
+    pullPolicy: IfNotPresent
+    repository: "kuma-cp"
+    tag:
+
+  secrets:
+
+  envVars: { }
+
+  extraConfigMaps: [ ]
+
+  extraSecrets: [ ]
+
+  webhooks:
+    validator:
+      additionalRules: ""
+    ownerReference:
+      additionalRules: ""
+
+  hostNetwork: false
+
+  podSecurityContext: {}
+
+  containerSecurityContext: {} #for overlapping securityContext between pod and container, the container's value take precedence
+
+cni:
+  enabled: false
+  chained: false
+  netDir: /etc/cni/multus/net.d
+  binDir: /var/lib/cni/bin
+  confName: kuma-cni.conf
+  logLevel: info
+  nodeSelector:
+    kubernetes.io/os: linux
+  podAnnotations: { }
+
+  image:
+    registry: "docker.io/kumahq"
+    repository: "install-cni"
+    tag: "0.0.10"
+    imagePullPolicy: IfNotPresent
+
+  delayStartupSeconds: 0
+
+  experimental:
+    image:
+      repository: "kuma-cni"
+      tag:
+
+    imageEbpf:
+      registry: "docker.io/kumahq"
+      repository: "merbridge"
+      tag: "0.8.5"
+
+  podSecurityContext: {}
+
+  containerSecurityContext: {} # for overlapping securityContext between pod and container, the container's value take precedence
+
+dataPlane:
+  image:
+    repository: "kuma-dp"
+    pullPolicy: IfNotPresent
+    tag:
+
+  initImage:
+    repository: "kuma-init"
+    tag:
+
+ingress:
+  enabled: false
+  extraLabels: {}
+  drainTime: 30s
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+
+  lifecycle: {}
+
+  terminationGracePeriodSeconds: 30
+
+  autoscaling:
+    enabled: false
+
+    minReplicas: 2
+    maxReplicas: 5
+
+    targetCPUUtilizationPercentage: 80
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+  service:
+    enabled: true
+    type: LoadBalancer
+    loadBalancerIP:
+    annotations: { }
+    port: 10001
+    nodePort:
+  annotations: { }
+  podAnnotations: { }
+  nodeSelector:
+    kubernetes.io/os: linux
+
+  podDisruptionBudget:
+    enabled: false
+    maxUnavailable: 1
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - '{{ include "kuma.name" . }}'
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - '{{ .Release.Name }}'
+              - key: app
+                operator: In
+                values:
+                  - kuma-ingress
+          topologyKey: kubernetes.io/hostname
+  topologySpreadConstraints:
+
+  podSecurityContext: {}
+  containerSecurityContext: {}
+
+egress:
+  enabled: false
+  extraLabels: {}
+  drainTime: 30s
+  replicas: 1
+
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+  service:
+    enabled: true
+    type: ClusterIP
+    loadBalancerIP:
+    annotations: { }
+    port: 10002
+    nodePort:
+  annotations: { }
+  podAnnotations: { }
+  nodeSelector:
+    kubernetes.io/os: linux
+
+  podDisruptionBudget:
+    enabled: false
+    maxUnavailable: 1
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - '{{ include "kuma.name" . }}'
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - '{{ .Release.Name }}'
+              - key: app
+                operator: In
+                values:
+                  - kuma-egress
+          topologyKey: kubernetes.io/hostname
+
+  topologySpreadConstraints:
+
+  podSecurityContext: {}
+  containerSecurityContext: {}
+
+kumactl:
+  image:
+    repository: kumactl
+    tag:
+
+kubectl:
+  image:
+    registry: kumahq
+    repository: kubectl
+    tag: "v1.20.15"
+hooks:
+  nodeSelector:
+    kubernetes.io/os: linux
+  podSecurityContext: {}
+  containerSecurityContext: {}
+
+experimental:
+  gatewayAPI: false
+  cni: false
+  transparentProxy: false
+  ebpf:
+    enabled: false
+    instanceIPEnvVarName: INSTANCE_IP
+    bpffsPath: /sys/fs/bpf
+    cgroupPath: /sys/fs/cgroup
+    tcAttachIface: ""
+    programsSourcePath: /kuma/ebpf
+
+plugins:
+  policies:
+    - meshaccesslogs
+    - meshtraces
+    - meshtrafficpermissions
+
