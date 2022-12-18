@@ -17,7 +17,7 @@ You can test Kong Ingress by adding the following entry to your */etc/hosts* fil
 
 ### Installation
 
-You can start the installation of Kong API Gateway with the included shell script:
+You can start the installation of Kuma service mesh with the included shell script:
 
 ```bash
 cd examples/kuma-mesh
