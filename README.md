@@ -77,7 +77,6 @@ There are some samples included, which are not deployed automatically. They are 
 Samples included under the **examples** folder:
 
 - ExternalDNS - https://github.com/kubernetes-sigs/external-dns
-
   - Intallation is documented here [README](examples/external-dns/README.md)
 - Vault https://github.com/hashicorp/vault & cert-manager https://github.com/cert-manager/cert-manager
   - Installation is documented here [README](examples/vault/README.md)
@@ -87,8 +86,8 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](examples/kong-gateway/README.md)
 - Keycloak (for demo purposes with Kong) - https://github.com/keycloak/keycloak
   - Installation is documented here [README](examples/keycloak/README.md)
-
-
+- Kuma Service Mesh - https://github.com/kumahq/kuma
+  - Installation is documented here [README](examples/kuma-mesh/README.md)
 
 
 ### Troubleshooting
