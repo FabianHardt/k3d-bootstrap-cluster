@@ -85,7 +85,8 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](examples/external-secrets/README.md)
 - Kong API Gateway (Enterprise) - https://github.com/Kong/kong
   - Installation is documented here [README](examples/kong-gateway/README.md)
-
+- Kuma Service Mesh - https://github.com/kumahq/kuma
+  - Installation is documented here [README](examples/kuma-mesh/README.md)
 
 
 ### Troubleshooting
