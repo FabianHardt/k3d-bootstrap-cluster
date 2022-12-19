@@ -19,3 +19,11 @@ fi
 
 cd ../kuma-mesh/
 configureMeshForKongIngress
+
+
+DEMO_DEPLOYED=$(kubectl get ns demo || echo "false")
+if [ "$DEMO_DEPLOYED" != "false" ]; then
+kubectl annotate ns demo kuma.io/sidecar-injection="enabled" --overwrite
+sleep 2 # wait to register the namespace as mesh-component by the controlplane
+kubectl -n demo delete po --all
+fi
