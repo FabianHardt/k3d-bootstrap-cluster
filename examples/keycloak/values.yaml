@@ -17,6 +17,7 @@ args: ["start-dev"]
 
 ingress:
   enabled: true
+  tls: true
   ingressClassName: "kong"
   pathType: Prefix
   hostname: keycloak.example.com
