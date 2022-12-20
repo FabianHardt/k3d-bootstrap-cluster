@@ -45,13 +45,13 @@ ports:
   - port: 8081:443
     nodeFilters:
       - loadbalancer
-  - port: 30001:30001
+  - port: <RANDOM PORT>:30001
     nodeFilters:
       - agents:*
-  - port: 30053:30053/udp
+  - port: <RANDOM PORT>:30053/udp
     nodeFilters:
       - servers:*
-  - port: 30053:30053/tcp
+  - port: <RANDOM PORT>:30053/tcp
     nodeFilters:
       - servers:*
 registries:
