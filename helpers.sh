@@ -28,7 +28,6 @@ configValues ()
 {
   DEMO_DOMAIN=127-0-0-1.nip.io
   REGISTRY_NAME=registry
-  REGISTRY_PORT=5002
   REGISTRY_FLAG=$(isYes "Yes")
   read_value "Cluster Name" "${CLUSTER_NAME}"
   CLUSTER_NAME=${INPUT_VALUE}
@@ -40,6 +39,10 @@ configValues ()
   HTTP_PORT=${INPUT_VALUE}
   read_value "LoadBalancer HTTPS Port" "${HTTPS_PORT}"
   HTTPS_PORT=${INPUT_VALUE}
+  read_value "Registry Port" "${REGISTRY_PORT}"
+  REGISTRY_PORT=${INPUT_VALUE}
+  HTTPBIN_NODEPORT=$((30000 + $RANDOM % 40000))
+  EXTDNS_NODEPORT=$((30000 + $RANDOM % 40000))
   read_value "Install NGINX Ingress? ${yes_no}" "${NGINX_FLAG}"
   NGINX_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install Calico Network? ${yes_no}" "${CALICO_FLAG}"
@@ -73,8 +76,8 @@ bottom
 
 uninstallCluster()
 {
-  top "Deleting all existing clusters"
-  k3d cluster delete --all
+  top "Deleting ${CLUSTER_NAME} cluster if already exists"
+  k3d cluster delete $CLUSTER_NAME || true
   bottom
 }
 
