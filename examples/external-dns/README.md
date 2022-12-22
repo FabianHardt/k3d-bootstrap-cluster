@@ -72,6 +72,8 @@ metadata:
 After successful installation DNS is exposed to your host via NodePort 30053. You can test the DNS resoltion directly on your host:
 
 ```bash
-dig @localhost httpbin.example.com -p 30053
+# Look for the right port (external Docker port) in your Docker environment
+# "docker ps", then look for loadbalancer container
+dig @localhost httpbin.example.com -p <RANDOM PORT>
 ```
 
