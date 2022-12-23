@@ -1,4 +1,4 @@
-# Sample K3d Cluster
+# K3d Bootstrap Cluster
 
 This project creates an k3d demo cluster. It comes with an interactive setup, which allows you to setup a Kubernetes cluster for demo and showcase purposes.
 
@@ -12,6 +12,8 @@ This project creates an k3d demo cluster. It comes with an interactive setup, wh
 ### Sample Cluster incl. demo deployments
 
 The creation of the cluster and a simple sample deployment from the local registry can be called up as follows:
+
+:warning:  If a cluster with the same name already exists, it will be deleted before recreating it!
 
 ```bash
 sudo bash create-sample.sh
@@ -45,13 +47,13 @@ ports:
   - port: 8081:443
     nodeFilters:
       - loadbalancer
-  - port: 30001:30001
+  - port: <RANDOM PORT>:30001
     nodeFilters:
       - agents:*
-  - port: 30053:30053/udp
+  - port: <RANDOM PORT>:30053/udp
     nodeFilters:
       - servers:*
-  - port: 30053:30053/tcp
+  - port: <RANDOM PORT>:30053/tcp
     nodeFilters:
       - servers:*
 registries:
