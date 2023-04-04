@@ -341,9 +341,8 @@ experimental:
     tcAttachIface: ""
     programsSourcePath: /kuma/ebpf
 
-plugins:
-  policies:
-    - meshaccesslogs
-    - meshtraces
-    - meshtrafficpermissions
-
+# plugins:
+#   policies:
+#     meshaccesslogs: {}
+#     meshtraces: {}
+#     meshtrafficpermissions: {}
