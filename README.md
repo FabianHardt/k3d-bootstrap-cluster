@@ -89,6 +89,8 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](examples/kong-gateway/README.md)
 - Kuma Service Mesh - https://github.com/kumahq/kuma
   - Installation is documented here [README](examples/kuma-mesh/README.md)
+- Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
+  - Installation is documented here [README](examples/confluent/README.md)
 
 
 ### Troubleshooting
