@@ -4,7 +4,9 @@ This project creates an k3d demo cluster. It comes with an interactive setup, wh
 
 ### Preconditions
 
-- You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.4.6/#installation
+- You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.5.1/#installation
+  - Min k3d version: v5.5.1
+
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
 
