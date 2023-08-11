@@ -16,8 +16,9 @@ The creation of the cluster and a simple sample deployment from the local regist
 :warning:  If a cluster with the same name already exists, it will be deleted before recreating it!
 
 ```bash
-sudo bash create-sample.sh
-# sudo is needed, cause the script adds an dummy entry for the registry to /etc/hosts
+bash create-sample.sh
+# sudo rights are needed, cause the script adds an dummy entry for the registry to /etc/hosts
+# you will be asked for your users password
 ```
 
 You will be asked some questions about the cluster deployment, like numer of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. It's also possible to deploy **NGINX Ingress Controller** instead of Traefik.
