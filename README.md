@@ -31,6 +31,8 @@ The httpbin demo is deployed from the **local running container registry**, just
 
 *Optional (K8s > 1.24 needed):* Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/#/login). The nessecary login token you can get with the following command: `kubectl -n k8s-dashboard describe secrets dashboard-admin-token | grep token:`
 
+After running this script you can visit the Demo HTTPBin Application by typing `127-0-0-1.nip.io:<Load-Balancer-Port>` in your Browser. If you are using an other `DEMO_DOMAIN` you can use `<Cluster-Name>.<DEMO_DOMAIN>:<Load-Balancer-Port>` (e.q. `demo.example.com:8080`).
+
 ### More details
 
 The default parameters look like this:
@@ -98,4 +100,4 @@ Samples included under the **examples** folder:
 
 This k3d cluster deployment uses **nip.io** DNS resolution for demo purposes. DNS names for registry and demo Ingresses are resolved to local IP. Example: registry.127-0-0-1.nip.io is resolved to static IP 127.0.0.1.
 
-**Caution:** In some cases your network-router doesn't allow to resolve IPs of your own, or private IP address range. As a workaround you can change the ENV variable **DEMO_DOMAIN** in *helpers.sh*. This will automatically add the registry entry in your local /etc/hosts file. But it doesn't add any sample Ingress hostnames to your local /etc/hosts, you have to do this manually.
+**Caution:** In some cases your network-router doesn't allow to resolve IPs of your own, or private IP address range. As a workaround you can change the ENV variable `DEMO_DOMAIN` in *helpers.sh*. This will automatically add the registry entry in your local /etc/hosts file. But it doesn't add any sample Ingress hostnames to your local /etc/hosts, you have to do this manually.
