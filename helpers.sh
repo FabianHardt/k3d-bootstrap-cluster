@@ -106,6 +106,7 @@ deploySamples()
   # Deploy demo app
   kubectl apply -n demo -f httpbin/httpbin.yaml
   if (($NGINX_FLAG == 1)); then
+      sleep 20;
       kubectl apply -n demo -f httpbin/sample-ingress-nginx.yaml
   else
       kubectl apply -n demo -f httpbin/sample-ingress.yaml
