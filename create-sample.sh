@@ -14,6 +14,8 @@ HTTPBIN_SAMPLE_FLAG=Yes
 
 source helpers.sh
 
+export K3D_FIX_DNS=1
+
 # Configuration of cluster
 configValues
 if [ $DEMO_DOMAIN != "127-0-0-1.nip.io" ]
