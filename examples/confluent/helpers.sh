@@ -1,8 +1,8 @@
 #!/bin/bash
 
 installConfluentOperator() {
-helm upgrade --install confluent-operator \
-  --values confluent-operator-values.yaml \
+  helm upgrade --install confluent-operator \
+  --values confluent-for-kubernetes.yaml \
   --namespace confluent --create-namespace \
   confluentinc/confluent-for-kubernetes
 
@@ -15,6 +15,14 @@ installConfluentPlatform() {
   kubectl wait pod -n confluent $(kubectl -n confluent get pods --no-headers -o custom-columns=":metadata.name") --for condition=Ready --timeout=180s
 
   kubectl apply -f https://raw.githubusercontent.com/confluentinc/confluent-kubernetes-examples/master/quickstart-deploy/confluent-platform.yaml
+
+  echo "wait for kafka, zookeeper and connect to be up and running"
+  echo "NOTE THAT THIS MAY TAKE A WHILE! (15 mins timeout)"
+  kubectl wait pod -n confluent $(kubectl -n confluent get pods --no-headers -o custom-columns=":metadata.name") --for condition=Ready --timeout=900s
+
+  echo "wait for ksqldb, schemaregistry and controlcenter to be up and running"
+  echo "NOTE THAT THIS MAY ALSO TAKE A WHILE! (15 mins timeout)"
+  kubectl wait pod -n confluent $(kubectl -n confluent get pods --no-headers -o custom-columns=":metadata.name") --for condition=Ready --timeout=900s
 }
 
 
