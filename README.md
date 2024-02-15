@@ -9,7 +9,7 @@ This project creates an k3d demo cluster. It comes with an interactive setup, wh
 
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
-
+- For Confluent (Kafka/Schema-Registry) it'S necessary to assign 16GB RAM to Docker, otherwise it won't deploy successfully
 
 ### Sample Cluster incl. demo deployments
 
@@ -94,6 +94,8 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](examples/kong-gateway/README.md)
 - Kuma Service Mesh - https://github.com/kumahq/kuma
   - Installation is documented here [README](examples/kuma-mesh/README.md)
+- Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
+  - Installation is documented here [README](examples/confluent/README.md)
 
 
 ### Troubleshooting
