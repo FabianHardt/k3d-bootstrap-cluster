@@ -13,3 +13,7 @@ kubectl apply -n policy-reporter -f policy-reporter-ingress.yml
 
 # Deploy samples - Pod Security Policies
 kubectl apply -k https://github.com/kyverno/policies/pod-security
+
+# Example for mutating policy
+kubectl apply -f role-ns-admin.yml
+kubectl apply -f label-ns-policy.yml
