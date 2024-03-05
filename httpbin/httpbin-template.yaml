@@ -40,6 +40,13 @@ spec:
       containers:
       - image: ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
         name: httpbin
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+              - "ALL"
         resources:
           requests:
             memory: "64Mi"
