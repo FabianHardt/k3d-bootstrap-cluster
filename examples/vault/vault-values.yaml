@@ -11,3 +11,11 @@ server:
     hosts:
       - host: vault.127-0-0-1.nip.io
         paths: []
+  statefulSet:
+    securityContext:
+      container:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: "RuntimeDefault"

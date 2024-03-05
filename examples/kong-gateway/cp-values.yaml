@@ -121,6 +121,20 @@ postgresql:
     postgresPassword: "kong"
   service:
     port: 5432
+  primary:
+    containerSecurityContext:
+      enabled: true
+      seLinuxOptions: null
+      runAsUser: 1001
+      runAsGroup: 0
+      runAsNonRoot: true
+      privileged: false
+      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+      seccompProfile:
+        type: "RuntimeDefault"
 
 # -----------------------------------------------------------------------------
 # Miscellaneous parameters
