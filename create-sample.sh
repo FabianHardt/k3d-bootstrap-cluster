@@ -15,6 +15,7 @@ HTTPBIN_SAMPLE_FLAG=Yes
 source helpers.sh
 
 export K3D_FIX_DNS=1
+export K3D_FIX_MOUNTS=1
 
 # Configuration of cluster
 configValues
