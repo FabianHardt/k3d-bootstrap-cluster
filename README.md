@@ -2,6 +2,10 @@
 
 This project creates an k3d demo cluster. It comes with an interactive setup, which allows you to setup a Kubernetes cluster for demo and showcase purposes.
 
+## Documentation
+
+The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k3d-bootstrap-cluster/). 
+
 ### Preconditions
 
 - You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.5.1/#installation
