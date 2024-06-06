@@ -22,7 +22,6 @@ export default {
                 "This license lets you use and share this software for free, with a trial-length time limit on commercial use."
         },
         nav: [
-           //  { text: "Guide", ...imageDocs() },
             {
                 text: ref,
                 items: [

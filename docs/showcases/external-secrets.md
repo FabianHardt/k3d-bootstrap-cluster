@@ -17,7 +17,7 @@ bash setup.sh
 
 The following components are installed with the *setup.sh*:
 
-- All components described in this [README](examples/vault/README.md)
+- All components described in this [section](/showcases/vault.md)
 - Key/Value Store is configured on Vault server
   - An example secret is added to new KV secret store (hello/world)
 - ESO is deployed via HELM Chart to new namespace *external-secrets*
