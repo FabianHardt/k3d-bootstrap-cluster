@@ -84,19 +84,19 @@ There are some samples included, which are not deployed automatically. They are 
 Samples included under the **examples** folder:
 
 - ExternalDNS - https://github.com/kubernetes-sigs/external-dns
-  - Installation is documented here [README](examples/external-dns/README.md)
+  - Installation is documented here [README](docs/showcases/external-dns.md)
 - Vault https://github.com/hashicorp/vault & cert-manager https://github.com/cert-manager/cert-manager
-  - Installation is documented here [README](examples/vault/README.md)
+  - Installation is documented here [README](docs/showcases/vault.md)
 - External Secrets Operator (ESO) - https://github.com/external-secrets/external-secrets
-  - Installation is documented here [README](examples/external-secrets/README.md)
+  - Installation is documented here [README](docs/showcases/external-secrets.md)
 - Kong API Gateway (Enterprise) - https://github.com/Kong/kong
-  - Installation is documented here [README](examples/kong-gateway/README.md)
+  - Installation is documented here [README](docs/showcases/kong.md)
 - Kuma Service Mesh - https://github.com/kumahq/kuma
-  - Installation is documented here [README](examples/kuma-mesh/README.md)
+  - Installation is documented here [README](docs/showcases/kuma.md)
 - Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
-  - Installation is documented here [README](examples/confluent/README.md)
+  - Installation is documented here [README](docs/showcases/confluent.md)
 - Kyverno - https://github.com/kyverno/kyverno
-  - Installation is documented here [README](examples/kyverno/README.md)
+  - Installation is documented here [README](docs/showcases/kyverno.md)
 
 
 
