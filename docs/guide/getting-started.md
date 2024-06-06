@@ -1,12 +1,14 @@
-# K3d Bootstrap Cluster
+<script setup>
+import { useData } from 'vitepress'
 
-This project creates an k3d demo cluster. It comes with an interactive setup, which allows you to setup a Kubernetes cluster for demo and showcase purposes.
+const { theme } = useData()
+</script>
 
-## Documentation
+# Getting started
 
-The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k3d-bootstrap-cluster/). 
+This section shows the simplest scenario to start using k3d-bootstrap-cluster.
 
-### Preconditions
+## Preconditions
 
 - You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.5.1/#installation
   - Min k3d version: v5.5.1
@@ -15,11 +17,13 @@ The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
 - For Confluent (Kafka/Schema-Registry) it'S necessary to assign 16GB RAM to Docker, otherwise it won't deploy successfully
 
-### Sample Cluster incl. demo deployments
+## Create cluster
 
 The creation of the cluster and a simple sample deployment from the local registry can be called up as follows:
 
-:warning:  If a cluster with the same name already exists, it will be deleted before recreating it!
+::: warning
+If a cluster with the same name already exists, it will be deleted before recreating it!
+:::
 
 ```bash
 bash create-sample.sh
@@ -37,7 +41,7 @@ The httpbin demo is deployed from the **local running container registry**, just
 
 After running this script you can visit the Demo HTTPBin Application by typing `127-0-0-1.nip.io:<Load-Balancer-Port>` in your Browser. If you are using an other `DEMO_DOMAIN` you can use `<Cluster-Name>.<DEMO_DOMAIN>:<Load-Balancer-Port>` (e.q. `demo.example.com:8080`).
 
-### More details
+## More details
 
 The default parameters look like this:
 
@@ -80,32 +84,3 @@ options:
     wait: true
 
 ```
-
-## Manual examples
-
-There are some samples included, which are not deployed automatically. They are useful to demonstrate the usage of some commonly used Kubernetes tools.
-
-Samples included under the **examples** folder:
-
-- ExternalDNS - https://github.com/kubernetes-sigs/external-dns
-  - Installation is documented here [README](docs/showcases/external-dns.md)
-- Vault https://github.com/hashicorp/vault & cert-manager https://github.com/cert-manager/cert-manager
-  - Installation is documented here [README](docs/showcases/vault.md)
-- External Secrets Operator (ESO) - https://github.com/external-secrets/external-secrets
-  - Installation is documented here [README](docs/showcases/external-secrets.md)
-- Kong API Gateway (Enterprise) - https://github.com/Kong/kong
-  - Installation is documented here [README](docs/showcases/kong.md)
-- Kuma Service Mesh - https://github.com/kumahq/kuma
-  - Installation is documented here [README](docs/showcases/kuma.md)
-- Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
-  - Installation is documented here [README](docs/showcases/confluent.md)
-- Kyverno - https://github.com/kyverno/kyverno
-  - Installation is documented here [README](docs/showcases/kyverno.md)
-
-
-
-### Troubleshooting
-
-This k3d cluster deployment uses **nip.io** DNS resolution for demo purposes. DNS names for registry and demo Ingresses are resolved to local IP. Example: registry.127-0-0-1.nip.io is resolved to static IP 127.0.0.1.
-
-**Caution:** In some cases your network-router doesn't allow to resolve IPs of your own, or private IP address range. As a workaround you can change the ENV variable `DEMO_DOMAIN` in *helpers.sh*. This will automatically add the registry entry in your local /etc/hosts file. But it doesn't add any sample Ingress hostnames to your local /etc/hosts, you have to do this manually.

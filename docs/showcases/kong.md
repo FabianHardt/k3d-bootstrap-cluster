@@ -32,7 +32,7 @@ bash setup.sh
 
 The following components are installed with the *setup.sh*:
 
-- Hashicorp Vault - HELM Chart / cert-manager HELM Chart (see [README](../vault/README.md))
+- Hashicorp Vault - HELM Chart / cert-manager HELM Chart (see [README](/showcases/vault.md))
 - Creates a wildcard certificate for domain *example.com* - used for Kong Proxy
 - Kong HELM Chart is used to deploy Kong API Gateway - https://github.com/Kong/charts/
   - Installs Kong Control Plane instance to namespace *kong-cp*
