@@ -45,6 +45,18 @@ top "Update kubeconfig"
   kubectl cluster-info
 bottom
 
+# add taint to server nodes
+for (( i=0; i<$SERVERS; i++ ))
+do
+    kubectl taint nodes k3d-${CLUSTER_NAME}-server-${i} node-role.kubernetes.io/master:NoSchedule
+done
+
+# add role labels to worker nodes
+for (( i=0; i<$AGENTS; i++ ))
+do
+    kubectl label nodes k3d-${CLUSTER_NAME}-agent-${i} node-role.kubernetes.io/worker=true node-role.kubernetes.io/data-plane=true
+done
+
 if (($HTTPBIN_SAMPLE_FLAG == 1)); then
   top "Provisioning Persistent Volume"
   cat <<EOF | kubectl apply -f -
