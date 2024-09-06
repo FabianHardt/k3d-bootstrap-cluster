@@ -1,0 +1,68 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: kong
+  labels:
+    kuma.io/sidecar-injection: enabled
+---
+kind: GatewayClass
+apiVersion: gateway.networking.k8s.io/v1beta1
+metadata:
+  name: kong
+spec:
+  controllerName: konghq.com/gateway-operator
+  parametersRef:
+    group: gateway-operator.konghq.com
+    kind: GatewayConfiguration
+    name: kong
+    namespace: kong
+---
+kind: GatewayConfiguration
+apiVersion: gateway-operator.konghq.com/v1beta1
+metadata:
+  name: kong
+  namespace: kong
+spec:
+  dataPlaneOptions:
+    deployment:
+      podTemplateSpec:
+        spec:
+          containers:
+            - name: proxy
+              image: kong:3.7.0
+              readinessProbe:
+                initialDelaySeconds: 1
+                periodSeconds: 1
+  controlPlaneOptions:
+    deployment:
+      podTemplateSpec:
+        spec:
+          containers:
+            - name: controller
+              image: kong/kubernetes-ingress-controller:3.2.0
+              env:
+                - name: CONTROLLER_LOG_LEVEL
+                  value: debug
+---
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1beta1
+metadata:
+  name: kong
+  namespace: kong
+  annotations:
+    cert-manager.io/cluster-issuer: "vault-issuer"
+    cert-manager.io/common-name: "kong-gateway.example.com"
+spec:
+  gatewayClassName: kong
+  listeners:
+    - name: https
+      hostname: "*.example.com"
+      port: 443
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: example-com-tls
