@@ -74,5 +74,6 @@ export default {
                 ]
             }
         ]
-    }
+    },
+    ignoreDeadLinks: true
 }
