@@ -75,5 +75,8 @@ export default {
             }
         ]
     },
-    ignoreDeadLinks: true
+    ignoreDeadLinks: [
+        // ignore all localhost links
+        /^https?:\/\/localhost/,
+    ]
 }
