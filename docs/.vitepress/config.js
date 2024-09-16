@@ -62,7 +62,8 @@ export default {
                     { text: "Kong API Gateway", link: "/showcases/kong.html" },
                     { text: "Kuma Service Mesh", link: "/showcases/kuma.html" },
                     { text: "Confluent for Kubernetes", link: "/showcases/confluent.html" },
-                    { text: "Kyverno", link: "/showcases/kyverno.html" }
+                    { text: "Kyverno", link: "/showcases/kyverno.html" },
+                    { text: "KOng Gateway Operator", link: "/showcases/kong-gateway-operator.html" }
                 ]
             },
             {
