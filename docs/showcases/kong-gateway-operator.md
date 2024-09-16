@@ -34,7 +34,7 @@ The following components are installed with the *setup.sh*:
 - Configures Kong Gateway instance
   - Creates Namespace Kong
   - Creates GatewayClass, GatewayConfiguration and Gateway resources
-  - After that Kong Gateway is available in the namespace *kong* and can be called with the URL: <a href="https://localhost:8081">https://localhost:8081</a>
+  - After that Kong Gateway is available in the namespace *kong* and can be called with the URL: https://localhost:8081
 - Creates HTTPRoute resource for the HTTPBin example
   - After that you can open *httpbin* with the URL: https://httpbin.example.com:8081/httpbin-api/v1/anything
 
