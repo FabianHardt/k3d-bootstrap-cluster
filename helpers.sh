@@ -108,8 +108,8 @@ deploySamples()
   if (($NGINX_FLAG == 1)); then
       top "Waiting for Nginx ingress to become available"
       sleep 10;
-      kubectl wait job/helm-install-ingress-nginx -n kube-system --for=condition=complete --timeout=200s
-      kubectl wait deployment -n ingress-nginx ingress-nginx-controller --for condition=Available=True --timeout=200s
+      kubectl wait job/helm-install-ingress-nginx -n kube-system --for=condition=complete --timeout=600s
+      kubectl wait deployment -n ingress-nginx ingress-nginx-controller --for condition=Available=True --timeout=600s
       kubectl apply -n demo -f httpbin/sample-ingress-nginx.yaml
       bottom
   else
