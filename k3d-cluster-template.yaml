@@ -6,7 +6,7 @@ metadata:
 servers: ${SERVERS}
 agents: ${AGENTS}
 # Optional set explicit K3s (Kubernetes) version
-# image: rancher/k3s:v1.25.3-k3s1
+# image: rancher/k3s:v1.30.2-k3s2
 ports:
   - port: ${HTTP_PORT}:80
     nodeFilters:
@@ -62,6 +62,9 @@ $(if [ $NGINX_FLAG == 1 ];
           - servers:*"; fi)
       $(if [ $CALICO_FLAG == 1 ];
       then echo -e "- arg: --flannel-backend=none
+        nodeFilters:
+          - servers:*
+      - arg: --disable-network-policy
         nodeFilters:
           - servers:*"; fi)
 $(echo '### end generated section ###')
