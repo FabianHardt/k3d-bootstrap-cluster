@@ -1,0 +1,32 @@
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: allow-dns
+spec:
+  selector: all()
+  namespaceSelector: "projectcalico.org/namespace notin {'kube-system', 'kube-public', 'kube-node-lease'}"
+  types:
+    - Ingress
+    - Egress
+  ingress:
+    - action: Allow
+      protocol: UDP
+      destination:
+        ports:
+          - 53
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - 53
+  egress:
+    - action: Allow
+      protocol: UDP
+      destination:
+        ports:
+          - 53
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - 53

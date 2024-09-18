@@ -1,0 +1,22 @@
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-egress-nginx
+  namespace: ingress-nginx
+spec:
+  selector: all()
+  types:
+    - Ingress
+    - Egress
+  ingress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - '80'
+  egress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - '80'
