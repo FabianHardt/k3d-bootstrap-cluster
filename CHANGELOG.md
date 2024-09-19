@@ -9,15 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Calico NetworkPolicy examples by [@FabianHardt](https://github.com/FabianHardt/) in [#30](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/30)
 
 ### Changed
+
+- the main [README.md](https://github.com/FabianHardt/k3d-bootstrap-cluster/blob/main/README.md) file was updated
 
 
 ### Removed
 
 ### Fixed
 
-## [0.5.0](https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.4.4...v0.5.0) - 2024-06-27
+## [0.6.0] - 2024-09-16
+
+### Added
+
+* Add example for installing and using Kong Gateway Operator by [@svenbernhardt](https://github.com/svenbernhardt) in [#29](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/29)
+
+### Fixed
+
+- Vitapress docs now allow invalid HTML links to localhost
+
+## [0.5.0] - 2024-06-27
 
 ### Added
 * Add documentation by @PhilKuer in https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/27

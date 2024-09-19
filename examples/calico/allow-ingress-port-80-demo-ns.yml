@@ -7,8 +7,6 @@ spec:
   selector: all()
   ingress:
   - action: Allow
-    # source:
-    #   namespaceSelector: "testlabel == 'test'"
     protocol: TCP
     destination:
       ports:

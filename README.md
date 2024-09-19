@@ -95,12 +95,17 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/external-secrets.md)
 - Kong API Gateway (Enterprise) - https://github.com/Kong/kong
   - Installation is documented here [README](docs/showcases/kong.md)
+- Kong Gateway Operator - https://docs.konghq.com/gateway-operator/latest/
+  - Installation is documented here [README](docs/showcases/kong-gateway-operator.md)
 - Kuma Service Mesh - https://github.com/kumahq/kuma
   - Installation is documented here [README](docs/showcases/kuma.md)
 - Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
   - Installation is documented here [README](docs/showcases/confluent.md)
 - Kyverno - https://github.com/kyverno/kyverno
   - Installation is documented here [README](docs/showcases/kyverno.md)
+- Calico NetworkPolicies - https://github.com/projectcalico/calico
+  - Manal steps and demo are documented here [README](https://github.com/projectcalico/calico)
+
 
 
 
