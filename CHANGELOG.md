@@ -9,16 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Calico NetworkPolicy examples by [@FabianHardt](https://github.com/FabianHardt/) in [#30](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/30)
-
 ### Changed
-
-- the main [README.md](https://github.com/FabianHardt/k3d-bootstrap-cluster/blob/main/README.md) file was updated
 
 
 ### Removed
 
 ### Fixed
+
+## [0.7.0] - 2024-09-19
+
+### Added
+
+* Update k3d cluster template by [@FabianHardt](https://github.com/FabianHardt) in [#30](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/30)
+* Calico NetworkPolicy examples by [@FabianHardt](https://github.com/FabianHardt/) in [#30](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/30)
+
+### Changed
+
+- The main [README.md](https://github.com/FabianHardt/k3d-bootstrap-cluster/blob/main/README.md) file was updated
 
 ## [0.6.0] - 2024-09-16
 
