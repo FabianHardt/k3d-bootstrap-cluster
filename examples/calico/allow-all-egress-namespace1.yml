@@ -1,0 +1,11 @@
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-all-egress-namespace1
+  namespace: namespace1
+spec:
+  selector: all()
+  egress:
+  - action: Allow
+  types:
+  - Egress

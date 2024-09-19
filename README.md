@@ -8,8 +8,8 @@ The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k
 
 ### Preconditions
 
-- You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.5.1/#installation
-  - Min k3d version: v5.5.1
+- You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.7.4/#installation
+  - Min k3d version: v5.7.4
 
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
@@ -95,12 +95,17 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/external-secrets.md)
 - Kong API Gateway (Enterprise) - https://github.com/Kong/kong
   - Installation is documented here [README](docs/showcases/kong.md)
+- Kong Gateway Operator - https://docs.konghq.com/gateway-operator/latest/
+  - Installation is documented here [README](docs/showcases/kong-gateway-operator.md)
 - Kuma Service Mesh - https://github.com/kumahq/kuma
   - Installation is documented here [README](docs/showcases/kuma.md)
 - Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
   - Installation is documented here [README](docs/showcases/confluent.md)
 - Kyverno - https://github.com/kyverno/kyverno
   - Installation is documented here [README](docs/showcases/kyverno.md)
+- Calico NetworkPolicies - https://github.com/projectcalico/calico
+  - Manal steps and demo are documented here [README](https://github.com/projectcalico/calico)
+
 
 
 
