@@ -4,7 +4,7 @@ This demo installs the official Keycloak Operator and configures a test installa
 
 ## Precondition
 
-Cluster has to be deployed with the *NGINX Ingress Controller* and the *HTTPBin example*.
+Cluster has to be deployed with the *NGINX Ingress Controller* and the *Vault example*.
 
 ### DNS preparation
 
@@ -15,6 +15,7 @@ You can test Kong Ingress by adding the following entry to your */etc/hosts* fil
 [...]
 
 127.0.0.1		keycloak.example.com
+127.0.0.1		apps.example.com
 ```
 ### Installation
 
@@ -37,3 +38,12 @@ docker ps --format '{{json .}}' | jq -r '.Ports | split(",") | map(select(contai
 The right port is **43809** in this example. You can define this port once while cluster creation.
 
 The **default login credentials** are printed at the end of the script execution.
+
+
+## Configuration
+
+Please add a new client to keycloak with following parameter:
+
+`Client ID`: test-client
+`Valid redirect URIs`: https://apps.example.com:8081 , http://localhost:4200
+`Web origins`: '+'

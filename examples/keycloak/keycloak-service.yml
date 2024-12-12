@@ -8,7 +8,7 @@ metadata:
 spec:
   ports:
   - name: https
-    port: 8443
+    port: 41939
     targetPort: 8443
     nodePort: 30001
   selector:

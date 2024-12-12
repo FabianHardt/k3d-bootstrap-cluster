@@ -39,6 +39,7 @@ kubectl -n keycloak create secret generic keycloak-db-secret \
   --from-literal=password=testpassword
 
 kubectl -n keycloak apply -f keycloak-service.yml
+kubectl -n keycloak apply -f keycloak.yml
 
 printf 'Keycloak is ready, here is your admin username:\n'
 kubectl -n keycloak get secret test-keycloak-initial-admin -o jsonpath='{.data.username}' | base64 --decode

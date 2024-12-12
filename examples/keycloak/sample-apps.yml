@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: keycloak
+data:
+  authconfig.json: |-
+    {
+      "issuer": "https://keycloak.example.com:41939/realms/master",
+      "redirectUri": "https://apps.example.com:8081",
+      "clientId": "test-client",
+      "responseType": "code",
+      "scope": "openid profile email offline_access",
+      "showDebugInformation": true
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: frontend
+  name: frontend
+  namespace: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - image: registry-keycloak.127-0-0-1.nip.io:5002/angular-frontend:latest
+        name: angular-frontend
+        ports:
+          - containerPort: 8080
+        volumeMounts:
+        - name: config-volume
+          mountPath: /usr/share/nginx/html/authconfig.json
+          subPath: authconfig.json
+      volumes:
+      - name: config-volume
+        configMap:
+          name: frontend-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: backend
+  name: backend
+  namespace: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      hostAliases:
+      - ip: "10.43.142.162"
+        hostnames:
+        - "keycloak.example.com"
+      containers:
+      - image: registry-keycloak.127-0-0-1.nip.io:5002/spring-backend:0.0.1-SNAPSHOT
+        name: backend
+        env:
+          - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+            value: https://keycloak.example.com:41939/realms/master
+        ports:
+          - containerPort: 9090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: backend
+  name: backend
+  namespace: keycloak
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: backend
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: keycloak
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "vault-issuer"
+    cert-manager.io/common-name: "apps.example.com"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - apps.example.com
+    secretName: apps-tls-secret
+  rules:
+  - host: apps.example.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: frontend
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend
+  namespace: keycloak
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "vault-issuer"
+    cert-manager.io/common-name: "apps.example.com"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - apps.example.com
+    secretName: apps-tls-secret
+  rules:
+  - host: apps.example.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: backend
+            port:
+              number: 8080
+        path: /api(/|$)(.*)
+        pathType: Prefix
+
