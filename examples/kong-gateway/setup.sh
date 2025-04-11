@@ -30,12 +30,12 @@ fi
 cd ../kong-gateway/
 
 # Install Kong Controlplane
-installControlPlane
+#installControlPlane
 
 # Install Kong Dataplane
-installDataPlane
+#installDataPlane
 
 # Install Kong Ingress controller
 installIngressController
 
-kubectl apply -n demo -f httpbin-ingress-kong.yaml
+kubectl apply -n demo -f httproute-httpbin-svc.yaml

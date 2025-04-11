@@ -1,81 +1,43 @@
 #!/bin/bash
 
 LICENSE_FILE=license.json
+LICENSE_FILE_CONTENT={}
 
-installControlPlane()
+installIngressController()
 {
+# Install Gateway API CRDs
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+
 # Preconditions
-kubectl create namespace kong-cp || true
+kubectl create namespace kong || true
 
-kubectl delete secret kong-config-secret -n kong-cp || true
+kubectl delete secret kong-config-secret -n kong || true
 
-kubectl create secret generic kong-config-secret -n kong-cp \
+kubectl create secret generic kong-config-secret -n kong \
     --from-literal=portal_session_conf='{"storage":"kong","secret":"superfhasecret","cookie_name":"portal_session","cookie_samesite":"off","cookie_secure":false}' \
     --from-literal=admin_gui_session_conf='{"storage":"kong","secret":"superfhasecret","cookie_name":"admin_session","cookie_samesite":"off","cookie_secure":false}' \
     --from-literal=pg_host="enterprise-postgresql.kong.svc.cluster.local" \
     --from-literal=kong_admin_password=kong \
     --from-literal=password=kong
 
-if [ -f "$LICENSE_FILE" ]; then
-  echo "$LICENSE_FILE exists. Using it!"
-  kubectl create secret generic kong-enterprise-license --from-file=license=$LICENSE_FILE -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
-else
-  echo "$LICENSE_FILE does not exists. Using free version!"
-  kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-cp --dry-run=client -o yaml | kubectl apply -f -
-fi
+kubectl apply -f gateway-class.yaml
+kubectl apply -f gateway.yaml
 
-echo "
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: kong-wildcard-crt
-  namespace: kong-cp
-spec:
-  secretName: kong-wildcard-crt
-  issuerRef:
-    kind: ClusterIssuer
-    name: vault-issuer
-  commonName: '*.example.com'
-  dnsNames:
-    - '*.example.com'" | kubectl apply -f -
-
-helm upgrade --install kong kong/kong --values cp-values.yaml --namespace kong-cp --create-namespace
-}
-
-installDataPlane()
-{
-# Preconditions
-kubectl create namespace kong-dp || true
+helm upgrade --install kong kong/ingress --values values.yaml --namespace kong
 
 if [ -f "$LICENSE_FILE" ]; then
   echo "$LICENSE_FILE exists. Using it!"
-  kubectl create secret generic kong-enterprise-license --from-file=license=$LICENSE_FILE -n kong-dp --dry-run=client -o yaml | kubectl apply -f -
-else
-  echo "$LICENSE_FILE does not exists. Using free version!"
-  kubectl create secret generic kong-enterprise-license --from-literal=license="'{}'" -n kong-dp --dry-run=client -o yaml | kubectl apply -f -
+  LICENSE_FILE_CONTENT=$(cat $LICENSE_FILE)
 fi
 
 echo "
-apiVersion: cert-manager.io/v1
-kind: Certificate
+apiVersion: configuration.konghq.com/v1alpha1
+kind: KongLicense
 metadata:
-  name: kong-wildcard-crt
-  namespace: kong-dp
-spec:
-  secretName: kong-wildcard-crt
-  issuerRef:
-    kind: ClusterIssuer
-    name: vault-issuer
-  commonName: '*.example.com'
-  dnsNames:
-    - '*.example.com'" | kubectl apply -f -
+ name: kong-license
+rawLicenseString: '$(echo $LICENSE_FILE_CONTENT)'
+" | kubectl apply -f -
 
-helm upgrade --install kong kong/kong --values dp-values.yaml --namespace kong-dp --create-namespace
-}
-
-installIngressController()
-{
-echo 'Wait for kong controlplane deployment to become ready'
-kubectl wait deployment -n kong-cp kong-kong --for condition=Available=True --timeout=300s
-helm upgrade --install kong-ing kong/kong --values ing-values.yaml --namespace kong-cp --create-namespace
+echo "Waiting for Kong Ingress Controller Pods to be ready..."
+kubectl -n kong wait --for=condition=Available=true --timeout=120s deployment/kong-gateway
 }
