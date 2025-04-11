@@ -3,8 +3,6 @@ kind: HTTPRoute
 metadata:
   annotations:
     konghq.com/strip-path: "true"
-    cert-manager.io/cluster-issuer: vault-issuer
-    cert-manager.io/common-name: kong-manager.example.com
   name: kong-manager-route
   namespace: kong
 spec:
@@ -29,8 +27,6 @@ kind: HTTPRoute
 metadata:
   annotations:
     konghq.com/strip-path: "true"
-    cert-manager.io/cluster-issuer: vault-issuer
-    cert-manager.io/common-name: kong-admin.example.com
   name: kong-admin-route
   namespace: kong
 spec:
