@@ -2,9 +2,12 @@ controller:
   env:
     log_level: debug
   ingressController:
-    image:
+    adminApi:
+      tls:
+        client:
+          enabled: true
       repository: kong/kubernetes-ingress-controller
-      tag: "3.4.4"
+      tag: 3.4.4
     
 
 gateway:
@@ -19,18 +22,21 @@ gateway:
     maxReplicas: 2
   image:
     repository: kong/kong-gateway
-    tag: "3.10.0.0"
+    tag: 3.10.0.0
   serviceMonitor:
     enabled: true
     labels:
       release: promstack
+
   proxy:
     type: LoadBalancer
+
   manager:
     enabled: true
     type: ClusterIP
     http:
       enabled: true
+
   admin:
     enabled: true
     type: ClusterIP

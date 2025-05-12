@@ -4,7 +4,6 @@ metadata:
   name: kong
   namespace: kong
   annotations:
-    #cert-manager.io/cluster-issuer: kong-wildcard-crt
     cert-manager.io/cluster-issuer: vault-issuer
     cert-manager.io/common-name: "*.example.com"
 spec:
