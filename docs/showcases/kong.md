@@ -17,8 +17,6 @@ You can test Kong Ingress by adding the following entry to your */etc/hosts* fil
 127.0.0.1		httpbin.example.com
 127.0.0.1		kong-manager.example.com
 127.0.0.1		kong-admin.example.com
-127.0.0.1		kong-portal.example.com
-127.0.0.1		kong-portalapi.example.com
 ```
 
 ### Installation
@@ -32,19 +30,19 @@ bash setup.sh
 
 The following components are installed with the *setup.sh*:
 
+- Creates Kubernetes Gateway API CRDs
 - Hashicorp Vault - HELM Chart / cert-manager HELM Chart (see [README](/showcases/vault.md))
-- Creates a wildcard certificate for domain *example.com* - used for Kong Proxy
-- Kong HELM Chart is used to deploy Kong API Gateway - https://github.com/Kong/charts/
-  - Installs Kong Control Plane instance to namespace *kong-cp*
-  - Installs Kong Data Plane instance to namespace *kong-dp*
-  - Installs Kong Ingress Controller instance to namespace *kong-cp*
-- Update *httpbin* Ingress - now uses Kong Ingress Class
-  - After that you can open *httpbin* with the URL: https://httpbin.example.com:8081.
-    When you have added the Root CA to your system Truststore, or your browser the connection should be secured correctly. You can find the Root CA certificate under: `examples/vault/root-certs/rootCACert.pem`.
+- [Kong Ingress HELM Chart](https://github.com/Kong/charts/tree/main/charts/ingress) is used to deploy Kong API Gateway
+  - Installs Kong Control Plane (Kong Ingress Controller, KIC) instance to namespace *kong*
+  - Installs 2 Kong Gateway node (Gateway Proxies) instances to namespace *kong*
+- Creates Gateway API Configuration
+  - *Gateway Class* Ressource for Kong Gateway
+  - *Gateway* configuration for Kong Gateway instance (KIC and Gateway Proxies)
+- Creates *httpbin* HttpRoute
+  - After that you can open *httpbin* with the URL: <https://httpbin.example.com:8081>.
+    When you have added the Root CA to your system Truststore, or your browser the connection should be secured correctly.
+    You can find the Root CA certificate under: `examples/vault/root-certs/rootCACert.pem`.
 
 ### Show Kong Manager
 
-If your local DNS settings (/etc/hosts) are set correctly, you can open the Kong Manager UI in your browser: https://kong-manager.example.com:8081
-
-The **default login credentials** are:
-User: "kong_admin" / password: "kong"
+If your local DNS settings (/etc/hosts) are set correctly, you can open the Kong Manager UI in your browser: <https://kong-manager.example.com:8081>

@@ -1,0 +1,47 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  annotations:
+    konghq.com/strip-path: "true"
+  name: kong-manager-route
+  namespace: kong
+spec:
+  parentRefs:
+  - name: kong
+    namespace: kong
+    kind: Gateway
+  hostnames:
+  - kong-manager.example.com
+  rules:
+  - backendRefs:
+    - name: kong-gateway-manager
+      kind: Service
+      port: 8002
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  annotations:
+    konghq.com/strip-path: "true"
+  name: kong-admin-route
+  namespace: kong
+spec:
+  parentRefs:
+  - name: kong
+    namespace: kong
+    kind: Gateway
+  hostnames:
+  - kong-admin.example.com
+  rules:
+  - backendRefs:
+    - name: kong-gateway-admin
+      kind: Service
+      port: 8001
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

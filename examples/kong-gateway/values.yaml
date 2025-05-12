@@ -1,0 +1,44 @@
+controller:
+  env:
+    log_level: debug
+  ingressController:
+    adminApi:
+      tls:
+        client:
+          enabled: true
+      repository: kong/kubernetes-ingress-controller
+      tag: 3.4.4
+    
+
+gateway:
+  env:
+    log_level: debug
+    admin_gui_url: https://kong-manager.example.com:8081
+    admin_api_uri: https://kong-admin.example.com:8081
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 2
+  image:
+    repository: kong/kong-gateway
+    tag: 3.10.0.0
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: promstack
+
+  proxy:
+    type: LoadBalancer
+
+  manager:
+    enabled: true
+    type: ClusterIP
+    http:
+      enabled: true
+
+  admin:
+    enabled: true
+    type: ClusterIP
+    http:
+      enabled: true

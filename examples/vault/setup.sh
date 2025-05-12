@@ -58,7 +58,12 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubern
     policies=pki \
     ttl=20m
 
-helm upgrade --install cert-manager jetstack/cert-manager --set crds.enabled=true --namespace cert-manager --create-namespace
+helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace \
+  --set crds.enabled=true \
+  --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
+  --set config.kind="ControllerConfiguration" \
+  --set config.enableGatewayAPI=true \
+  --set config.featureGates.ServerSideApply=true
 
 # cert-manager configuration
 kubectl -n cert-manager delete serviceaccount issuer || true

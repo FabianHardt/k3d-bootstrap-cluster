@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: kong
+  namespace: kong
+  annotations:
+    cert-manager.io/cluster-issuer: vault-issuer
+    cert-manager.io/common-name: "*.example.com"
+spec:
+  gatewayClassName: kong
+  listeners:
+  - name: kong-https
+    hostname: "*.example.com"
+    port: 443
+    protocol: HTTPS
+    allowedRoutes:
+      namespaces:
+        from: All
+    tls:
+      mode: Terminate
+      certificateRefs:
+        - name: example-com-tls
