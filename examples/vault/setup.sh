@@ -59,7 +59,7 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubern
     ttl=20m
 
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace \
-  --set installCRDs=true \
+  --set crds.enabled=true \
   --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
   --set config.kind="ControllerConfiguration" \
   --set config.enableGatewayAPI=true \
