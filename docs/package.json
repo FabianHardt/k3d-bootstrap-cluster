@@ -12,6 +12,6 @@
     "url": "git+ssh://git@github.com:FabianHardt/k3d-sample-cluster.git"
   },
   "devDependencies": {
-    "vitepress": "^1.2.3"
+    "vitepress": "^1.5.0"
   }
 }
