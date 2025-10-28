@@ -4,12 +4,12 @@ This project creates an k3d demo cluster. It comes with an interactive setup, wh
 
 ## Documentation
 
-The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k3d-bootstrap-cluster/). 
+The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k3d-bootstrap-cluster/).
 
 ### Preconditions
 
-- You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.7.4/#installation
-  - Min k3d version: v5.7.4
+- You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.8.3/#installation
+  - Min k3d version: v5.8.3
 
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
