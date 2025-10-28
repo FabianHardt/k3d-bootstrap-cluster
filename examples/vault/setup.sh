@@ -58,6 +58,9 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubern
     policies=pki \
     ttl=20m
 
+echo "\nInstall Gateway API extension"
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
+
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace \
   --set crds.enabled=true \
   --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \

@@ -23,7 +23,7 @@ kubectl delete ingress -n demo httpbin
 fi
 
 echo "\nInstall Gateway API extension"
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
 
 echo "\nUpdating cert-manager to work with Gateway API"
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager \

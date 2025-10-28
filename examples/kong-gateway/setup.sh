@@ -6,7 +6,7 @@ source helpers.sh
 helm repo add kong https://charts.konghq.com
 helm repo update
 
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
 
 # include Hashicorp Vault setup first
 VAULT_EXISTS=$(kubectl get ns vault || echo "false")
