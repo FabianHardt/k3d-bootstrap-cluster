@@ -43,8 +43,8 @@ configValues ()
   REGISTRY_PORT=${INPUT_VALUE}
   HTTPBIN_NODEPORT=$((30000 + $RANDOM % 40000))
   EXTDNS_NODEPORT=$((30000 + $RANDOM % 40000))
-  read_value "Install NGINX Ingress? ${yes_no}" "${NGINX_FLAG}"
-  NGINX_FLAG=$(isYes ${INPUT_VALUE})
+  read_value "Install HAProxy Ingress? ${yes_no}" "${HAPROXY_FLAG}"
+  HAPROXY_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install Calico Network? ${yes_no}" "${CALICO_FLAG}"
   CALICO_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install K8s Dashboard? ${yes_no}" "${DASHBOARD_FLAG}"
@@ -105,12 +105,12 @@ deploySamples()
 
   # Deploy demo app
   kubectl apply -n demo -f httpbin/httpbin.yaml
-  if (($NGINX_FLAG == 1)); then
-      top "Waiting for Nginx ingress to become available"
+  if (($HAPROXY_FLAG == 1)); then
+      top "Waiting for HAProxy ingress to become available"
       sleep 10;
-      kubectl wait job/helm-install-ingress-nginx -n kube-system --for=condition=complete --timeout=600s
-      kubectl wait deployment -n ingress-nginx ingress-nginx-controller --for condition=Available=True --timeout=600s
-      kubectl apply -n demo -f httpbin/sample-ingress-nginx.yaml
+      kubectl wait job/helm-install-haproxy-ingress -n kube-system --for=condition=complete --timeout=600s
+      kubectl wait deployment -n ingress-haproxy haproxy-ingress --for condition=Available=True --timeout=600s
+      kubectl apply -n demo -f httpbin/sample-ingress-haproxy.yaml
       bottom
   else
       kubectl apply -n demo -f httpbin/sample-ingress.yaml

@@ -1,8 +1,8 @@
 apiVersion: projectcalico.org/v3
 kind: NetworkPolicy
 metadata:
-  name: allow-ingress-egress-nginx
-  namespace: ingress-nginx
+  name: allow-ingress-egress-haproxy
+  namespace: namespace1
 spec:
   selector: all()
   types:

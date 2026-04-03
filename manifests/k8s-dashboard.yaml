@@ -45,7 +45,7 @@ spec:
   valuesContent: |-
     ingress:
       enabled: true
-      className: "nginx"
+      className: "haproxy"
       hosts:
         - dashboard.127-0-0-1.nip.io
 

@@ -13,7 +13,7 @@ installConfluentPlatform
 KONG_EXISTS=$(kubectl get ns kong-cp || echo "false")
 if [ "$KONG_EXISTS" == "false" ]
 then
-  createIngressResource nginx
+  createIngressResource haproxy
 else
   createIngressResource kong
 fi
