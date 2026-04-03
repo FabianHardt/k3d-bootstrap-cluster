@@ -6,7 +6,7 @@ metadata:
   annotations:
     ingress.kubernetes.io/ssl-redirect: "false"
 spec:
-  ingressClassName: nginx
+  ingressClassName: haproxy
   rules:
   - http:
       paths:

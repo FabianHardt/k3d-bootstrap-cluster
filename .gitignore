@@ -1,4 +1,7 @@
 .DS_Store
+CLAUDE.md
+apiserver.crt
+apiserver.key
 k3d-cluster.yaml
 httpbin/httpbin.yaml
 examples/external-dns/values.yaml

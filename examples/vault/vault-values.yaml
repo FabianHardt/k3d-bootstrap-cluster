@@ -4,7 +4,7 @@ injector:
 server:
   ingress:
     enabled: true
-    ingressClassName: "nginx"
+    ingressClassName: "haproxy"
     annotations:
       cert-manager.io/issuer: "vault-issuer"
       cert-manager.io/common-name: "vault.127-0-0-1.nip.io"

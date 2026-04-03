@@ -12,8 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Changed example for installing and using Kong Gateway resp. Kong Ingress Controller to use [Gateway Discovery Topology](https://docs.konghq.com/kubernetes-ingress-controller/latest/production/deployment-topologies/gateway-discovery/) by [@svenbernhardt](https://github.com/svenbernhardt) in [#35](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/35)
+* Replaced NGINX Ingress Controller with HAProxy Ingress Controller (chart `haproxy-ingress` v0.14.7). Updated all samples, examples and documentation accordingly.
 
 ### Removed
+
+* `manifests/nginx-helm.yaml` replaced by `manifests/haproxy-helm.yaml`
+* `httpbin/sample-ingress-nginx.yaml` replaced by `httpbin/sample-ingress-haproxy.yaml`
+* `examples/calico/allow-ingress-egress-nginx.yml` replaced by `examples/calico/allow-ingress-egress-haproxy.yml`
 
 ### Fixed
 

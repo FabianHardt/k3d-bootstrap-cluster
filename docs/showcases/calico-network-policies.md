@@ -102,8 +102,8 @@ Have fun trying out the Calico Policies!
 **Optional - allow traffic to httpbin app from outside:**
 
 ```bash
-# Allow ingress and egress on port 80 in ingress-nginx namespace
-kubectl apply -f allow-ingress-egress-nginx.yml
+# Allow ingress and egress on port 80 in ingress-haproxy namespace
+kubectl apply -f allow-ingress-egress-haproxy.yml
 
 # now it should be possible again to visit localhost:8080 :-)
 ```

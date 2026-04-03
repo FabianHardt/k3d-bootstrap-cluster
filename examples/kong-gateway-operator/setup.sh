@@ -11,14 +11,13 @@ else
 echo "Skipping vault deployment. Already there."
 fi
 
-# Remove NGINX Ingress - will be replaced with Kong Gateway resp. an Operator-based Gateway
-NGINX_EXISTS=$(kubectl get ns ingress-nginx || echo "false")
-if [ "$NGINX_EXISTS" == "false" ]
+# Remove HAProxy Ingress - will be replaced with Kong Gateway resp. an Operator-based Gateway
+HAPROXY_EXISTS=$(kubectl get ns ingress-haproxy 2>/dev/null || echo "false")
+if [ "$HAPROXY_EXISTS" == "false" ]
 then
-echo "Skipping deletion of NGINX ingress..."
+echo "Skipping deletion of HAProxy ingress..."
 else
-kubectl delete -f ../../manifests/nginx-helm.yaml || true
-kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission || true
+kubectl delete -f ../../manifests/haproxy-helm.yaml || true
 kubectl delete ingress -n demo httpbin
 fi
 

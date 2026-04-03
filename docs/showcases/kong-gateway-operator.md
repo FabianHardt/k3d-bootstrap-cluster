@@ -2,7 +2,7 @@
 
 ### Precondition
 
-Cluster has to be deployed with the *NGINX Ingress Controller* and the *HTTPBin example*.
+Cluster has to be deployed with the *HAProxy Ingress Controller* and the *HTTPBin example*.
 **DNS preparation**
 
 You can test Kong Ingress by adding the following entry to your */etc/hosts* file:

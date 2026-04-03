@@ -25,7 +25,7 @@ metadata:
   name: kuma-gui
   namespace: kuma-cp
   annotations:
-    nginx.ingress.kubernetes.io/app-root: '/gui'
+    haproxy-ingress.github.io/app-root: '/gui'
     ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
   ingressClassName: $INGRESS_CLASS_NAME
