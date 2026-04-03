@@ -27,7 +27,7 @@ bash create-sample.sh
 # you will be asked for your users password
 ```
 
-You will be asked some questions about the cluster deployment, like numer of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. It's also possible to deploy **HAProxy Ingress Controller** instead of Traefik.
+You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. It's also possible to deploy **HAProxy Ingress Controller** instead of Traefik.
 
 At least you have the option to deploy **httpbin sample deployment**, which is deployed to the namespace *demo*.
 The container from https://kennethreitz.org/ is used here. The sample uses the Ingress, also a *NodePort* is exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
