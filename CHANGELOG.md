@@ -11,8 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Changed example for installing and using Kong Gateway resp. Kong Ingress Controller to use [Gateway Discovery Topology](https://docs.konghq.com/kubernetes-ingress-controller/latest/production/deployment-topologies/gateway-discovery/) by [@svenbernhardt](https://github.com/svenbernhardt) in [#35](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/35)
+### Removed
+
+### Fixed
+
+## [0.9.0] - 2026-04-03
+
+### Changed
+
 * Replaced NGINX Ingress Controller with HAProxy Ingress Controller (chart `haproxy-ingress` v0.14.7). Updated all samples, examples and documentation accordingly.
+* Updated Gateway API installation to version 1.4.0 in setup scripts by [@svenbernhardt](https://github.com/svenbernhardt) in [#37](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/37)
+* Updated k3d installation guide to version 5.8.3
 
 ### Removed
 
@@ -20,7 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `httpbin/sample-ingress-nginx.yaml` replaced by `httpbin/sample-ingress-haproxy.yaml`
 * `examples/calico/allow-ingress-egress-nginx.yml` replaced by `examples/calico/allow-ingress-egress-haproxy.yml`
 
-### Fixed
+## [0.8.0] - 2025-05-12
+
+### Changed
+
+* Changed example for installing and using Kong Gateway resp. Kong Ingress Controller to use [Gateway Discovery Topology](https://docs.konghq.com/kubernetes-ingress-controller/latest/production/deployment-topologies/gateway-discovery/) by [@svenbernhardt](https://github.com/svenbernhardt) in [#35](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/35)
+* Updated cert-manager installation to enable CRDs via `crds.enabled` flag in [#36](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/36)
 
 ## [0.7.0] - 2024-09-19
 
@@ -121,7 +135,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added external-dns sample. Demonstrates ExternalDNS, which configures an external CoreDNS server - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/2
 - Added Hashicorp Vault as CA server in combination with cert-manager do demonstrate auto generated certificates - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/6
 
-[unreleased]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.4.4...HEAD
+[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.7.0...v0.8.0
 [0.4.4]: https://github.com/FabianHardt/k3d-sample-cluster/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/FabianHardt/k3d-sample-cluster/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/FabianHardt/k3d-sample-cluster/compare/v0.4.1...v0.4.2
