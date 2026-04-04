@@ -19,8 +19,21 @@ echo "Current worker replicas: ${bold}${CURRENT}${normal}"
 echo ""
 
 read -p "Desired number of workers [${bold}${CURRENT}${normal}]: " INPUT
-DESIRED=${INPUT:-${CURRENT}}
 
+if [ -z "${INPUT}" ]; then
+  if ! [[ "${CURRENT}" =~ ^[0-9]+$ ]]; then
+    echo "Unable to determine current worker replica count. Please enter a numeric value." >&2
+    exit 1
+  fi
+  DESIRED="${CURRENT}"
+else
+  DESIRED="${INPUT}"
+fi
+
+if ! [[ "${DESIRED}" =~ ^[0-9]+$ ]]; then
+  echo "Desired number of workers must be a non-negative integer." >&2
+  exit 1
+fi
 if [ "${DESIRED}" = "${CURRENT}" ]; then
   echo "No change requested."
   exit 0
