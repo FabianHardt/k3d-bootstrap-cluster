@@ -125,8 +125,13 @@ patchWorkloadKubeconfig() {
     echo "WARNING: Could not determine LB port, kubeconfig may not work from host"
     return
   fi
-  sed -i '' -E "s|https://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:6443|https://127.0.0.1:${LB_PORT}|g" \
-    "${WORKLOAD_KUBECONFIG}"
+  if sed --version >/dev/null 2>&1; then
+    sed -i -E "s|https://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:6443|https://127.0.0.1:${LB_PORT}|g" \
+      "${WORKLOAD_KUBECONFIG}"
+  else
+    sed -i '' -E "s|https://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:6443|https://127.0.0.1:${LB_PORT}|g" \
+      "${WORKLOAD_KUBECONFIG}"
+  fi
   echo "Kubeconfig server patched to 127.0.0.1:${LB_PORT}"
 }
 
