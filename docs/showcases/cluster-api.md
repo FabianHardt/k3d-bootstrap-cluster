@@ -10,7 +10,7 @@ The infrastructure-specific parts (`DockerCluster`, `DockerMachineTemplate`) are
 
 ### Preconditions
 
-- The k3d management cluster must be created with **CAPI support enabled** (answer `Yes` to *"Enable Cluster API (CAPI) support?"* in `create-sample.sh`). This mounts the Docker socket into the k3d server node, which CAPD requires to create workload cluster nodes as Docker containers.
+- The k3d management cluster must be created with **CAPI support enabled** (answer `Yes` to *"Enable Cluster API (CAPI) support?"* in `create-sample.sh`). This mounts the Docker socket into the k3d server and agent nodes, which CAPD requires to create workload cluster nodes as Docker containers.
 - [`clusterctl`](https://cluster-api.sigs.k8s.io/user/quick-start.html#install-clusterctl) must be installed on your host:
 
 ```bash
