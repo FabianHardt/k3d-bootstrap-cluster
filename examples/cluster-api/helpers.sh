@@ -1,6 +1,13 @@
 #!/bin/bash
 
-MGMT_CONTEXT="k3d-demo"
+MGMT_CONTEXT="${MGMT_CONTEXT:-}"
+if [ -z "${MGMT_CONTEXT}" ] && [ -n "${CLUSTER_NAME:-}" ]; then
+  MGMT_CONTEXT="k3d-${CLUSTER_NAME}"
+fi
+if [ -z "${MGMT_CONTEXT}" ]; then
+  MGMT_CONTEXT="$(kubectl config current-context 2>/dev/null)"
+fi
+MGMT_CONTEXT="${MGMT_CONTEXT:-k3d-demo}"
 WORKLOAD_CLUSTER="workload-cluster"
 WORKLOAD_KUBECONFIG="workload-kubeconfig.yaml"
 
