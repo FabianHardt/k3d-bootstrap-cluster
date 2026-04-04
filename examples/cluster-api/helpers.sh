@@ -39,8 +39,8 @@ checkPrerequisites() {
   fi
 
   # Verify Docker socket is accessible on a server node.
-  # nodeSelector + toleration ensure the Pod lands on a server node where the socket is mounted
-  # (agent nodes don't have the socket, and server nodes carry a NoSchedule taint by default).
+  # nodeSelector + tolerations ensure the Pod lands on a server node explicitly;
+  # server/control-plane nodes carry a NoSchedule taint by default, so tolerations are required.
   if ! kubectl --context "${MGMT_CONTEXT}" run docker-sock-test \
     --image=busybox --restart=Never --rm \
     --overrides='{
