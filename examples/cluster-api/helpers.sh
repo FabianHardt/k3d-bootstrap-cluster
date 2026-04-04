@@ -38,10 +38,28 @@ checkPrerequisites() {
     exit 1
   fi
 
-  # Verify Docker socket is accessible from within the cluster
+  # Verify Docker socket is accessible on a server node.
+  # nodeSelector + toleration ensure the Pod lands on a server node where the socket is mounted
+  # (agent nodes don't have the socket, and server nodes carry a NoSchedule taint by default).
   if ! kubectl --context "${MGMT_CONTEXT}" run docker-sock-test \
-    --image=busybox --restart=Never --rm -it \
-    --overrides='{"spec":{"volumes":[{"name":"sock","hostPath":{"path":"/var/run/docker.sock"}}],"containers":[{"name":"busybox","image":"busybox","command":["ls","/var/run/docker.sock"],"volumeMounts":[{"name":"sock","mountPath":"/var/run/docker.sock"}]}]}}' \
+    --image=busybox --restart=Never --rm \
+    --overrides='{
+      "spec": {
+        "nodeSelector": {"node-role.kubernetes.io/master": "true"},
+        "tolerations": [
+          {"key": "node-role.kubernetes.io/master", "operator": "Exists", "effect": "NoSchedule"},
+          {"key": "node-role.kubernetes.io/control-plane", "operator": "Exists", "effect": "NoSchedule"}
+        ],
+        "volumes": [{"name":"sock","hostPath":{"path":"/var/run/docker.sock"}}],
+        "containers": [{
+          "name": "busybox",
+          "image": "busybox",
+          "command": ["ls","/var/run/docker.sock"],
+          "volumeMounts": [{"name":"sock","mountPath":"/var/run/docker.sock"}]
+        }],
+        "restartPolicy": "Never"
+      }
+    }' \
     &> /dev/null; then
     echo "ERROR: Docker socket not accessible inside the management cluster."
     echo "Please recreate the cluster with CAPI_FLAG=Yes in create-sample.sh."
@@ -62,6 +80,9 @@ configureClusterctl() {
 initializeCAPI() {
   top "Initializing Cluster API on management cluster"
 
+  local PREV_CONTEXT
+  PREV_CONTEXT=$(kubectl config current-context 2>/dev/null || true)
+
   kubectl config use-context "${MGMT_CONTEXT}"
 
   export EXP_CLUSTER_RESOURCE_SET=true
@@ -77,20 +98,25 @@ initializeCAPI() {
     --infrastructure docker
 
   echo "Waiting for CAPI core components..."
-  kubectl wait deployment -n capi-system capi-controller-manager \
+  kubectl --context "${MGMT_CONTEXT}" wait deployment -n capi-system capi-controller-manager \
     --for condition=Available=True --timeout=300s
 
   echo "Waiting for CAPD..."
-  kubectl wait deployment -n capd-system capd-controller-manager \
+  kubectl --context "${MGMT_CONTEXT}" wait deployment -n capd-system capd-controller-manager \
     --for condition=Available=True --timeout=300s
 
   echo "Waiting for k3s bootstrap provider..."
-  kubectl wait deployment -n capi-k3s-bootstrap-system capi-k3s-bootstrap-controller-manager \
+  kubectl --context "${MGMT_CONTEXT}" wait deployment -n capi-k3s-bootstrap-system capi-k3s-bootstrap-controller-manager \
     --for condition=Available=True --timeout=300s
 
   echo "Waiting for k3s control-plane provider..."
-  kubectl wait deployment -n capi-k3s-control-plane-system capi-k3s-control-plane-controller-manager \
+  kubectl --context "${MGMT_CONTEXT}" wait deployment -n capi-k3s-control-plane-system capi-k3s-control-plane-controller-manager \
     --for condition=Available=True --timeout=300s
+
+  # Restore whichever context was active before
+  if [ -n "${PREV_CONTEXT}" ] && [ "${PREV_CONTEXT}" != "${MGMT_CONTEXT}" ]; then
+    kubectl config use-context "${PREV_CONTEXT}" > /dev/null
+  fi
 
   bottom
 }
@@ -98,9 +124,9 @@ initializeCAPI() {
 removeHttpbinFromManagementCluster() {
   top "Removing httpbin from management cluster"
 
-  kubectl --context "${MGMT_CONTEXT}" delete ingress httpbin -n demo --ignore-not-found
-  kubectl --context "${MGMT_CONTEXT}" delete deployment httpbin -n demo --ignore-not-found
-  kubectl --context "${MGMT_CONTEXT}" delete service httpbin -n demo --ignore-not-found
+  kubectl --context "${MGMT_CONTEXT}" delete ingress httpbin -n demo --ignore-not-found 2>/dev/null || true
+  kubectl --context "${MGMT_CONTEXT}" delete deployment httpbin -n demo --ignore-not-found 2>/dev/null || true
+  kubectl --context "${MGMT_CONTEXT}" delete service httpbin -n demo --ignore-not-found 2>/dev/null || true
 
   echo "httpbin removed from management cluster."
   bottom
@@ -143,6 +169,45 @@ patchWorkloadKubeconfig() {
   echo "Kubeconfig server patched to 127.0.0.1:${LB_PORT}"
 }
 
+mergeWorkloadKubeconfig() {
+  local WORKLOAD_CONTEXT
+  WORKLOAD_CONTEXT=$(kubectl --kubeconfig "${WORKLOAD_KUBECONFIG}" config current-context 2>/dev/null)
+  if [ -z "${WORKLOAD_CONTEXT}" ]; then
+    echo "WARNING: Could not determine workload cluster context name, skipping kubeconfig merge"
+    return 1
+  fi
+
+  local MERGED
+  MERGED=$(mktemp)
+  KUBECONFIG="${HOME}/.kube/config:${WORKLOAD_KUBECONFIG}" \
+    kubectl config view --flatten > "${MERGED}"
+  mv "${MERGED}" "${HOME}/.kube/config"
+
+  kubectl config use-context "${WORKLOAD_CONTEXT}"
+  echo "Merged context '${WORKLOAD_CONTEXT}' into ~/.kube/config and switched to it"
+}
+
+removeWorkloadKubeconfig() {
+  local WORKLOAD_CONTEXT
+  WORKLOAD_CONTEXT=$(kubectl --kubeconfig "${WORKLOAD_KUBECONFIG}" config current-context 2>/dev/null)
+
+  if [ -n "${WORKLOAD_CONTEXT}" ]; then
+    local CLUSTER_NAME USER_NAME
+    CLUSTER_NAME=$(kubectl --kubeconfig "${WORKLOAD_KUBECONFIG}" \
+      config view -o jsonpath="{.contexts[?(@.name==\"${WORKLOAD_CONTEXT}\")].context.cluster}" 2>/dev/null)
+    USER_NAME=$(kubectl --kubeconfig "${WORKLOAD_KUBECONFIG}" \
+      config view -o jsonpath="{.contexts[?(@.name==\"${WORKLOAD_CONTEXT}\")].context.user}" 2>/dev/null)
+
+    kubectl config delete-context "${WORKLOAD_CONTEXT}" 2>/dev/null && \
+      echo "Removed context '${WORKLOAD_CONTEXT}' from ~/.kube/config"
+    [ -n "${CLUSTER_NAME}" ] && kubectl config delete-cluster "${CLUSTER_NAME}" 2>/dev/null || true
+    [ -n "${USER_NAME}" ] && kubectl config delete-user "${USER_NAME}" 2>/dev/null || true
+  fi
+
+  kubectl config use-context "${MGMT_CONTEXT}"
+  echo "Switched back to management context '${MGMT_CONTEXT}'"
+}
+
 getWorkloadKubeconfig() {
   top "Retrieving workload cluster kubeconfig"
 
@@ -154,6 +219,8 @@ getWorkloadKubeconfig() {
   else
     echo "Kubeconfig saved to ${WORKLOAD_KUBECONFIG} (WARNING: server URL not patched)"
   fi
+
+  mergeWorkloadKubeconfig
 
   bottom
 }
@@ -170,13 +237,15 @@ waitForWorkloadNodes() {
   bottom
 }
 
+getMgmtNetwork() {
+  docker inspect "k3d-${MGMT_CONTEXT#k3d-}-server-0" \
+    --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null
+}
+
 connectWorkloadClusterToMgmtNetwork() {
   top "Connecting workload cluster to management network"
 
-  MGMT_NETWORK=$(docker inspect "k3d-${MGMT_CONTEXT#k3d-}-server-0" \
-    --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null || \
-    docker inspect "k3d-demo-server-0" \
-    --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
+  MGMT_NETWORK=$(getMgmtNetwork)
 
   echo "Management network: ${MGMT_NETWORK}"
 
@@ -194,6 +263,36 @@ connectWorkloadClusterToMgmtNetwork() {
   bottom
 }
 
+refreshWorkloadEndpoints() {
+  local MGMT_NETWORK ADDRESSES IP CONTAINER
+  MGMT_NETWORK=$(getMgmtNetwork)
+  ADDRESSES=""
+
+  for CONTAINER in $(docker ps --filter "name=${WORKLOAD_CLUSTER}-md" --format "{{.Names}}"); do
+    IP=$(docker inspect "${CONTAINER}" \
+      --format "{{(index .NetworkSettings.Networks \"${MGMT_NETWORK}\").IPAddress}}" 2>/dev/null || true)
+    [ -n "${IP}" ] && ADDRESSES="${ADDRESSES}      - ip: ${IP}"$'\n'
+  done
+
+  if [ -z "${ADDRESSES}" ]; then
+    echo "WARNING: No worker IPs found on ${MGMT_NETWORK}, skipping Endpoints update"
+    return 1
+  fi
+
+  kubectl --context "${MGMT_CONTEXT}" apply -f - <<EOF
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: httpbin-workload
+  namespace: capi-demo
+subsets:
+  - addresses:
+${ADDRESSES}    ports:
+      - port: 30080
+EOF
+  echo "Endpoints updated with $(echo "${ADDRESSES}" | grep -c 'ip:') address(es)"
+}
+
 deployHttpbinOnWorkloadCluster() {
   top "Deploying httpbin on workload cluster"
 
@@ -208,30 +307,12 @@ deployHttpbinOnWorkloadCluster() {
 
   top "Exposing httpbin via management cluster ingress"
 
-  # Get the worker's IP on the management network (set after connectWorkloadClusterToMgmtNetwork)
-  MGMT_NETWORK=$(docker inspect "k3d-demo-server-0" \
-    --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
-  WORKER_CONTAINER=$(docker ps --filter "name=${WORKLOAD_CLUSTER}-md" --format "{{.Names}}" | head -1)
-  WORKER_IP=$(docker inspect "${WORKER_CONTAINER}" \
-    --format "{{(index .NetworkSettings.Networks \"${MGMT_NETWORK}\").IPAddress}}")
-
   kubectl --context "${MGMT_CONTEXT}" apply -f - <<EOF
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: capi-demo
----
-apiVersion: v1
-kind: Endpoints
-metadata:
-  name: httpbin-workload
-  namespace: capi-demo
-subsets:
-  - addresses:
-      - ip: ${WORKER_IP}
-    ports:
-      - port: 30080
 ---
 apiVersion: v1
 kind: Service
@@ -264,6 +345,8 @@ spec:
                   number: 80
 EOF
 
+  refreshWorkloadEndpoints
+
   echo ""
   echo "HTTPBin is accessible via the management cluster load balancer:"
   echo "  http://127-0-0-1.nip.io:8080"
@@ -281,8 +364,7 @@ scaleWorkers() {
     "${WORKLOAD_CLUSTER}-md-0" -n default --replicas="${REPLICAS}"
 
   # Background loop: connect new containers to mgmt network + remove CAPD cloud-provider taint
-  MGMT_NETWORK=$(docker inspect "k3d-demo-server-0" \
-    --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
+  MGMT_NETWORK=$(getMgmtNetwork)
   (
     DEADLINE=$(( $(date +%s) + 600 ))
     while [ "$(date +%s)" -lt "${DEADLINE}" ]; do
@@ -327,6 +409,11 @@ scaleWorkers() {
 
   echo ""
   KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl get nodes
+
+  # Refresh management-cluster Endpoints so ingress routes to all current workers
+  if kubectl --context "${MGMT_CONTEXT}" get endpoints httpbin-workload -n capi-demo &>/dev/null; then
+    refreshWorkloadEndpoints
+  fi
 
   bottom
 }

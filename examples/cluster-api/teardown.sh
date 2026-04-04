@@ -11,6 +11,8 @@ echo "Waiting for workload cluster to be fully deleted..."
 kubectl --context "${MGMT_CONTEXT}" wait cluster/"${WORKLOAD_CLUSTER}" \
   --for=delete --timeout=600s 2>/dev/null || true
 
+removeWorkloadKubeconfig
+
 rm -f "${WORKLOAD_KUBECONFIG}"
 echo "Removed ${WORKLOAD_KUBECONFIG}"
 
