@@ -51,6 +51,8 @@ configValues ()
   DASHBOARD_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Deploy httpbin sample? ${yes_no}" "${HTTPBIN_SAMPLE_FLAG}"
   HTTPBIN_SAMPLE_FLAG=$(isYes ${INPUT_VALUE})
+  read_value "Enable Cluster API (CAPI) support? ${yes_no}" "${CAPI_FLAG}"
+  CAPI_FLAG=$(isYes ${INPUT_VALUE})
 }
 
 isYes()

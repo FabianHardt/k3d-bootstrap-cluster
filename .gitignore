@@ -1,7 +1,9 @@
 .DS_Store
+.claude
 CLAUDE.md
 apiserver.crt
 apiserver.key
+examples/cluster-api/workload-kubeconfig.yaml
 k3d-cluster.yaml
 httpbin/httpbin.yaml
 examples/external-dns/values.yaml
