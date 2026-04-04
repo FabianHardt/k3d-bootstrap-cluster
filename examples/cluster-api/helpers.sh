@@ -119,11 +119,12 @@ createWorkloadCluster() {
 }
 
 patchWorkloadKubeconfig() {
+  local LB_PORT
   LB_PORT=$(docker inspect "${WORKLOAD_CLUSTER}-lb" \
     --format '{{(index (index .NetworkSettings.Ports "6443/tcp") 0).HostPort}}' 2>/dev/null)
   if [ -z "${LB_PORT}" ]; then
     echo "WARNING: Could not determine LB port, kubeconfig may not work from host"
-    return
+    return 1
   fi
   if sed --version >/dev/null 2>&1; then
     sed -i -E "s|https://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:6443|https://127.0.0.1:${LB_PORT}|g" \
@@ -141,9 +142,11 @@ getWorkloadKubeconfig() {
   clusterctl get kubeconfig "${WORKLOAD_CLUSTER}" -n default > "${WORKLOAD_KUBECONFIG}"
 
   # CAPD uses internal Docker IPs - patch to use the LB's host port instead
-  patchWorkloadKubeconfig
-
-  echo "Kubeconfig saved to ${WORKLOAD_KUBECONFIG} (patched to 127.0.0.1:${LB_PORT})"
+  if patchWorkloadKubeconfig; then
+    echo "Kubeconfig saved to ${WORKLOAD_KUBECONFIG}"
+  else
+    echo "Kubeconfig saved to ${WORKLOAD_KUBECONFIG} (WARNING: server URL not patched)"
+  fi
 
   bottom
 }
