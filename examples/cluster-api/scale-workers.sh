@@ -18,16 +18,22 @@ echo ""
 echo "Current worker replicas: ${bold}${CURRENT}${normal}"
 echo ""
 
-read -p "Desired number of workers [${bold}${CURRENT}${normal}]: " INPUT
-
-if [ -z "${INPUT}" ]; then
-  if ! [[ "${CURRENT}" =~ ^[0-9]+$ ]]; then
-    echo "Unable to determine current worker replica count. Please enter a numeric value." >&2
-    exit 1
-  fi
-  DESIRED="${CURRENT}"
+# Accept the desired replica count as an optional positional argument to allow non-interactive use:
+#   bash scale-workers.sh 2
+if [ -n "${1:-}" ]; then
+  DESIRED="${1}"
 else
-  DESIRED="${INPUT}"
+  read -p "Desired number of workers [${bold}${CURRENT}${normal}]: " INPUT
+
+  if [ -z "${INPUT}" ]; then
+    if ! [[ "${CURRENT}" =~ ^[0-9]+$ ]]; then
+      echo "Unable to determine current worker replica count. Please enter a numeric value." >&2
+      exit 1
+    fi
+    DESIRED="${CURRENT}"
+  else
+    DESIRED="${INPUT}"
+  fi
 fi
 
 if ! [[ "${DESIRED}" =~ ^[0-9]+$ ]]; then

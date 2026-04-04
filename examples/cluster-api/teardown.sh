@@ -18,6 +18,16 @@ echo "Removed ${WORKLOAD_KUBECONFIG}"
 
 bottom
 
+top "Cleaning up workload routing resources"
+
+# The capi-demo namespace contains an Ingress that catches all traffic (host: *, path: /).
+# It must be removed before re-deploying httpbin, otherwise HAProxy will keep routing to the
+# now-deleted workload cluster Endpoints and return 503.
+kubectl --context "${MGMT_CONTEXT}" delete namespace capi-demo --ignore-not-found 2>/dev/null || true
+echo "Removed capi-demo namespace."
+
+bottom
+
 top "Re-deploying httpbin on management cluster"
 
 kubectl --context "${MGMT_CONTEXT}" apply -f - <<'EOF' || true

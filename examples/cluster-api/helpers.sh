@@ -39,10 +39,13 @@ checkPrerequisites() {
   fi
 
   # Verify Docker socket is accessible on a server node.
-  # nodeSelector + tolerations ensure the Pod lands on a server node explicitly;
-  # server/control-plane nodes carry a NoSchedule taint by default, so tolerations are required.
-  if ! kubectl --context "${MGMT_CONTEXT}" run docker-sock-test \
-    --image=busybox --restart=Never --rm \
+  # nodeSelector + tolerations ensure the Pod lands on a server node where the socket is mounted
+  # (agent nodes don't have it; server nodes carry a NoSchedule taint by default).
+  # We create/wait/delete explicitly instead of using --rm, which requires attachment (-it) in
+  # newer kubectl versions and does not reliably wait for completion in non-interactive scripts.
+  kubectl --context "${MGMT_CONTEXT}" delete pod docker-sock-test --ignore-not-found &>/dev/null || true
+  kubectl --context "${MGMT_CONTEXT}" run docker-sock-test \
+    --image=busybox --restart=Never \
     --overrides='{
       "spec": {
         "nodeSelector": {"node-role.kubernetes.io/master": "true"},
@@ -59,8 +62,18 @@ checkPrerequisites() {
         }],
         "restartPolicy": "Never"
       }
-    }' \
-    &> /dev/null; then
+    }' &>/dev/null
+
+  local PHASE i
+  for i in $(seq 1 30); do
+    PHASE=$(kubectl --context "${MGMT_CONTEXT}" get pod docker-sock-test \
+      -o jsonpath='{.status.phase}' 2>/dev/null || true)
+    [ "${PHASE}" = "Succeeded" ] || [ "${PHASE}" = "Failed" ] && break
+    sleep 1
+  done
+  kubectl --context "${MGMT_CONTEXT}" delete pod docker-sock-test --ignore-not-found &>/dev/null || true
+
+  if [ "${PHASE}" != "Succeeded" ]; then
     echo "ERROR: Docker socket not accessible inside the management cluster."
     echo "Please recreate the cluster with CAPI_FLAG=Yes in create-sample.sh."
     exit 1
