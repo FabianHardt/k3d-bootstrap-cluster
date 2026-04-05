@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Cluster API (CAPI) showcase using the Docker infrastructure provider (CAPD) and k3s control-plane provider. Includes interactive setup, worker scaling, teardown, and httpbin deployment on the workload cluster exposed via the management cluster's HAProxy ingress (`examples/cluster-api/`)
+* VitePress documentation page for the Cluster API showcase
+* `CONTRIBUTING.md` and GitHub PR template (`.github/pull_request_template.md`)
+
 ### Changed
 
 ### Removed

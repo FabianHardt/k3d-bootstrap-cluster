@@ -1,0 +1,103 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
+metadata:
+  name: workload-cluster
+  namespace: default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["10.100.0.0/16"]
+    services:
+      cidrBlocks: ["10.101.0.0/16"]
+  controlPlaneRef:
+    apiGroup: controlplane.cluster.x-k8s.io
+    kind: KThreesControlPlane
+    name: workload-cluster-kcp
+  infrastructureRef:
+    apiGroup: infrastructure.cluster.x-k8s.io
+    kind: DockerCluster
+    name: workload-cluster
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: DockerCluster
+metadata:
+  name: workload-cluster
+  namespace: default
+spec: {}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: KThreesControlPlane
+metadata:
+  name: workload-cluster-kcp
+  namespace: default
+spec:
+  replicas: 1
+  version: v1.30.2+k3s2
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+      kind: DockerMachineTemplate
+      name: workload-cluster-cp
+  kthreesConfigSpec:
+    serverConfig:
+      disableComponents:
+        - traefik
+        - servicelb
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: DockerMachineTemplate
+metadata:
+  name: workload-cluster-cp
+  namespace: default
+spec:
+  template:
+    spec:
+      customImage: "kindest/node:v1.30.0"
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: MachineDeployment
+metadata:
+  name: workload-cluster-md-0
+  namespace: default
+spec:
+  clusterName: workload-cluster
+  replicas: 1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: workload-cluster
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: workload-cluster
+    spec:
+      version: v1.30.2+k3s2
+      clusterName: workload-cluster
+      bootstrap:
+        configRef:
+          apiGroup: bootstrap.cluster.x-k8s.io
+          kind: KThreesConfigTemplate
+          name: workload-cluster-worker
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: DockerMachineTemplate
+        name: workload-cluster-worker
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KThreesConfigTemplate
+metadata:
+  name: workload-cluster-worker
+  namespace: default
+spec:
+  template:
+    spec: {}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: DockerMachineTemplate
+metadata:
+  name: workload-cluster-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      customImage: "kindest/node:v1.30.0"
