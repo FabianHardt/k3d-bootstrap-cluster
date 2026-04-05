@@ -7,6 +7,7 @@ AGENTS=1
 HTTP_PORT=8080
 HTTPS_PORT=8081
 REGISTRY_PORT=5002
+KONG_FLAG=No
 HAPROXY_FLAG=Yes
 CALICO_FLAG=Yes
 DASHBOARD_FLAG=No
@@ -57,6 +58,10 @@ for (( i=0; i<$AGENTS; i++ ))
 do
     kubectl label nodes k3d-${CLUSTER_NAME}-agent-${i} node-role.kubernetes.io/worker=true node-role.kubernetes.io/data-plane=true
 done
+
+if (($KONG_FLAG == 1)); then
+  deployKong
+fi
 
 if (($HTTPBIN_SAMPLE_FLAG == 1)); then
   top "Provisioning Persistent Volume"

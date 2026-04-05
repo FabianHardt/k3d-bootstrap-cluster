@@ -12,8 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Cluster API (CAPI) showcase using the Docker infrastructure provider (CAPD) and k3s control-plane provider. Includes interactive setup, worker scaling, teardown, and httpbin deployment on the workload cluster exposed via the management cluster's HAProxy ingress (`examples/cluster-api/`)
 * VitePress documentation page for the Cluster API showcase
 * `CONTRIBUTING.md` and GitHub PR template (`.github/pull_request_template.md`)
+* Kong Gateway (Gateway API) as a selectable alternative to HAProxy Ingress in the interactive cluster setup (`create-sample.sh`). Installs Gateway API CRDs v1.5.1, a `GatewayClass`/`Gateway`, and Kong Ingress Controller via Helm chart `kong/ingress` v0.24.0. httpbin is exposed via an `HTTPRoute` instead of an `Ingress` resource. Kong and HAProxy are mutually exclusive — selecting Kong disables Traefik and auto-deselects HAProxy.
 
 ### Changed
+
+* Updated Gateway API installation to version 1.5.1 in Kong showcase setup scripts (`examples/kong-gateway/`, `examples/kong-gateway-operator/`)
+* Updated Kong Gateway image to 3.13.0.2 and Kong Ingress Controller to 3.5.6 in `examples/kong-gateway/values.yaml`
 
 ### Removed
 

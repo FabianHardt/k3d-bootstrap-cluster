@@ -27,10 +27,13 @@ bash create-sample.sh
 # you will be asked for your users password
 ```
 
-You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. It's also possible to deploy **HAProxy Ingress Controller** instead of Traefik.
+You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. For traffic routing, you can choose between:
+
+- **HAProxy Ingress Controller** — replaces Traefik, exposes services via standard Kubernetes `Ingress` resources
+- **Kong Gateway (Gateway API)** — replaces Traefik, exposes services via the Kubernetes Gateway API (`HTTPRoute`). Installs Gateway API CRDs, a `GatewayClass` and `Gateway`, and Kong Ingress Controller via Helm. Kong and HAProxy are mutually exclusive.
 
 At least you have the option to deploy **httpbin sample deployment**, which is deployed to the namespace *demo*.
-The container from https://kennethreitz.org/ is used here. The sample uses the Ingress, also a *NodePort* is exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
+The container from https://kennethreitz.org/ is used here. The sample uses an `Ingress` (HAProxy/Traefik) or an `HTTPRoute` (Kong), and a *NodePort* is also exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
 The httpbin demo is deployed from the **local running container registry**, just for demo purpose, to show the usage of a user defined registry with k3d.
 
 *Optional (K8s > 1.24 needed):* Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/#/login). The nessecary login token you can get with the following command: `kubectl -n k8s-dashboard describe secrets dashboard-admin-token | grep token:`

@@ -1,0 +1,18 @@
+gateway:
+  image:
+    repository: kong/kong-gateway
+    tag: "3.13.0.2"
+  proxy:
+    type: LoadBalancer
+  manager:
+    enabled: false
+  admin:
+    enabled: true
+    type: ClusterIP
+    http:
+      enabled: true
+
+controller:
+  ingressController:
+    repository: kong/kubernetes-ingress-controller
+    tag: "3.5.6"
