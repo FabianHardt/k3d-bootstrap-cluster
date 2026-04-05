@@ -112,7 +112,7 @@ deployKong()
   helm repo add kong https://charts.konghq.com || true
   helm repo update kong
 
-  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+  kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
 
   kubectl create namespace kong || true
   kubectl apply -f manifests/kong-gateway-class.yaml

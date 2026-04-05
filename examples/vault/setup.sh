@@ -59,7 +59,18 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubern
     ttl=20m
 
 echo "\nInstall Gateway API extension"
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
+# Install experimental Gateway API CRDs.
+# The manifest itself contains a ValidatingAdmissionPolicy that blocks upgrading from
+# standard to experimental channel. We filter it out before applying so it cannot
+# block the CRDs that follow it in the manifest.
+kubectl delete validatingadmissionpolicy safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+kubectl delete validatingadmissionpolicybinding safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml | \
+  python3 -c "
+import sys
+docs = sys.stdin.read().split('\n---\n')
+print('\n---\n'.join(d for d in docs if 'kind: ValidatingAdmissionPolicy' not in d))
+" | kubectl apply --server-side -f -
 
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace \
   --set crds.enabled=true \

@@ -15,6 +15,7 @@ You can test Kong Ingress by adding the following entry to your */etc/hosts* fil
 [...]
 
 127.0.0.1		httpbin.example.com
+127.0.0.1		httpbin-tls.example.com
 127.0.0.1		kong-manager.example.com
 127.0.0.1		kong-admin.example.com
 ```
@@ -42,6 +43,39 @@ The following components are installed with the *setup.sh*:
   - After that you can open *httpbin* with the URL: <https://httpbin.example.com:8081>.
     When you have added the Root CA to your system Truststore, or your browser the connection should be secured correctly.
     You can find the Root CA certificate under: `examples/vault/root-certs/rootCACert.pem`.
+
+### TLS Passthrough (TLSRoute)
+
+The showcase also demonstrates **TLS passthrough** via a `TLSRoute`. This pattern is relevant whenever Kong must **not** terminate TLS — common examples are:
+
+- **Databases** (PostgreSQL, MySQL) where the client connects directly over TLS and the DB presents its own certificate
+- **Services with mutual TLS (mTLS)** where the backend validates the client certificate, which Kong cannot do if it terminates TLS first
+- **Compliance requirements** demanding end-to-end encryption without a middle-man decrypting traffic
+
+In this demo a backend service holds its own TLS certificate issued by the internal Vault PKI. Kong routes the connection based on the SNI hostname (`httpbin-tls.example.com`) without ever seeing the plaintext — the same way it would route to a TLS-enabled database.
+
+```
+Client ──TLS──▶ Kong (port 9443, SNI routing) ──TLS──▶ Backend (Vault cert)
+                    ↑ no decryption here
+```
+
+**Test via port-forward**
+
+```bash
+kubectl port-forward -n kong svc/kong-gateway-proxy 9443:9443
+```
+
+```bash
+curl --cacert examples/vault/root-certs/bundle.pem \
+  --resolve 'httpbin-tls.example.com:9443:127.0.0.1' \
+  https://httpbin-tls.example.com:9443/
+```
+
+The `--cacert` flag provides the Vault Root CA so curl can verify the backend certificate. The response confirms that TLS was terminated at the backend — not at Kong:
+
+```json
+{"service":"tls-backend","tls":"terminated-here","issuer":"vault-pki"}
+```
 
 ### Show Kong Manager
 
