@@ -16,7 +16,11 @@ curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1
   python3 -c "
 import sys
 docs = sys.stdin.read().split('\n---\n')
-print('\n---\n'.join(d for d in docs if 'kind: ValidatingAdmissionPolicy' not in d))
+excluded_kinds = (
+    'kind: ValidatingAdmissionPolicy',
+    'kind: ValidatingAdmissionPolicyBinding',
+)
+print('\n---\n'.join(d for d in docs if not any(kind in d for kind in excluded_kinds)))
 " | kubectl apply --server-side -f -
 
 # include Hashicorp Vault setup first
