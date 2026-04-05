@@ -1,5 +1,5 @@
 
-const ref = "main";
+const ref = "v1.0.0";
 const base =  "/k3d-bootstrap-cluster/"
 
 export default {

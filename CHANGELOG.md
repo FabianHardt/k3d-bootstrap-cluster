@@ -9,19 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## [1.0.0] - 2026-04-05
+
+### Added
+
+* Kong Gateway (Gateway API) as a selectable alternative to HAProxy Ingress in the interactive cluster setup (`create-sample.sh`). Installs Gateway API CRDs v1.5.1, a `GatewayClass`/`Gateway`, and Kong Ingress Controller via Helm chart `kong/ingress` v0.24.0. httpbin is exposed via an `HTTPRoute` instead of an `Ingress` resource. Kong and HAProxy are mutually exclusive — selecting Kong disables Traefik and auto-deselects HAProxy.
 * Cluster API (CAPI) showcase using the Docker infrastructure provider (CAPD) and k3s control-plane provider. Includes interactive setup, worker scaling, teardown, and httpbin deployment on the workload cluster exposed via the management cluster's HAProxy ingress (`examples/cluster-api/`)
 * VitePress documentation page for the Cluster API showcase
 * `CONTRIBUTING.md` and GitHub PR template (`.github/pull_request_template.md`)
-* Kong Gateway (Gateway API) as a selectable alternative to HAProxy Ingress in the interactive cluster setup (`create-sample.sh`). Installs Gateway API CRDs v1.5.1, a `GatewayClass`/`Gateway`, and Kong Ingress Controller via Helm chart `kong/ingress` v0.24.0. httpbin is exposed via an `HTTPRoute` instead of an `Ingress` resource. Kong and HAProxy are mutually exclusive — selecting Kong disables Traefik and auto-deselects HAProxy.
 
 ### Changed
 
 * Updated Gateway API installation to version 1.5.1 in Kong showcase setup scripts (`examples/kong-gateway/`, `examples/kong-gateway-operator/`)
 * Updated Kong Gateway image to 3.13.0.2 and Kong Ingress Controller to 3.5.6 in `examples/kong-gateway/values.yaml`
-
-### Removed
-
-### Fixed
 
 ## [0.9.0] - 2026-04-03
 
@@ -143,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added external-dns sample. Demonstrates ExternalDNS, which configures an external CoreDNS server - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/2
 - Added Hashicorp Vault as CA server in combination with cert-manager do demonstrate auto generated certificates - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/6
 
-[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.7.0...v0.8.0
 [0.4.4]: https://github.com/FabianHardt/k3d-sample-cluster/compare/v0.4.3...v0.4.4
