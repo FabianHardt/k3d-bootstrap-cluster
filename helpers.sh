@@ -43,8 +43,17 @@ configValues ()
   REGISTRY_PORT=${INPUT_VALUE}
   HTTPBIN_NODEPORT=$((30000 + $RANDOM % 40000))
   EXTDNS_NODEPORT=$((30000 + $RANDOM % 40000))
+  read_value "Install Kong Gateway (Gateway API)? ${yes_no}" "${KONG_FLAG}"
+  KONG_FLAG=$(isYes ${INPUT_VALUE})
+  if (($KONG_FLAG == 1)); then
+    HAPROXY_FLAG=No
+  fi
   read_value "Install HAProxy Ingress? ${yes_no}" "${HAPROXY_FLAG}"
   HAPROXY_FLAG=$(isYes ${INPUT_VALUE})
+  if (($KONG_FLAG == 1)) && (($HAPROXY_FLAG == 1)); then
+    echo "ERROR: Kong Gateway and HAProxy are mutually exclusive. Please choose only one." >&2
+    exit 1
+  fi
   read_value "Install Calico Network? ${yes_no}" "${CALICO_FLAG}"
   CALICO_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install K8s Dashboard? ${yes_no}" "${DASHBOARD_FLAG}"
@@ -96,6 +105,29 @@ templateConfigFile()
   rm -f temp.yaml
 }
 
+deployKong()
+{
+  top "Installing Kong Gateway (Gateway API)"
+
+  helm repo add kong https://charts.konghq.com || true
+  helm repo update kong
+
+  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+
+  kubectl create namespace kong || true
+  kubectl apply -f manifests/kong-gateway-class.yaml
+  kubectl apply -f manifests/kong-gateway.yaml
+
+  helm upgrade --install kong kong/ingress \
+    --namespace kong \
+    --version 0.24.0 \
+    --values manifests/kong-values.yaml
+
+  kubectl -n kong wait --for=condition=Available=true --timeout=300s deployment/kong-gateway
+
+  bottom
+}
+
 deploySamples()
 {
   # Get images to local registry
@@ -113,6 +145,10 @@ deploySamples()
       kubectl wait job/helm-install-haproxy-ingress -n kube-system --for=condition=complete --timeout=600s
       kubectl wait deployment -n ingress-haproxy haproxy-ingress --for condition=Available=True --timeout=600s
       kubectl apply -n demo -f httpbin/sample-ingress-haproxy.yaml
+      bottom
+  elif (($KONG_FLAG == 1)); then
+      top "Applying HTTPRoute for httpbin via Kong Gateway API"
+      kubectl apply -n demo -f httpbin/sample-httproute-kong.yaml
       bottom
   else
       kubectl apply -n demo -f httpbin/sample-ingress.yaml

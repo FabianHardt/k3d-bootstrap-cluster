@@ -7,7 +7,7 @@ controller:
         client:
           enabled: true
       repository: kong/kubernetes-ingress-controller
-      tag: 3.4.4
+      tag: 3.5.6
     
 
 gateway:
@@ -22,7 +22,7 @@ gateway:
     maxReplicas: 2
   image:
     repository: kong/kong-gateway
-    tag: 3.10.0.0
+    tag: 3.13.0.2
   serviceMonitor:
     enabled: true
     labels:
