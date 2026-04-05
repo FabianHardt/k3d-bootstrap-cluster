@@ -66,7 +66,7 @@ kubectl port-forward -n kong svc/kong-gateway-proxy 9443:9443
 ```
 
 ```bash
-curl --cacert examples/vault/root-certs/bundle.pem \
+curl --cacert ../vault/root-certs/bundle.pem \
   --resolve 'httpbin-tls.example.com:9443:127.0.0.1' \
   https://httpbin-tls.example.com:9443/
 ```
