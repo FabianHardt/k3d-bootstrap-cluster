@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Kong Gateway TLS passthrough (`TLSRoute`) now requires `parameters: [ssl]` on the `proxy.stream` entry in `values.yaml`. Kong KIC only recognises a stream listener as `TLSProtocolType` when the Admin API reports `SSL=true` for that listener. Without the flag KIC sets the Gateway listener to `UnsupportedProtocol` and the TLSRoute stays in `NoMatchingParent`. Documented in `docs/showcases/kong.md`.
+
 ### Removed
 
 ### Fixed
