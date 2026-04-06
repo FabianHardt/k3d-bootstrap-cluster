@@ -59,6 +59,27 @@ Client ──TLS──▶ Kong (port 9443, SNI routing) ──TLS──▶ Backe
                     ↑ no decryption here
 ```
 
+**Required configuration**
+
+For KIC to accept the `TLS` protocol on the Gateway listener, the stream port must be configured with the `ssl` parameter in `values.yaml`:
+
+```yaml
+proxy:
+  stream:
+    - containerPort: 9443
+      servicePort: 9443
+      protocol: TCP
+      parameters:
+        - ssl
+```
+
+This causes Kong to advertise the listener as `SSL=true` via its Admin API, which is what KIC checks to classify the listener as `TLSProtocolType`. Without this flag KIC reports `UnsupportedProtocol` and the TLSRoute stays in `NoMatchingParent`. The `ssl` flag does **not** mean Kong terminates TLS — KIC still programs the route as passthrough.
+
+> **Note:** After a Helm upgrade that changes Kong's deployment, KIC does not automatically re-reconcile the Gateway. Trigger it manually:
+> ```bash
+> kubectl annotate gateway kong -n kong reconcile-trigger="$(date +%s)" --overwrite
+> ```
+
 **Test via port-forward**
 
 ```bash

@@ -16,6 +16,7 @@ gateway:
     admin_gui_url: https://kong-manager.example.com:8081
     admin_api_uri: https://kong-admin.example.com:8081
 
+
   autoscaling:
     enabled: true
     minReplicas: 2
@@ -35,7 +36,7 @@ gateway:
         servicePort: 9443
         protocol: TCP
         parameters:
-          - "ssl"
+          - ssl
 
   manager:
     enabled: true

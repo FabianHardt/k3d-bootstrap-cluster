@@ -15,8 +15,6 @@ spec:
     protocol: TLS
     tls:
       mode: Passthrough
-      certificateRefs:
-        - name: example-com-tls
     allowedRoutes:
       namespaces:
         from: All
