@@ -16,6 +16,7 @@ You can test Kong Ingress by adding the following entry to your */etc/hosts* fil
 
 127.0.0.1		httpbin.example.com
 127.0.0.1		httpbin-tls.example.com
+127.0.0.1		postgres.example.com
 127.0.0.1		kong-manager.example.com
 127.0.0.1		kong-admin.example.com
 ```
@@ -97,6 +98,92 @@ The `--cacert` flag provides the Vault Root CA so curl can verify the backend ce
 ```json
 {"service":"tls-backend","tls":"terminated-here","issuer":"vault-pki"}
 ```
+
+### PostgreSQL TLS Passthrough (direct SSL)
+
+The showcase also includes a **PostgreSQL 17** backend to demonstrate TLS passthrough with real non-HTTP traffic — the most common real-world use case for this pattern.
+
+#### Why PostgreSQL requires direct SSL
+
+Standard PostgreSQL SSL starts with a proprietary `SSLRequest` message before the TLS handshake. This means the TLS `ClientHello` — which carries the SNI hostname Kong needs to route — is never the first byte on the wire. Kong sees an unknown protocol and cannot route the connection.
+
+PostgreSQL 17 introduced **direct SSL** (`sslnegotiation=direct`), where the TLS `ClientHello` is sent immediately as the first message, just like HTTPS. With direct SSL the SNI is visible to Kong and passthrough routing works:
+
+```
+Client ──direct-TLS──▶ Kong (port 9443, reads SNI) ──TLS──▶ PostgreSQL 17 (Vault cert)
+                           ↑ no decryption here
+```
+
+#### Private key permissions
+
+PostgreSQL refuses to start if the SSL private key is readable by group or others (`mode 0600` required). Kubernetes Secret volumes mount files as `0644` (root-owned). An init container (running as root) copies the certificate and key from the read-only Secret mount into a shared `emptyDir`, sets `chown 70:70` (the postgres user in the alpine image) and `chmod 0600` before the main container starts.
+
+#### Option 1: Ephemeral pod inside the cluster (no local tools needed)
+
+The `postgres:17-alpine` image includes `openssl`. This pod connects directly to Kong's proxy service inside the cluster, presents `postgres.example.com` as the SNI, and Kong routes to the PostgreSQL backend — no port-forward needed.
+
+**TLS routing check** — shows that Kong routes correctly and the backend presents its Vault-issued certificate:
+
+```bash
+kubectl run -it --rm tls-check \
+  --image=postgres:17-alpine \
+  --restart=Never \
+  -- sh -c 'openssl s_client \
+    -connect kong-gateway-proxy.kong.svc.cluster.local:9443 \
+    -servername postgres.example.com \
+    -brief 2>&1 | head -20'
+```
+
+**Full psql connection** — uses `hostaddr` to connect to Kong's service IP while keeping `host=postgres.example.com` as the SNI hostname for TLS routing:
+
+```bash
+kubectl run -it --rm psql-test \
+  --image=postgres:17-alpine \
+  --restart=Never \
+  -- sh -c 'psql "hostaddr=$(getent hosts kong-gateway-proxy.kong.svc.cluster.local \
+    | awk '"'"'{print $1}'"'"' | head -1) \
+    host=postgres.example.com port=9443 \
+    sslmode=require sslnegotiation=direct \
+    user=demo password=demo dbname=demo"'
+```
+
+The `hostaddr` parameter directs the TCP connection to Kong's ClusterIP, while `host` sets the SNI in the TLS `ClientHello`. This is the standard libpq way to separate routing target from TLS hostname.
+
+#### Option 2: Docker from outside the cluster (no local psql needed)
+
+Forward Kong's stream port to your local machine, then use `docker run` with `postgres:17-alpine` as a throwaway psql client. The `--add-host` flag makes `postgres.example.com` resolve to the Docker host (where the port-forward is listening).
+
+```bash
+kubectl port-forward -n kong svc/kong-gateway-proxy 5432:9443 &
+```
+
+```bash
+docker run --rm -it \
+  -v "$(pwd)/examples/vault/root-certs/bundle.pem:/bundle.pem:ro" \
+  --add-host "postgres.example.com:host-gateway" \
+  postgres:17-alpine \
+  psql "host=postgres.example.com port=5432 \
+    sslmode=require sslnegotiation=direct \
+    user=demo password=demo dbname=demo \
+    sslrootcert=/bundle.pem"
+```
+
+`host-gateway` is a Docker special value that resolves to the host machine's IP — available on Docker Desktop (Mac/Windows) and Docker Engine 20.10+.
+
+#### Option 3: Local psql (if PostgreSQL 17 is installed)
+
+```bash
+kubectl port-forward -n kong svc/kong-gateway-proxy 5432:9443 &
+```
+
+```bash
+psql "host=postgres.example.com port=5432 \
+  sslmode=require sslnegotiation=direct \
+  user=demo password=demo dbname=demo \
+  sslrootcert=examples/vault/root-certs/bundle.pem"
+```
+
+> **Note:** `sslnegotiation=direct` requires libpq 17 or later (`psql --version`). Earlier clients send the PostgreSQL `SSLRequest` first, the SNI is not visible to Kong, and the connection will not route correctly.
 
 ### Show Kong Manager
 

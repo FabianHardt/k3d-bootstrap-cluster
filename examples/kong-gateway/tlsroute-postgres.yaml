@@ -1,0 +1,17 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: TLSRoute
+metadata:
+  name: postgres-tls
+  namespace: demo
+spec:
+  parentRefs:
+  - name: kong
+    namespace: kong
+    kind: Gateway
+    sectionName: kong-tls-passthrough
+  hostnames:
+  - postgres.example.com
+  rules:
+  - backendRefs:
+    - name: postgres
+      port: 5432

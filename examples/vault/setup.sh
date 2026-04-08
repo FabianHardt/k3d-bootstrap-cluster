@@ -27,17 +27,13 @@ kubectl -n vault exec vault-0 -- vault login $VAULT_ROOT_TOKEN
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault secrets enable pki
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault secrets tune -max-lease-ttl=8760h pki
 
-###########
-kubectl -n vault cp root-certs/bundle.pem vault/vault-0:/tmp/
-kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write /pki/config/ca pem_bundle=@/tmp/bundle.pem
-###########
-
-# kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/root/generate/internal \
-#     common_name=example.com \
-#     ttl=8760h
+# Configure AIA fields before importing the CA so the issuer is created with them already set
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/config/urls \
     issuing_certificates="http://vault.vault:8200/v1/pki/ca" \
     crl_distribution_points="http://vault.vault:8200/v1/pki/crl"
+
+kubectl -n vault cp root-certs/bundle.pem vault/vault-0:/tmp/
+kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write /pki/config/ca pem_bundle=@/tmp/bundle.pem
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/roles/example-com \
     allowed_domains=example.com \
     allow_subdomains=true \

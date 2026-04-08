@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Kong Gateway TLS passthrough (`TLSRoute`) now requires `parameters: [ssl]` on the `proxy.stream` entry in `values.yaml`. Kong KIC only recognises a stream listener as `TLSProtocolType` when the Admin API reports `SSL=true` for that listener. Without the flag KIC sets the Gateway listener to `UnsupportedProtocol` and the TLSRoute stays in `NoMatchingParent`. Documented in `docs/showcases/kong.md`.
+* Added PostgreSQL 17 TLS passthrough demo to the Kong Gateway showcase (`examples/kong-gateway/`). Demonstrates SNI-based routing of non-HTTP traffic using PostgreSQL 17 direct SSL (`sslnegotiation=direct`). Includes a cert-manager Certificate issued by Vault PKI, an init container to fix TLS key permissions, and a `TLSRoute` for `postgres.example.com`. The Gateway `kong-tls-passthrough` listener hostname widened to `*.example.com` to support multiple backends on the same listener.
+* Extended `examples/kong-gateway/setup.sh` to deploy the PostgreSQL TLS passthrough demo automatically.
 
 ### Removed
 

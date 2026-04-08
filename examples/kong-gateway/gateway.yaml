@@ -10,7 +10,7 @@ spec:
   gatewayClassName: kong
   listeners:
   - name: kong-tls-passthrough
-    hostname: "httpbin-tls.example.com"
+    hostname: "*.example.com"
     port: 9443
     protocol: TLS
     tls:
