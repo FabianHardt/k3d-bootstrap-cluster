@@ -7,7 +7,7 @@ spec:
   secretName: tls-backend-cert
   issuerRef:
     kind: ClusterIssuer
-    name: vault-issuer
+    name: openbao-issuer
   commonName: httpbin-tls.example.com
   dnsNames:
   - httpbin-tls.example.com

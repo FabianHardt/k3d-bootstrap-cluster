@@ -121,7 +121,8 @@ deployKong()
   helm upgrade --install kong kong/ingress \
     --namespace kong \
     --version 0.24.0 \
-    --values manifests/kong-values.yaml
+    --values manifests/kong-values.yaml \
+    --skip-crds
 
   kubectl -n kong wait --for=condition=Available=true --timeout=300s deployment/kong-gateway
 
