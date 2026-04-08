@@ -3,20 +3,20 @@ set -o errexit
 
 source ../../helpers.sh
 
-# include Hashicorp Vault setup first
-VAULT_EXISTS=$(kubectl get ns vault || echo "false")
+# include OpenBao setup first
+OPENBAO_EXISTS=$(kubectl get ns openbao || echo "false")
 
-if [ "$VAULT_EXISTS" == "false" ]
+if [ "$OPENBAO_EXISTS" == "false" ]
 then
-cd ../vault/
+cd ../openbao/
 bash setup.sh
 else
-echo "Skipping vault deployment. Already there."
+echo "Skipping OpenBao deployment. Already there."
 fi
 
-# configure Vault KV store
-kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault secrets enable -version=2 kv || true
-kubectl exec -n vault --stdin=true --tty=true vault-0 -- vault kv put kv/supersecret hello=world
+# configure OpenBao KV store
+kubectl exec -n openbao --stdin=true --tty=true openbao-0 -- bao secrets enable -version=2 kv || true
+kubectl exec -n openbao --stdin=true --tty=true openbao-0 -- bao kv put kv/supersecret hello=world
 
 cd ../external-secrets/
 
@@ -29,35 +29,37 @@ helm upgrade --install external-secrets external-secrets/external-secrets -n ext
 kubectl wait deployment -n external-secrets external-secrets --for condition=Available=True --timeout=300s
 kubectl wait deployment -n external-secrets external-secrets-webhook --for condition=Available=True --timeout=300s
 kubectl wait deployment -n external-secrets external-secrets-cert-controller --for condition=Available=True --timeout=300s
+kubectl wait --for condition=established crd/clustersecretstores.external-secrets.io --timeout=60s
+kubectl wait --for condition=established crd/externalsecrets.external-secrets.io --timeout=60s
 
-VAULT_ROOT_TOKEN=$(cat ../vault/init-keys.json | jq -r ".root_token")
+BAO_ROOT_TOKEN=$(cat ../openbao/init-keys.json | jq -r ".root_token")
 
 echo "apiVersion: v1
 kind: Secret
 metadata:
-  name: vault-root-token
+  name: openbao-root-token
   namespace: external-secrets
 stringData:
-  token: ${VAULT_ROOT_TOKEN}
+  token: ${BAO_ROOT_TOKEN}
 ---
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ClusterSecretStore
 metadata:
-  name: vault-backend
+  name: openbao-backend
 spec:
   provider:
     vault:
-      server: http://vault-internal.vault.svc.cluster.local:8200
+      server: http://openbao.openbao.svc.cluster.local:8200
       path: kv
       version: v2
       auth:
         tokenSecretRef:
-          name: vault-root-token
+          name: openbao-root-token
           namespace: external-secrets
           key: token" | kubectl apply -f -
 
-# templating method - get values from Vault and map them to an user defined key
-echo 'apiVersion: external-secrets.io/v1beta1
+# templating method - get values from OpenBao and map them to an user defined key
+echo 'apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: example-secret
@@ -65,7 +67,7 @@ metadata:
 spec:
   refreshInterval: 1m
   secretStoreRef:
-    name: vault-backend
+    name: openbao-backend
     kind: ClusterSecretStore
   target:
     name: k8s-secret
@@ -77,8 +79,8 @@ spec:
     - extract:
         key: supersecret' | kubectl apply -f -
 
-# simple method - get key/values from Vault 1:1
-echo 'apiVersion: external-secrets.io/v1beta1
+# simple method - get key/values from OpenBao 1:1
+echo 'apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: example-secret2
@@ -86,7 +88,7 @@ metadata:
 spec:
   refreshInterval: 1m
   secretStoreRef:
-    name: vault-backend
+    name: openbao-backend
     kind: ClusterSecretStore
   target:
     name: k8s-secret2

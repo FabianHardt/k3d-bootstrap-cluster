@@ -6,11 +6,15 @@ server:
     enabled: true
     ingressClassName: "haproxy"
     annotations:
-      cert-manager.io/issuer: "vault-issuer"
-      cert-manager.io/common-name: "vault.127-0-0-1.nip.io"
+      cert-manager.io/cluster-issuer: "openbao-issuer"
+      cert-manager.io/common-name: "openbao.example.com"
     hosts:
-      - host: vault.127-0-0-1.nip.io
+      - host: openbao.example.com
         paths: []
+    tls:
+      - hosts:
+          - openbao.example.com
+        secretName: openbao-tls-secret
   statefulSet:
     securityContext:
       container:
