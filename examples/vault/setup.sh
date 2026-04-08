@@ -27,17 +27,13 @@ kubectl -n vault exec vault-0 -- vault login $VAULT_ROOT_TOKEN
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault secrets enable pki
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault secrets tune -max-lease-ttl=8760h pki
 
-###########
-kubectl -n vault cp root-certs/bundle.pem vault/vault-0:/tmp/
-kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write /pki/config/ca pem_bundle=@/tmp/bundle.pem
-###########
-
-# kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/root/generate/internal \
-#     common_name=example.com \
-#     ttl=8760h
+# Configure AIA fields before importing the CA so the issuer is created with them already set
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/config/urls \
     issuing_certificates="http://vault.vault:8200/v1/pki/ca" \
     crl_distribution_points="http://vault.vault:8200/v1/pki/crl"
+
+kubectl -n vault cp root-certs/bundle.pem vault/vault-0:/tmp/
+kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write /pki/config/ca pem_bundle=@/tmp/bundle.pem
 kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write pki/roles/example-com \
     allowed_domains=example.com \
     allow_subdomains=true \
@@ -59,7 +55,22 @@ kubectl -n vault exec --stdin=true --tty=true vault-0 -- vault write auth/kubern
     ttl=20m
 
 echo "\nInstall Gateway API extension"
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
+# Install experimental Gateway API CRDs.
+# The manifest itself contains admission policy resources that block upgrading from
+# standard to experimental channel. We filter them out before applying so they cannot
+# block the CRDs that follow them in the manifest.
+kubectl delete validatingadmissionpolicy safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+kubectl delete validatingadmissionpolicybinding safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml | \
+  python3 -c "
+import sys
+docs = sys.stdin.read().split('\n---\n')
+print('\n---\n'.join(
+    d for d in docs
+    if 'kind: ValidatingAdmissionPolicy' not in d
+    and 'kind: ValidatingAdmissionPolicyBinding' not in d
+))
+" | kubectl apply --server-side -f -
 
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace \
   --set crds.enabled=true \

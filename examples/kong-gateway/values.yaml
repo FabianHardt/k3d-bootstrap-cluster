@@ -1,20 +1,21 @@
 controller:
-  env:
-    log_level: debug
   ingressController:
+    env:
+      log_level: debug
+      feature_gates: "GatewayAlpha=true"
     adminApi:
       tls:
         client:
           enabled: true
       repository: kong/kubernetes-ingress-controller
       tag: 3.5.6
-    
 
 gateway:
   env:
     log_level: debug
     admin_gui_url: https://kong-manager.example.com:8081
     admin_api_uri: https://kong-admin.example.com:8081
+
 
   autoscaling:
     enabled: true
@@ -30,6 +31,12 @@ gateway:
 
   proxy:
     type: LoadBalancer
+    stream:
+      - containerPort: 9443
+        servicePort: 9443
+        protocol: TCP
+        parameters:
+          - ssl
 
   manager:
     enabled: true

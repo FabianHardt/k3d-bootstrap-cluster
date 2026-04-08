@@ -1,0 +1,15 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: postgres-tls
+  namespace: demo
+spec:
+  secretName: postgres-tls-cert
+  issuerRef:
+    kind: ClusterIssuer
+    name: vault-issuer
+  commonName: postgres.example.com
+  dnsNames:
+  - postgres.example.com
+  duration: 24h
+  renewBefore: 4h

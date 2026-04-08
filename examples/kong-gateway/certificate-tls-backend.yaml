@@ -1,0 +1,15 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-backend
+  namespace: demo
+spec:
+  secretName: tls-backend-cert
+  issuerRef:
+    kind: ClusterIssuer
+    name: vault-issuer
+  commonName: httpbin-tls.example.com
+  dnsNames:
+  - httpbin-tls.example.com
+  duration: 24h
+  renewBefore: 4h
