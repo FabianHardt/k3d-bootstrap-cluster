@@ -50,7 +50,7 @@ metadata:
   name: kong
   namespace: kong
   annotations:
-    cert-manager.io/cluster-issuer: "vault-issuer"
+    cert-manager.io/cluster-issuer: "openbao-issuer"
     cert-manager.io/common-name: "kong-gateway.example.com"
 spec:
   gatewayClassName: kong

@@ -25,7 +25,7 @@ bash setup.sh
 
 The following components are installed with the *setup.sh*:
 
-- Installs HashiCorp Vault for certificate management (from `examples/vault`)
+- Installs OpenBao for certificate management (from `examples/openbao`)
   - Installs cert-manager HELM Chart
   - Creates a wildcard certificate for domain *example.com* - used for Kong Gateway
 - Installs Gateway API CRDs
@@ -40,4 +40,4 @@ The following components are installed with the *setup.sh*:
 
 > **NOTE**
 >
-> When you have added the Root CA to your system Truststore, or your browser the connection should be secured correctly. You can find the Root CA certificate under: `examples/vault/root-certs/rootCACert.pem`.
+> When you have added the Root CA to your system Truststore, or your browser the connection should be secured correctly. You can find the Root CA certificate under: `examples/openbao/root-certs/rootCACert.pem`.

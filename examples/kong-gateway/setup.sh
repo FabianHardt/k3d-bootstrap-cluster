@@ -23,15 +23,25 @@ excluded_kinds = (
 print('\n---\n'.join(d for d in docs if not any(kind in d for kind in excluded_kinds)))
 " | kubectl apply --server-side -f -
 
-# include Hashicorp Vault setup first
-VAULT_EXISTS=$(kubectl get ns vault || echo "false")
+# Enable Gateway API support in cert-manager now that the CRDs are installed
+helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace \
+  --set crds.enabled=true \
+  --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
+  --set config.kind="ControllerConfiguration" \
+  --set config.enableGatewayAPI=true \
+  --set config.featureGates.ServerSideApply=true
+kubectl rollout restart deployment cert-manager -n cert-manager
+kubectl wait deployment cert-manager -n cert-manager --for=condition=Available=true --timeout=120s
 
-if [[ "${VAULT_EXISTS}" == "false" ]]
+# include OpenBao setup first
+OPENBAO_EXISTS=$(kubectl get ns openbao || echo "false")
+
+if [[ "${OPENBAO_EXISTS}" == "false" ]]
 then
-cd ../vault/
-bash setup.sh
+cd ../openbao/
+KONG_FLAG=Yes bash setup.sh
 else
-echo "Skipping vault deployment. Already there."
+echo "Skipping OpenBao deployment. Already there."
 fi
 
 # Remove HAProxy Ingress - replace with Kong Ingress
@@ -43,7 +53,7 @@ else
 kubectl delete -f ../../manifests/haproxy-helm.yaml || true
 
 kubectl delete ingress -n demo httpbin || true
-kubectl delete ingress -n vault vault || true
+kubectl delete ingress -n openbao openbao || true
 fi
 
 cd ../kong-gateway/

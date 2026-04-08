@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# include Hashicorp Vault setup first
-VAULT_EXISTS=$(kubectl get ns vault || echo "false")
+# include OpenBao setup first
+OPENBAO_EXISTS=$(kubectl get ns openbao || echo "false")
 
-if [ "$VAULT_EXISTS" == "false" ]
+if [ "$OPENBAO_EXISTS" == "false" ]
 then
-cd ../vault/
+cd ../openbao/
 bash setup.sh
 else
-echo "Skipping vault deployment. Already there."
+echo "Skipping OpenBao deployment. Already there."
 fi
 
 # Remove HAProxy Ingress - will be replaced with Kong Gateway resp. an Operator-based Gateway
