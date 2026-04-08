@@ -9,6 +9,17 @@ metadata:
 spec:
   gatewayClassName: kong
   listeners:
+  - name: kong-tls-passthrough
+    hostname: "*.example.com"
+    port: 9443
+    protocol: TLS
+    tls:
+      mode: Passthrough
+    allowedRoutes:
+      namespaces:
+        from: All
+      kinds:
+        - kind: TLSRoute
   - name: kong-https
     hostname: "*.example.com"
     port: 443

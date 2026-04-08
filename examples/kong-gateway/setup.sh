@@ -6,7 +6,22 @@ source helpers.sh
 helm repo add kong https://charts.konghq.com
 helm repo update
 
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+# Install experimental Gateway API CRDs.
+# The manifest itself contains a ValidatingAdmissionPolicy that blocks upgrading from
+# standard to experimental channel. We filter it out before applying so it cannot
+# block the CRDs that follow it in the manifest.
+kubectl delete validatingadmissionpolicy safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+kubectl delete validatingadmissionpolicybinding safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml | \
+  python3 -c "
+import sys
+docs = sys.stdin.read().split('\n---\n')
+excluded_kinds = (
+    'kind: ValidatingAdmissionPolicy',
+    'kind: ValidatingAdmissionPolicyBinding',
+)
+print('\n---\n'.join(d for d in docs if not any(kind in d for kind in excluded_kinds)))
+" | kubectl apply --server-side -f -
 
 # include Hashicorp Vault setup first
 VAULT_EXISTS=$(kubectl get ns vault || echo "false")
@@ -40,3 +55,59 @@ kubectl delete pod --field-selector=status.phase==Succeeded -A
 
 kubectl apply -n demo -f httproute-httpbin-svc.yaml
 kubectl apply -n kong -f httproute-kong-manager.yaml
+
+echo "\nDeploying TLS passthrough demo (TLSRoute + Vault-signed cert)"
+
+kubectl apply -f certificate-tls-backend.yaml
+
+echo "Waiting for cert-manager to issue tls-backend certificate from Vault..."
+kubectl wait certificate tls-backend -n demo --for=condition=Ready --timeout=120s
+
+kubectl apply -f tls-backend.yaml
+kubectl rollout status deployment/tls-backend -n demo --timeout=120s
+
+kubectl apply -f tlsroute-httpbin-tls.yaml
+
+echo "\nDeploying PostgreSQL TLS passthrough demo"
+
+kubectl apply -f certificate-postgres.yaml
+
+echo "Waiting for cert-manager to issue postgres-tls certificate from Vault..."
+kubectl wait certificate postgres-tls -n demo --for=condition=Ready --timeout=120s
+
+kubectl apply -f postgres.yaml
+kubectl rollout status deployment/postgres -n demo --timeout=120s
+
+kubectl apply -f tlsroute-postgres.yaml
+
+echo ""
+echo "TLSRoute passthrough demos ready."
+echo ""
+echo "--- httpbin TLS backend ---"
+echo "  kubectl port-forward -n kong svc/kong-gateway-proxy 9443:9443"
+echo "  curl --cacert ../vault/root-certs/bundle.pem \\"
+echo "    --resolve 'httpbin-tls.example.com:9443:127.0.0.1' \\"
+echo "    https://httpbin-tls.example.com:9443/"
+echo ""
+echo "--- PostgreSQL TLS backend ---"
+echo "  # Option 1: ephemeral pod inside the cluster (no local tools needed)"
+echo "  kubectl run -it --rm psql-test \\"
+echo "    --image=postgres:17-alpine \\"
+echo "    --restart=Never \\"
+echo "    -- sh -c 'psql \"hostaddr=\$(getent hosts kong-gateway-proxy.kong.svc.cluster.local \\"
+echo "      | awk '"'"'{print \$1}'"'"' | head -1) \\"
+echo "      host=postgres.example.com port=9443 \\"
+echo "      sslmode=require sslnegotiation=direct \\"
+echo "      user=demo password=demo dbname=demo\"'"
+echo ""
+echo "  # Option 2: Docker from outside the cluster"
+echo "  kubectl port-forward -n kong svc/kong-gateway-proxy 5432:9443 &"
+echo "  docker run --rm -it \\"
+echo "    -v \"\$(pwd)/../vault/root-certs/bundle.pem:/bundle.pem:ro\" \\"
+echo "    --add-host \"postgres.example.com:host-gateway\" \\"
+echo "    postgres:17-alpine \\"
+echo "    psql \"host=postgres.example.com port=5432 sslmode=require sslnegotiation=direct user=demo password=demo dbname=demo sslrootcert=/bundle.pem\""
+echo ""
+echo "  # Option 3: local psql (requires libpq 17, not 18+)"
+echo "  kubectl port-forward -n kong svc/kong-gateway-proxy 5432:9443 &"
+echo "  psql \"host=postgres.example.com port=5432 sslmode=require sslnegotiation=direct user=demo password=demo dbname=demo sslrootcert=../vault/root-certs/bundle.pem\""

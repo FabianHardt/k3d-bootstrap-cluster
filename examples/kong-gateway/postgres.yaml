@@ -1,0 +1,147 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-conf
+  namespace: demo
+data:
+  postgresql.conf: |
+    listen_addresses = '*'
+    port = 5432
+
+    # TLS terminates HERE — this backend holds its own certificate from Vault PKI.
+    # Kong routes the encrypted connection based on SNI (TLS Passthrough) without
+    # decrypting it. Only this server sees the plaintext.
+    #
+    # IMPORTANT: standard PostgreSQL SSL starts with a proprietary SSLRequest message
+    # before the TLS handshake, so Kong cannot read the SNI. PostgreSQL 17 supports
+    # "direct SSL" (sslnegotiation=direct on the client) where the TLS ClientHello is
+    # the first message — making SNI-based routing possible.
+    ssl = on
+    ssl_cert_file = '/etc/postgresql/tls/tls.crt'
+    ssl_key_file  = '/etc/postgresql/tls/tls.key'
+
+  pg_hba.conf: |
+    # TYPE  DATABASE  USER  ADDRESS  METHOD
+    # Unix socket access needed during initdb initialisation
+    local   all       all            trust
+    # All network connections must use SSL (enforces direct-SSL on the client side)
+    hostssl all       all   all      scram-sha-256
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+      initContainers:
+      - name: fix-tls-permissions
+        # PostgreSQL requires ssl_key_file to be mode 0600 and owned by the postgres
+        # user (uid 70 in the alpine image). Secret volumes mount as root:root 0644,
+        # so we copy the files into an emptyDir and fix ownership + permissions here.
+        image: busybox:1.37
+        command:
+        - sh
+        - -c
+        - |
+          cp /tls-secret/tls.crt /tls/tls.crt
+          cp /tls-secret/tls.key /tls/tls.key
+          chown 70:70 /tls/tls.crt /tls/tls.key
+          chmod 0644 /tls/tls.crt
+          chmod 0600 /tls/tls.key
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: tls-secret
+          mountPath: /tls-secret
+          readOnly: true
+        - name: tls
+          mountPath: /tls
+      containers:
+      - name: postgres
+        image: postgres:17-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: demo
+        - name: POSTGRES_PASSWORD
+          value: demo
+        - name: POSTGRES_DB
+          value: demo
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        args:
+        - postgres
+        - -c
+        - config_file=/etc/postgresql/postgresql.conf
+        - -c
+        - hba_file=/etc/postgresql/pg_hba.conf
+        volumeMounts:
+        - name: postgres-conf
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        - name: postgres-conf
+          mountPath: /etc/postgresql/pg_hba.conf
+          subPath: pg_hba.conf
+        - name: tls
+          mountPath: /etc/postgresql/tls
+          readOnly: true
+        - name: pgdata
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-run
+          mountPath: /var/run/postgresql
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - "ALL"
+      volumes:
+      - name: postgres-conf
+        configMap:
+          name: postgres-conf
+      - name: tls-secret
+        secret:
+          secretName: postgres-tls-cert
+      - name: tls
+        emptyDir: {}
+      - name: pgdata
+        emptyDir: {}
+      - name: postgres-run
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: demo
+spec:
+  selector:
+    app: postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP

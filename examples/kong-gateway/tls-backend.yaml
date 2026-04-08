@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tls-backend-conf
+  namespace: demo
+data:
+  nginx.conf: |
+    pid /tmp/nginx.pid;
+    events {}
+    http {
+      server {
+        # TLS terminates HERE — this backend holds its own certificate from Vault PKI.
+        # Kong routes the encrypted traffic based on the SNI hostname (TLS Passthrough)
+        # without decrypting it. Only this server sees the plaintext.
+        listen 8443 ssl;
+        ssl_certificate     /etc/nginx/tls/tls.crt;
+        ssl_certificate_key /etc/nginx/tls/tls.key;
+
+        location / {
+          default_type application/json;
+          # The response confirms: TLS was terminated here, not at Kong.
+          return 200 '{"service":"tls-backend","tls":"terminated-here","issuer":"vault-pki"}\n';
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tls-backend
+  namespace: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tls-backend
+  template:
+    metadata:
+      labels:
+        app: tls-backend
+    spec:
+      containers:
+      - name: nginx
+        image: nginxinc/nginx-unprivileged:alpine
+        ports:
+        - containerPort: 8443
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: tls
+          mountPath: /etc/nginx/tls
+          readOnly: true
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - "ALL"
+      volumes:
+      - name: nginx-conf
+        configMap:
+          name: tls-backend-conf
+      - name: tls
+        secret:
+          secretName: tls-backend-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tls-backend
+  namespace: demo
+spec:
+  selector:
+    app: tls-backend
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8443
+    protocol: TCP
