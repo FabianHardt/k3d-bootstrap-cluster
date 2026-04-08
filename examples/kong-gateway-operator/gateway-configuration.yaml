@@ -6,7 +6,7 @@ metadata:
     kuma.io/sidecar-injection: enabled
 ---
 kind: GatewayClass
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 metadata:
   name: kong
 spec:
@@ -29,7 +29,7 @@ spec:
         spec:
           containers:
             - name: proxy
-              image: kong:3.7.0
+              image: kong:3.9
               readinessProbe:
                 initialDelaySeconds: 1
                 periodSeconds: 1
@@ -39,13 +39,13 @@ spec:
         spec:
           containers:
             - name: controller
-              image: kong/kubernetes-ingress-controller:3.2.0
+              image: kong/kubernetes-ingress-controller:3.4
               env:
                 - name: CONTROLLER_LOG_LEVEL
                   value: debug
 ---
 kind: Gateway
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 metadata:
   name: kong
   namespace: kong

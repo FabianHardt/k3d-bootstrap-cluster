@@ -26,6 +26,7 @@ kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/downloa
 
 echo "\nUpdating cert-manager to work with Gateway API"
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager \
+  --set crds.enabled=true \
   --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
   --set config.kind="ControllerConfiguration" \
   --set config.enableGatewayAPI=true
@@ -40,10 +41,12 @@ echo "\nInstall Kong Gateway Operator"
 helm repo add kong https://charts.konghq.com
 helm repo update kong
 
-helm upgrade --install kgo kong/gateway-operator -n kong-system --create-namespace --set image.tag=1.2
+helm upgrade --install kgo kong/gateway-operator -n kong-system --create-namespace --skip-crds --reset-values
 
 kubectl -n kong-system wait --for=condition=Available=true --timeout=120s deployment/kgo-gateway-operator-controller-manager
 
+# GatewayClass "kong" may already exist from kong-gateway example with a different controllerName — recreate it
+kubectl delete gatewayclass kong --ignore-not-found
 kubectl apply -f gateway-configuration.yaml
 
 echo "\nConfigure HTTPRoute for httpbin"
