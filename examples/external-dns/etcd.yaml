@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dns-sample
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coredns-etcd
+  namespace: dns-sample
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coredns-etcd
+  template:
+    metadata:
+      labels:
+        app: coredns-etcd
+    spec:
+      containers:
+      - name: etcd
+        image: registry.k8s.io/etcd:3.5.16-0
+        command:
+        - etcd
+        - --listen-client-urls=http://0.0.0.0:2379
+        - --advertise-client-urls=http://0.0.0.0:2379
+        - --listen-peer-urls=http://0.0.0.0:2380
+        - --initial-advertise-peer-urls=http://0.0.0.0:2380
+        - --initial-cluster=default=http://0.0.0.0:2380
+        - --data-dir=/var/etcd/data
+        ports:
+        - containerPort: 2379
+          name: client
+        - containerPort: 2380
+          name: peer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coredns-etcd
+  namespace: dns-sample
+spec:
+  selector:
+    app: coredns-etcd
+  ports:
+  - name: client
+    port: 2379
+    targetPort: 2379

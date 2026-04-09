@@ -11,13 +11,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Kong Gateway TLS passthrough (`TLSRoute`) now requires `parameters: [ssl]` on the `proxy.stream` entry in `values.yaml`. Kong KIC only recognises a stream listener as `TLSProtocolType` when the Admin API reports `SSL=true` for that listener. Without the flag KIC sets the Gateway listener to `UnsupportedProtocol` and the TLSRoute stays in `NoMatchingParent`. Documented in `docs/showcases/kong.md`.
-* Added PostgreSQL 17 TLS passthrough demo to the Kong Gateway showcase (`examples/kong-gateway/`). Demonstrates SNI-based routing of non-HTTP traffic using PostgreSQL 17 direct SSL (`sslnegotiation=direct`). Includes a cert-manager Certificate issued by Vault PKI, an init container to fix TLS key permissions, and a `TLSRoute` for `postgres.example.com`. The Gateway `kong-tls-passthrough` listener hostname widened to `*.example.com` to support multiple backends on the same listener.
-* Extended `examples/kong-gateway/setup.sh` to deploy the PostgreSQL TLS passthrough demo automatically.
-
 ### Removed
 
 ### Fixed
+
+## [1.1.1] - 2026-04-09
+
+### Fixed
+
+* Replaced deprecated Bitnami Helm chart for ExternalDNS (`bitnami/external-dns`) with the official chart (`external-dns/external-dns` from `https://kubernetes-sigs.github.io/external-dns/`). The official chart uses images from `registry.k8s.io/external-dns/external-dns` which are always accessible. Provider configuration changed from `--set provider=coredns` to `--set provider.name=coredns`; etcd endpoint is now passed via the `ETCD_URLS` environment variable.
+* Replaced Bitnami etcd Helm chart with a plain Kubernetes manifest (`etcd.yaml`) using the `registry.k8s.io/etcd:3.5.16-0` image. Bitnami images (`docker.io/bitnami/etcd`) were not pullable, causing the ExternalDNS showcase to fail entirely.
+* ExternalDNS sources are now set explicitly depending on the ingress mode: `ingress` for HAProxy, `gateway-httproute` for Kong Gateway (closes [#45](https://github.com/FabianHardt/k3d-bootstrap-cluster/issues/45)).
+
+## [1.1.0] - 2026-04-09
+
+### Added
+
+* OpenBao showcase (`examples/openbao/`) — OpenBao is an open-source fork of HashiCorp Vault maintained by the Linux Foundation after Vault's license change to BSL. The API and `bao` CLI are fully compatible with Vault. Includes automated setup script, Helm values for HAProxy and Kong Gateway, HTTPRoute/Ingress resources, and a dedicated documentation page (`docs/showcases/openbao.md`).
+* Multi-ingress support across showcases: `external-dns`, `external-secrets`, `kyverno`, and `kuma-mesh` now support both HAProxy Ingress and Kong Gateway API (HTTPRoute). The ingress mode is auto-detected from the cluster or can be forced via `HAPROXY_FLAG=Yes` / `KONG_FLAG=Yes`.
+* HTTPRoute resources for Kong Gateway added to `examples/external-dns/`, `examples/kyverno/`, and `examples/openbao/`.
+
+### Changed
+
+* Kong Gateway TLS passthrough (`TLSRoute`) now requires `parameters: [ssl]` on the `proxy.stream` entry in `values.yaml`. Kong KIC only recognises a stream listener as `TLSProtocolType` when the Admin API reports `SSL=true` for that listener. Without the flag KIC sets the Gateway listener to `UnsupportedProtocol` and the TLSRoute stays in `NoMatchingParent`. Documented in `docs/showcases/kong.md`.
+* Added PostgreSQL 17 TLS passthrough demo to the Kong Gateway showcase (`examples/kong-gateway/`). Demonstrates SNI-based routing of non-HTTP traffic using PostgreSQL 17 direct SSL (`sslnegotiation=direct`). Includes a cert-manager Certificate issued by OpenBao PKI, an init container to fix TLS key permissions, and a `TLSRoute` for `postgres.example.com`. The Gateway `kong-tls-passthrough` listener hostname widened to `*.example.com` to support multiple backends on the same listener.
+* Extended `examples/kong-gateway/setup.sh` to deploy the PostgreSQL TLS passthrough demo automatically.
+* Kong Gateway Operator: updated `GatewayConfiguration` to align with current CRD schema (`examples/kong-gateway-operator/`).
+* Kuma Mesh helpers extended with additional wait logic and improved cluster setup (`examples/kuma-mesh/helpers.sh`).
+
+### Removed
+
+* HashiCorp Vault showcase (`examples/vault/`) — replaced by the OpenBao showcase. OpenBao is a fully API-compatible drop-in replacement.
 
 ## [1.0.0] - 2026-04-05
 
@@ -153,7 +177,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added external-dns sample. Demonstrates ExternalDNS, which configures an external CoreDNS server - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/2
 - Added Hashicorp Vault as CA server in combination with cert-manager do demonstrate auto generated certificates - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/6
 
-[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.7.0...v0.8.0
