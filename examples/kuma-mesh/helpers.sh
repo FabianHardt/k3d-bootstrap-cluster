@@ -80,11 +80,3 @@ spec:
 EOF
 fi
 }
-
-configureMeshForKongIngress() {
-kubectl annotate ns kong-dp kuma.io/sidecar-injection="enabled" --overwrite
-sleep 2 # wait to register the namespace as mesh-component by the controlplane
-kubectl -n kong-dp delete po --all
-echo 'Wait for kong dataplane to start with sidecar'
-kubectl wait pod -n kong-dp $(kubectl -n kong-dp get pods --no-headers -o custom-columns=":metadata.name") --for condition=Ready --timeout=180s
-}
