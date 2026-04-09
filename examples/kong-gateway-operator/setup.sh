@@ -41,7 +41,7 @@ echo "\nInstall Kong Gateway Operator"
 helm repo add kong https://charts.konghq.com
 helm repo update kong
 
-helm upgrade --install kgo kong/gateway-operator -n kong-system --create-namespace --skip-crds --reset-values
+helm upgrade --install kgo kong/gateway-operator -n kong-system --create-namespace --reset-values
 
 kubectl -n kong-system wait --for=condition=Available=true --timeout=120s deployment/kgo-gateway-operator-controller-manager
 
