@@ -18,7 +18,7 @@ echo "Skipping kong deployment, already installed"
 fi
 
 cd ../kuma-mesh/
-configureMeshForKongIngress
+configureMeshIngress
 
 
 DEMO_DEPLOYED=$(kubectl get ns demo || echo "false")

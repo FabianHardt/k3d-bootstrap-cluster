@@ -92,8 +92,8 @@ Samples included under the **examples** folder:
 
 - ExternalDNS - https://github.com/kubernetes-sigs/external-dns
   - Installation is documented here [README](docs/showcases/external-dns.md)
-- Vault https://github.com/hashicorp/vault & cert-manager https://github.com/cert-manager/cert-manager
-  - Installation is documented here [README](docs/showcases/vault.md)
+- OpenBao https://github.com/openbao/openbao & cert-manager https://github.com/cert-manager/cert-manager
+  - Installation is documented here [README](docs/showcases/openbao.md)
 - External Secrets Operator (ESO) - https://github.com/external-secrets/external-secrets
   - Installation is documented here [README](docs/showcases/external-secrets.md)
 - Kong API Gateway (Enterprise) - https://github.com/Kong/kong

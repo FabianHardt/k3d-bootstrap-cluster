@@ -17,6 +17,7 @@ You can test Kong Ingress by adding the following entry to your */etc/hosts* fil
 127.0.0.1		httpbin.example.com
 127.0.0.1		httpbin-tls.example.com
 127.0.0.1		postgres.example.com
+127.0.0.1		openbao.example.com
 127.0.0.1		kong-manager.example.com
 127.0.0.1		kong-admin.example.com
 ```
@@ -33,7 +34,7 @@ bash setup.sh
 The following components are installed with the *setup.sh*:
 
 - Creates Kubernetes Gateway API CRDs
-- Hashicorp Vault - HELM Chart / cert-manager HELM Chart (see [README](/showcases/vault.md))
+- OpenBao - HELM Chart / cert-manager HELM Chart (see [README](/showcases/openbao.md))
 - [Kong Ingress HELM Chart](https://github.com/Kong/charts/tree/main/charts/ingress) is used to deploy Kong API Gateway
   - Installs Kong Control Plane (Kong Ingress Controller, KIC) instance to namespace *kong*
   - Installs 2 Kong Gateway node (Gateway Proxies) instances to namespace *kong*
@@ -43,7 +44,7 @@ The following components are installed with the *setup.sh*:
 - Creates *httpbin* HttpRoute
   - After that you can open *httpbin* with the URL: <https://httpbin.example.com:8081>.
     When you have added the Root CA to your system Truststore, or your browser the connection should be secured correctly.
-    You can find the Root CA certificate under: `examples/vault/root-certs/rootCACert.pem`.
+    You can find the Root CA certificate under: `examples/openbao/root-certs/rootCACert.pem`.
 
 ### TLS Passthrough (TLSRoute)
 

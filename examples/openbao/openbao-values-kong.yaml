@@ -1,0 +1,14 @@
+---
+injector:
+  enabled: false
+server:
+  ingress:
+    enabled: false
+  statefulSet:
+    securityContext:
+      container:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: "RuntimeDefault"

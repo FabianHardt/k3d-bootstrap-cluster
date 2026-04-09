@@ -7,7 +7,7 @@ spec:
   secretName: postgres-tls-cert
   issuerRef:
     kind: ClusterIssuer
-    name: vault-issuer
+    name: openbao-issuer
   commonName: postgres.example.com
   dnsNames:
   - postgres.example.com
