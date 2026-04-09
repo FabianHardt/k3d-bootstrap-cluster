@@ -23,8 +23,8 @@ The following components are installed with the *setup.sh*:
 - ESO is deployed via HELM Chart to new namespace *external-secrets*
 - Connection to OpenBao is configured as ClusterSecretStore (clusterwide)
 - Two ExternalSecret samples are deployed to namespace *demo*
-  - example-secret - automatically creates a new K8s secret, named *k8s-secret*, from Vault to namespace *demo*
-  - example-secret2 - automatically creates a new K8s secret, named *k8s-secret2*,  from Vault to namespace *demo*
+  - example-secret - automatically creates a new K8s secret, named *k8s-secret*, from OpenBao to namespace *demo*
+  - example-secret2 - automatically creates a new K8s secret, named *k8s-secret2*,  from OpenBao to namespace *demo*
 
 ### Test
 
