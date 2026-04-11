@@ -115,14 +115,22 @@ deployKong()
   kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
 
   kubectl create namespace kong || true
+
+  # The kong/ingress chart bundles kong/kong as a sub-chart whose crds/ directory
+  # Helm does not auto-install (Helm only processes crds/ from the top-level chart).
+  # Install them explicitly from the matching sub-chart version.
+  KONG_SUBCHART_TMPDIR=$(mktemp -d)
+  helm pull kong/kong --version 3.2.0 --untar --untardir "${KONG_SUBCHART_TMPDIR}"
+  kubectl apply -f "${KONG_SUBCHART_TMPDIR}/kong/crds/"
+  rm -rf "${KONG_SUBCHART_TMPDIR}"
+
   kubectl apply -f manifests/kong-gateway-class.yaml
   kubectl apply -f manifests/kong-gateway.yaml
 
   helm upgrade --install kong kong/ingress \
     --namespace kong \
     --version 0.24.0 \
-    --values manifests/kong-values.yaml \
-    --skip-crds
+    --values manifests/kong-values.yaml
 
   kubectl -n kong wait --for=condition=Available=true --timeout=300s deployment/kong-gateway
 

@@ -25,5 +25,7 @@ spec:
   valuesContent: |-
     controller:
       ingressClass: haproxy
+      publishService:
+        enabled: true
       config:
         use-forwarded-headers: "true"
