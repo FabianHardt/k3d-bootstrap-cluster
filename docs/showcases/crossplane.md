@@ -91,9 +91,9 @@ Es registriert neue Kubernetes-Ressourcentypen: `Provider`, `Composition`, `Comp
 ```yaml
 spec:
   parameters:
-    appName: meine-app    # Pflicht
-    image: httpbin        # Optional
-    replicas: 1           # Optional
+    appName: meine-app              # Pflicht
+    image: kennethreitz/httpbin     # Optional
+    replicas: 1                     # Optional
 ```
 
 **Composition** (`04-composition-*.yaml`): Die Implementierung. Beschreibt, welche Kubernetes-Ressourcen für jeden Claim erstellt werden und wie die Parameter darauf abgebildet werden (Patches).
