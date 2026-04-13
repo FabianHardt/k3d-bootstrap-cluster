@@ -1,0 +1,23 @@
+# AppEnvironment Claim — dieser Teil ist für Entwickler.
+#
+# Das ist alles, was ein Entwickler wissen muss:
+#   - appName ändern
+#   - kubectl apply -f claim.yaml ausführen
+#   - Fertig! Die Plattform erstellt automatisch:
+#       Namespace, Deployment, Service und Ingress
+#
+# Die App ist danach erreichbar unter:
+#   http://{appName}.127-0-0-1.nip.io:8080
+#
+# Weitere Apps anlegen: Diese Datei kopieren, appName ändern, erneut anwenden.
+# Ressourcen entfernen: kubectl delete appenvironment {appName} -n default
+apiVersion: platform.example.com/v1alpha1
+kind: AppEnvironment
+metadata:
+  name: meine-app
+  namespace: default
+spec:
+  parameters:
+    appName: meine-app
+    # image: kennethreitz/httpbin    # optional, Standard: httpbin
+    # replicas: 1                    # optional, Standard: 1 (max. 10)

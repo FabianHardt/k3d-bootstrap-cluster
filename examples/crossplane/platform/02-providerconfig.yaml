@@ -1,0 +1,10 @@
+# ProviderConfig: Konfiguriert den Kubernetes-Provider für In-Cluster-Zugriff.
+# InjectedIdentity = der Provider nutzt den ServiceAccount-Token seines eigenen Pods.
+# Kein externer Kubeconfig und keine Cloud-Credentials notwendig — perfekt für lokale Demos.
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: in-cluster
+spec:
+  credentials:
+    source: InjectedIdentity
