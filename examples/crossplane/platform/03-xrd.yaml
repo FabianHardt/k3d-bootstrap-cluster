@@ -20,6 +20,8 @@ spec:
   claimNames:
     kind: AppEnvironment
     plural: appenvironments
+  defaultCompositionRef:
+    name: appenvironment-haproxy
   versions:
     - name: v1alpha1
       served: true
