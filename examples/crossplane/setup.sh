@@ -65,6 +65,21 @@ echo "✓ Crossplane bereit"
 echo ""
 
 # ===========================================================================
+# Vorbereitungen: httpbin im Namespace demo entfernen
+# ===========================================================================
+# Das bestehende httpbin-Deployment wird entfernt, damit beim Test eindeutig
+# klar ist, dass nur die von Crossplane verwaltete App erreichbar ist.
+echo "----------------------------------------------------------"
+echo "Vorbereitung: httpbin im Namespace demo entfernen"
+echo "----------------------------------------------------------"
+kubectl delete deployment httpbin -n demo --ignore-not-found
+kubectl delete service httpbin -n demo --ignore-not-found
+kubectl delete ingress httpbin -n demo --ignore-not-found
+kubectl delete httproute httpbin -n demo --ignore-not-found
+echo "✓ Namespace demo bereinigt"
+echo ""
+
+# ===========================================================================
 # [Platform Team] Schritt 2: Kubernetes-Provider installieren
 # ===========================================================================
 echo "----------------------------------------------------------"
@@ -76,10 +91,8 @@ echo ""
 kubectl apply -f platform/01-provider.yaml
 
 echo "Warte darauf, dass der Kubernetes-Provider gesund wird..."
-kubectl wait --for=condition=established \
-  crd/providerconfigs.kubernetes.crossplane.io \
-  --timeout=300s
-
+# Healthy=true bedeutet: Provider-Paket heruntergeladen, alle CRDs (inkl.
+# providerconfigs.kubernetes.crossplane.io) registered und Controller läuft.
 kubectl wait provider/provider-kubernetes \
   --for=condition=Healthy=true \
   --timeout=300s
