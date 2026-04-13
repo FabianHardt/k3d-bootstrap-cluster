@@ -20,8 +20,9 @@ elif kubectl get namespace kong &>/dev/null 2>&1 || kubectl get gatewayclass kon
   echo "Auto-detected Kong Gateway"
   INGRESS_MODE="kong"
 else
-  echo "Kein Ingress-Controller gefunden — App wird ohne Ingress/HTTPRoute erstellt."
-  INGRESS_MODE="none"
+  echo "Fehler: Kein unterstützter Ingress-Modus erkannt."
+  echo "Bitte HAProxy oder Kong installieren oder HAPROXY_FLAG/KONG_FLAG explizit setzen."
+  exit 1
 fi
 
 echo ""
