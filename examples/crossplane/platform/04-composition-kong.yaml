@@ -1,0 +1,222 @@
+# Composition (Kong Gateway API-Variante) — die Implementierung hinter dem API.
+#
+# Identisch zur HAProxy-Variante, aber Ressource 4 ist eine HTTPRoute statt eines Ingress.
+# Die HTTPRoute nutzt den vorhandenen Kong Gateway im Namespace "kong".
+#
+#   1. Namespace     → app-{appName}
+#   2. Deployment    → httpbin (oder benutzerdefiniertes Image) im Namespace
+#   3. Service       → ClusterIP, Port 80
+#   4. HTTPRoute     → {appName}.127-0-0-1.nip.io über Kong Gateway API
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: appenvironment-kong
+  labels:
+    ingress: kong
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.com/v1alpha1
+    kind: XAppEnvironment
+  resources:
+
+    # -------------------------------------------------------------------------
+    # Ressource 1: Namespace
+    # -------------------------------------------------------------------------
+    - name: namespace
+      base:
+        apiVersion: kubernetes.crossplane.io/v1alpha2
+        kind: Object
+        spec:
+          providerConfigRef:
+            name: in-cluster
+          forProvider:
+            manifest:
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                name: app-placeholder
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.metadata.name"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"
+
+    # -------------------------------------------------------------------------
+    # Ressource 2: Deployment
+    # -------------------------------------------------------------------------
+    - name: deployment
+      base:
+        apiVersion: kubernetes.crossplane.io/v1alpha2
+        kind: Object
+        spec:
+          providerConfigRef:
+            name: in-cluster
+          forProvider:
+            manifest:
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: app-placeholder
+                namespace: app-placeholder
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels:
+                    app: app-placeholder
+                template:
+                  metadata:
+                    labels:
+                      app: app-placeholder
+                  spec:
+                    containers:
+                      - name: app
+                        image: kennethreitz/httpbin
+                        ports:
+                          - containerPort: 80
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.metadata.namespace"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.metadata.name"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.spec.selector.matchLabels.app"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.spec.template.metadata.labels.app"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.image"
+          toFieldPath: "spec.forProvider.manifest.spec.template.spec.containers[0].image"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.replicas"
+          toFieldPath: "spec.forProvider.manifest.spec.replicas"
+
+    # -------------------------------------------------------------------------
+    # Ressource 3: Service
+    # -------------------------------------------------------------------------
+    - name: service
+      base:
+        apiVersion: kubernetes.crossplane.io/v1alpha2
+        kind: Object
+        spec:
+          providerConfigRef:
+            name: in-cluster
+          forProvider:
+            manifest:
+              apiVersion: v1
+              kind: Service
+              metadata:
+                name: app-placeholder
+                namespace: app-placeholder
+              spec:
+                type: ClusterIP
+                selector:
+                  app: app-placeholder
+                ports:
+                  - port: 80
+                    targetPort: 80
+                    protocol: TCP
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.metadata.namespace"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.metadata.name"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.spec.selector.app"
+
+    # -------------------------------------------------------------------------
+    # Ressource 4: HTTPRoute (Kong Gateway API)
+    # Exponiert die App unter {appName}.127-0-0-1.nip.io über den Kong Gateway.
+    # Der Kong Gateway läuft im Namespace "kong" und erlaubt Routes aus allen Namespaces.
+    # -------------------------------------------------------------------------
+    - name: httproute
+      base:
+        apiVersion: kubernetes.crossplane.io/v1alpha2
+        kind: Object
+        spec:
+          providerConfigRef:
+            name: in-cluster
+          forProvider:
+            manifest:
+              apiVersion: gateway.networking.k8s.io/v1
+              kind: HTTPRoute
+              metadata:
+                name: app-placeholder
+                namespace: app-placeholder
+              spec:
+                parentRefs:
+                  - name: kong
+                    namespace: kong
+                    kind: Gateway
+                hostnames:
+                  - placeholder.127-0-0-1.nip.io
+                rules:
+                  - matches:
+                      - path:
+                          type: PathPrefix
+                          value: /
+                    backendRefs:
+                      - name: app-placeholder
+                        port: 80
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.metadata.namespace"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.metadata.name"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.spec.hostnames[0]"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "%s.127-0-0-1.nip.io"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.parameters.appName"
+          toFieldPath: "spec.forProvider.manifest.spec.rules[0].backendRefs[0].name"
+          transforms:
+            - type: string
+              string:
+                type: Format
+                fmt: "app-%s"

@@ -1,0 +1,57 @@
+# CompositeResourceDefinition (XRD) — das "Bestellformular" des Platform-Teams.
+#
+# Das Platform-Team legt hier fest, was Entwickler konfigurieren dürfen:
+#   - appName  (Pflicht): Name der App, bestimmt auch den Namespace (app-{appName})
+#   - image    (optional): Container-Image, Standard: httpbin
+#   - replicas (optional): Anzahl der Pods, Standard: 1
+#
+# Crossplane registriert daraus automatisch zwei neue Kubernetes-Ressourcentypen:
+#   - XAppEnvironment  (cluster-scoped, intern)
+#   - AppEnvironment   (namespace-scoped, für Entwickler sichtbar)
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xappenvironments.platform.example.com
+spec:
+  group: platform.example.com
+  names:
+    kind: XAppEnvironment
+    plural: xappenvironments
+  claimNames:
+    kind: AppEnvironment
+    plural: appenvironments
+  defaultCompositionRef:
+    name: appenvironment-haproxy
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - parameters
+              properties:
+                parameters:
+                  type: object
+                  required:
+                    - appName
+                  properties:
+                    appName:
+                      type: string
+                      description: >
+                        Name der Applikation. Wird als Basis für alle erstellten
+                        Ressourcen verwendet. Erzeugt den Namespace "app-{appName}".
+                    image:
+                      type: string
+                      description: Container-Image für die Applikation.
+                      default: "kennethreitz/httpbin"
+                    replicas:
+                      type: integer
+                      description: Anzahl der laufenden Pods (1–10).
+                      default: 1
+                      minimum: 1
+                      maximum: 10

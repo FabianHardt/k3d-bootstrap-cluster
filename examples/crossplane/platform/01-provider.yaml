@@ -1,0 +1,37 @@
+# DeploymentRuntimeConfig: Setzt einen vorhersehbaren ServiceAccount-Namen für den Provider.
+# Ohne diese Konfiguration würde Crossplane einen zufälligen Namen generieren,
+# der sich nicht im Voraus in einer RBAC-Bindung verwenden lässt.
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-kubernetes-config
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: provider-kubernetes
+---
+# ClusterRoleBinding: Gibt dem Provider-ServiceAccount Cluster-Admin-Rechte.
+# Wichtig: Nur für Demo-Zwecke! In Produktion engere, spezifische Rechte vergeben.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: provider-kubernetes-cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: provider-kubernetes
+    namespace: crossplane-system
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Provider: Installiert den Kubernetes-Provider aus dem Upbound Marketplace.
+# Dieser Provider ermöglicht es Crossplane, Kubernetes-Ressourcen zu verwalten.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-kubernetes
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.14.0
+  runtimeConfigRef:
+    name: provider-kubernetes-config
