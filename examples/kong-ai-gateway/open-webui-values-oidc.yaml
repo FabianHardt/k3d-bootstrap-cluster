@@ -1,0 +1,55 @@
+podAnnotations:
+  traffic.kuma.io/exclude-outbound-ports: "6379"
+
+serviceAccount:
+  automountServiceAccountToken: true
+
+websocket:
+  redis:
+    pods:
+      annotations:
+        traffic.kuma.io/exclude-inbound-ports: "6379"
+        traffic.kuma.io/exclude-outbound-ports: "6379"
+
+ollama:
+  enabled: false
+
+pipelines:
+  enabled: false
+
+extraEnvVars:
+  - name: ENABLE_OLLAMA_API
+    value: "false"
+  - name: OPENAI_API_BASE_URLS
+    value: "http://kong-gateway-proxy.kong.svc.cluster.local:80/ollama/v1"
+  - name: OPENAI_API_KEYS
+    value: "admin-key-12345"
+  - name: WEBUI_AUTH
+    value: "true"
+  - name: ENABLE_OAUTH_SIGNUP
+    value: "true"
+  - name: OAUTH_PROVIDER_NAME
+    value: "Keycloak"
+  - name: OPENID_PROVIDER_URL
+    value: "http://keycloak.ai-platform.svc.cluster.local:8080/realms/ai-platform/.well-known/openid-configuration"
+  - name: OAUTH_CLIENT_ID
+    value: "kong-ai-gateway"
+  - name: OAUTH_CLIENT_SECRET
+    value: "kong-ai-gateway-secret"
+  - name: OAUTH_SCOPES
+    value: "openid profile email"
+  - name: OPENID_REDIRECT_URI
+    value: "https://chat.example.com:8081/oauth/oidc/callback"
+  - name: DEFAULT_USER_ROLE
+    value: "user"
+  # RAG Configuration
+  - name: RAG_EMBEDDING_ENGINE
+    value: "ollama"
+  - name: RAG_EMBEDDING_MODEL
+    value: "nomic-embed-text"
+  - name: RAG_OLLAMA_BASE_URL
+    value: "http://ollama.ai-platform.svc.cluster.local:11434"
+  - name: RAG_TOP_K
+    value: "5"
+  - name: CONTENT_EXTRACTION_ENGINE
+    value: "default"

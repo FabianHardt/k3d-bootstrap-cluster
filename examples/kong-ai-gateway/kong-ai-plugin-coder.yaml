@@ -1,0 +1,13 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-coder
+  namespace: kong
+plugin: ai-proxy
+config:
+  route_type: "llm/v1/chat"
+  model:
+    provider: openai
+    name: qwen2.5-coder:1.5b
+    options:
+      upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"

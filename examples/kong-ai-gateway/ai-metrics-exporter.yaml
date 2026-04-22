@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-metrics-exporter
+  namespace: monitoring
+data:
+  exporter.py: |
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import json
+    import threading
+
+    # Metrics storage
+    lock = threading.Lock()
+    metrics = {
+        "prompt_tokens": {},      # {provider_model_consumer: count}
+        "completion_tokens": {},
+        "total_tokens": {},
+        "requests": {},
+    }
+
+    def key(provider, model, consumer):
+        return f'{provider or "unknown"}|{model or "unknown"}|{consumer or "anonymous"}'
+
+    def parse_log_entry(entry):
+        try:
+            # Kong http-log sends service/route/consumer info
+            service_name = entry.get("service", {}).get("name", "unknown")
+            consumer_name = entry.get("consumer", {}).get("username", "anonymous")
+
+            # Extract provider from service name (e.g. "httproute.kong.ai-proxy-ollama.0")
+            provider = "unknown"
+            if "ollama" in service_name:
+                provider = "ollama"
+            elif "gemini" in service_name:
+                provider = "gemini"
+            elif "anthropic" in service_name:
+                provider = "anthropic"
+
+            # Token usage from custom_fields_by_lua (ai_response contains raw body)
+            ai_response = entry.get("ai_response", "")
+            usage = None
+            model = "unknown"
+
+            if ai_response:
+                try:
+                    if isinstance(ai_response, str):
+                        resp = json.loads(ai_response)
+                    else:
+                        resp = ai_response
+                    usage = resp.get("usage")
+                    model = resp.get("model", "unknown")
+                except Exception:
+                    pass
+
+            k = key(provider, model, consumer_name)
+
+            with lock:
+                metrics["requests"][k] = metrics["requests"].get(k, 0) + 1
+                if usage:
+                    prompt = usage.get("prompt_tokens", 0)
+                    completion = usage.get("completion_tokens", 0)
+                    total = usage.get("total_tokens", 0)
+                    metrics["prompt_tokens"][k] = metrics["prompt_tokens"].get(k, 0) + prompt
+                    metrics["completion_tokens"][k] = metrics["completion_tokens"].get(k, 0) + completion
+                    metrics["total_tokens"][k] = metrics["total_tokens"].get(k, 0) + total
+
+            return True
+        except Exception as e:
+            print(f"Error parsing log entry: {e}")
+        return False
+
+    def format_metrics():
+        lines = []
+        with lock:
+            lines.append("# HELP ai_llm_prompt_tokens_total Total prompt tokens used")
+            lines.append("# TYPE ai_llm_prompt_tokens_total counter")
+            for k, v in metrics["prompt_tokens"].items():
+                provider, model, consumer = k.split("|")
+                lines.append(f'ai_llm_prompt_tokens_total{{provider="{provider}",model="{model}",consumer="{consumer}"}} {v}')
+
+            lines.append("# HELP ai_llm_completion_tokens_total Total completion tokens used")
+            lines.append("# TYPE ai_llm_completion_tokens_total counter")
+            for k, v in metrics["completion_tokens"].items():
+                provider, model, consumer = k.split("|")
+                lines.append(f'ai_llm_completion_tokens_total{{provider="{provider}",model="{model}",consumer="{consumer}"}} {v}')
+
+            lines.append("# HELP ai_llm_tokens_total Total tokens used")
+            lines.append("# TYPE ai_llm_tokens_total counter")
+            for k, v in metrics["total_tokens"].items():
+                provider, model, consumer = k.split("|")
+                lines.append(f'ai_llm_tokens_total{{provider="{provider}",model="{model}",consumer="{consumer}"}} {v}')
+
+            lines.append("# HELP ai_llm_requests_total Total LLM requests")
+            lines.append("# TYPE ai_llm_requests_total counter")
+            for k, v in metrics["requests"].items():
+                provider, model, consumer = k.split("|")
+                lines.append(f'ai_llm_requests_total{{provider="{provider}",model="{model}",consumer="{consumer}"}} {v}')
+
+        return "\n".join(lines) + "\n"
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length)
+            try:
+                entry = json.loads(body)
+                parse_log_entry(entry)
+            except Exception as e:
+                print(f"Error: {e}")
+            self.send_response(200)
+            self.end_headers()
+
+        def do_GET(self):
+            if self.path == "/metrics":
+                output = format_metrics()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.end_headers()
+                self.wfile.write(output.encode())
+            elif self.path == "/health":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"ok")
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            if "POST" in (format % args):
+                print(format % args)
+
+    if __name__ == "__main__":
+        server = HTTPServer(("0.0.0.0", 9090), Handler)
+        print("AI Metrics Exporter listening on :9090")
+        server.serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-metrics-exporter
+  namespace: monitoring
+  labels:
+    app: ai-metrics-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-metrics-exporter
+  template:
+    metadata:
+      labels:
+        app: ai-metrics-exporter
+    spec:
+      containers:
+        - name: exporter
+          image: python:3.12-slim
+          command: ["python", "-u", "/app/exporter.py"]
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: app
+              mountPath: /app
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+      volumes:
+        - name: app
+          configMap:
+            name: ai-metrics-exporter
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-metrics-exporter
+  namespace: monitoring
+  labels:
+    app: ai-metrics-exporter
+spec:
+  selector:
+    app: ai-metrics-exporter
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP

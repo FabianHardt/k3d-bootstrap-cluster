@@ -137,11 +137,11 @@ controlPlane:
   containerSecurityContext: {} #for overlapping securityContext between pod and container, the container's value take precedence
 
 cni:
-  enabled: false
-  chained: false
-  netDir: /etc/cni/multus/net.d
-  binDir: /var/lib/cni/bin
-  confName: kuma-cni.conf
+  enabled: true
+  chained: true
+  netDir: /etc/cni/net.d
+  binDir: /opt/cni/bin
+  confName: 10-calico.conflist
   logLevel: info
   nodeSelector:
     kubernetes.io/os: linux
@@ -149,8 +149,8 @@ cni:
 
   image:
     registry: "docker.io/kumahq"
-    repository: "install-cni"
-    tag: "0.0.10"
+    repository: "kuma-cni"
+    tag:
     imagePullPolicy: IfNotPresent
 
   delayStartupSeconds: 0

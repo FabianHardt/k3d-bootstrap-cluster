@@ -63,6 +63,7 @@ export default {
                     { text: "Kuma Service Mesh", link: "/showcases/kuma.html" },
                     { text: "Confluent for Kubernetes", link: "/showcases/confluent.html" },
                     { text: "Kyverno", link: "/showcases/kyverno.html" },
+                    { text: "Kong AI Gateway", link: "/showcases/kong-ai-gateway.html" },
                     { text: "Kong Gateway Operator", link: "/showcases/kong-gateway-operator.html" },
                     { text: "Calico NetworkPolicy", link: "/showcases/calico-network-policies.html" },
                     { text: "Cluster API (CAPI)", link: "/showcases/cluster-api.html" },

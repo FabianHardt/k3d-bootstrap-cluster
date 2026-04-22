@@ -1,0 +1,32 @@
+alertmanager:
+  enabled: false
+
+kube-state-metrics:
+  enabled: false
+
+prometheus-node-exporter:
+  enabled: false
+
+prometheus-pushgateway:
+  enabled: false
+
+server:
+  persistentVolume:
+    enabled: false
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+extraScrapeConfigs: |
+  - job_name: 'kong-ai-gateway'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['kong-gateway-metrics.kong.svc.cluster.local:8100']
+  - job_name: 'ai-metrics-exporter'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['ai-metrics-exporter.monitoring.svc.cluster.local:9090']

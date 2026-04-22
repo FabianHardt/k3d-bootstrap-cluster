@@ -1,0 +1,12 @@
+# key-auth with anonymous fallback (for key-auth OR OIDC pattern)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-key-auth-or-oidc
+  namespace: kong
+plugin: key-auth
+config:
+  key_names:
+    - apikey
+    - authorization
+  anonymous: anonymous

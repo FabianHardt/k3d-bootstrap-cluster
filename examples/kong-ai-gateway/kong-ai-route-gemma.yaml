@@ -1,0 +1,23 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-proxy-gemma
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-proxy-gemma,ai-key-auth,ai-http-log
+    konghq.com/strip-path: "true"
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  hostnames:
+    - "ai.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /gemma
+      backendRefs:
+        - name: ollama
+          namespace: ai-platform
+          port: 11434

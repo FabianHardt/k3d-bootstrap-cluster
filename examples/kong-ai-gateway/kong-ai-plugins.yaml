@@ -1,0 +1,24 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-ollama
+  namespace: kong
+plugin: ai-proxy
+config:
+  route_type: "llm/v1/chat"
+  model:
+    provider: openai
+    name: llama3.2:1b
+    options:
+      upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-key-auth
+  namespace: kong
+plugin: key-auth
+config:
+  key_names:
+    - apikey
+    - authorization

@@ -1,0 +1,15 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-gemini
+  namespace: kong
+plugin: ai-proxy
+config:
+  route_type: "llm/v1/chat"
+  auth:
+    param_name: "key"
+    param_value: "{vault://env/GEMINI_API_KEY}"
+    param_location: "query"
+  model:
+    provider: gemini
+    name: gemini-2.5-flash

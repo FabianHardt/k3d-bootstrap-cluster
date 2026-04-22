@@ -1,0 +1,28 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-advanced-multimodel
+  namespace: kong
+plugin: ai-proxy-advanced
+config:
+  balancer:
+    algorithm: round-robin
+  targets:
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: llama3.2:1b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: qwen2.5-coder:1.5b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: gemma3:1b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"

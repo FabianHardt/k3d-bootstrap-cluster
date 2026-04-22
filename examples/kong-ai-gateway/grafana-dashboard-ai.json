@@ -1,0 +1,568 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Total AI Requests",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kong_http_requests_total{service=~\".*ai-proxy.*\"})",
+          "legendFormat": "Total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "AI Requests (Success)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kong_http_requests_total{service=~\".*ai-proxy.*\", code=\"200\"})",
+          "legendFormat": "2xx"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "AI Requests (Errors)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kong_http_requests_total{service=~\".*ai-proxy.*\", code=~\"4..|5..\"}) or vector(0)",
+          "legendFormat": "Errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "AI Bandwidth (Total)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kong_bandwidth_bytes{service=~\".*ai-proxy.*\"})",
+          "legendFormat": "Total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Request Rate by Provider",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service) (rate(kong_http_requests_total{service=~\".*ai-proxy.*\"}[1m]))",
+          "legendFormat": "{{ service }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "pointSize": 5,
+            "lineWidth": 2
+          },
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "title": "Bandwidth by Provider",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service, direction) (rate(kong_bandwidth_bytes{service=~\".*ai-proxy.*\"}[1m]))",
+          "legendFormat": "{{ service }} ({{ direction }})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50,
+            "stacking": { "mode": "normal" },
+            "lineWidth": 1
+          },
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "title": "Upstream Latency by Provider (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, service) (rate(kong_upstream_latency_ms_bucket{service=~\".*ai-proxy.*\"}[5m])))",
+          "legendFormat": "{{ service }} p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(kong_upstream_latency_ms_bucket{service=~\".*ai-proxy.*\"}[5m])))",
+          "legendFormat": "{{ service }} p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, service) (rate(kong_upstream_latency_ms_bucket{service=~\".*ai-proxy.*\"}[5m])))",
+          "legendFormat": "{{ service }} p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "title": "Requests by Status Code",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (code) (kong_http_requests_total{service=~\".*ai-proxy.*\"})",
+          "legendFormat": "HTTP {{ code }}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": ["value", "percent"]
+        }
+      }
+    },
+    {
+      "title": "Requests by Consumer",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (consumer) (kong_http_requests_total{service=~\".*ai-proxy.*\", consumer!=\"\"})",
+          "legendFormat": "{{ consumer }}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": ["value", "percent"]
+        }
+      }
+    },
+    {
+      "title": "Kong Processing Latency (AI Routes)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(kong_kong_latency_ms_bucket{service=~\".*ai-proxy.*\"}[5m])))",
+          "legendFormat": "{{ service }} p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "title": "All AI Proxy Metrics",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (service, code, consumer) (kong_http_requests_total{service=~\".*ai-proxy.*\"})",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {
+              "service": "Provider Route",
+              "code": "HTTP Status",
+              "consumer": "Consumer",
+              "Value": "Requests"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Token Usage",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "collapsed": false
+    },
+    {
+      "title": "Total Prompt Tokens",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(ai_llm_prompt_tokens_total)",
+          "legendFormat": "Prompt"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Total Completion Tokens",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(ai_llm_completion_tokens_total)",
+          "legendFormat": "Completion"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "purple", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Total Tokens (All Providers)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(ai_llm_tokens_total)",
+          "legendFormat": "Total"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10000 },
+              { "color": "red", "value": 50000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "LLM Requests (Exporter)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(ai_llm_requests_total)",
+          "legendFormat": "Requests"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Tokens by Provider (Prompt vs Completion)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (provider) (ai_llm_prompt_tokens_total)",
+          "legendFormat": "{{ provider }} (prompt)"
+        },
+        {
+          "expr": "sum by (provider) (ai_llm_completion_tokens_total)",
+          "legendFormat": "{{ provider }} (completion)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50,
+            "stacking": { "mode": "normal" },
+            "lineWidth": 1
+          }
+        }
+      }
+    },
+    {
+      "title": "Token Usage by Consumer",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "ai_llm_tokens_total",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "renameByName": {
+              "provider": "Provider",
+              "model": "Model",
+              "consumer": "Consumer",
+              "Value": "Total Tokens"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Estimated Cost",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
+      "collapsed": false
+    },
+    {
+      "title": "Estimated Total Cost (USD)",
+      "description": "Ollama: $0.10/$0.30 per 1M, Gemini: $0.15/$0.60 per 1M, Anthropic: $0.80/$4.00 per 1M tokens",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 42 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "((sum(ai_llm_prompt_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000001 + (sum(ai_llm_completion_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000003) + ((sum(ai_llm_prompt_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.00000015 + (sum(ai_llm_completion_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.0000006) + ((sum(ai_llm_prompt_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.0000008 + (sum(ai_llm_completion_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.000004)",
+          "legendFormat": "Total Cost"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Cost by Provider (USD)",
+      "description": "Estimated cost per provider based on token usage",
+      "type": "piechart",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 42 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "(sum(ai_llm_prompt_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000001 + (sum(ai_llm_completion_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000003",
+          "legendFormat": "Ollama (local)"
+        },
+        {
+          "expr": "(sum(ai_llm_prompt_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.00000015 + (sum(ai_llm_completion_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.0000006",
+          "legendFormat": "Gemini"
+        },
+        {
+          "expr": "(sum(ai_llm_prompt_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.0000008 + (sum(ai_llm_completion_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.000004",
+          "legendFormat": "Anthropic"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": ["value"]
+        }
+      }
+    },
+    {
+      "title": "Cost by Consumer (USD)",
+      "description": "Estimated cost per consumer across all providers",
+      "type": "barchart",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 42 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "(sum by (consumer) (ai_llm_prompt_tokens_total{provider=\"ollama\"}) * 0.0000001 + sum by (consumer) (ai_llm_completion_tokens_total{provider=\"ollama\"}) * 0.0000003) or vector(0)",
+          "legendFormat": "{{ consumer }} (Ollama)"
+        },
+        {
+          "expr": "(sum by (consumer) (ai_llm_prompt_tokens_total{provider=\"gemini\"}) * 0.00000015 + sum by (consumer) (ai_llm_completion_tokens_total{provider=\"gemini\"}) * 0.0000006) or vector(0)",
+          "legendFormat": "{{ consumer }} (Gemini)"
+        },
+        {
+          "expr": "(sum by (consumer) (ai_llm_prompt_tokens_total{provider=\"anthropic\"}) * 0.0000008 + sum by (consumer) (ai_llm_completion_tokens_total{provider=\"anthropic\"}) * 0.000004) or vector(0)",
+          "legendFormat": "{{ consumer }} (Anthropic)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "custom": {
+            "stacking": { "mode": "normal" },
+            "fillOpacity": 50
+          }
+        }
+      }
+    },
+    {
+      "title": "Pricing Reference",
+      "type": "text",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 47 },
+      "options": {
+        "mode": "markdown",
+        "content": "| Provider | Input (per 1M tokens) | Output (per 1M tokens) | Notes |\n|----------|----------------------|------------------------|-------|\n| Ollama (llama3.2:1b) | $0.10 | $0.30 | Simulated cost (self-hosted, actual cost is compute/energy) |\n| Google Gemini (2.5-flash) | $0.15 | $0.60 | Simulated cost (free tier in demo) |\n| Anthropic Claude (haiku-3.5) | $0.80 | $4.00 | Actual API pricing |"
+      }
+    },
+    {
+      "title": "Enterprise License",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 50 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "kong_enterprise_license_expiration - time()",
+          "legendFormat": "License TTL"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 2592000 },
+              { "color": "green", "value": 7776000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "License Errors",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 50 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "kong_enterprise_license_errors",
+          "legendFormat": "Errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["kong", "ai", "llm"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Kong AI Gateway",
+  "uid": "kong-ai-gateway",
+  "version": 1
+}

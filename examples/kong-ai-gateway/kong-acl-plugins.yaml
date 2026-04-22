@@ -1,0 +1,21 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: acl-gemini
+  namespace: kong
+plugin: acl
+config:
+  allow:
+    - gemini-access
+  hide_groups_header: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: acl-anthropic
+  namespace: kong
+plugin: acl
+config:
+  allow:
+    - anthropic-access
+  hide_groups_header: true

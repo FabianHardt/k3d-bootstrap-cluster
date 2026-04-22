@@ -1,0 +1,143 @@
+# --- API Keys ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dev-user-key
+  namespace: kong
+  labels:
+    konghq.com/credential: key-auth
+type: Opaque
+stringData:
+  key: "dev-key-12345"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dev-user-key-bearer
+  namespace: kong
+  labels:
+    konghq.com/credential: key-auth
+type: Opaque
+stringData:
+  key: "Bearer dev-key-12345"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lead-user-key
+  namespace: kong
+  labels:
+    konghq.com/credential: key-auth
+type: Opaque
+stringData:
+  key: "lead-key-12345"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lead-user-key-bearer
+  namespace: kong
+  labels:
+    konghq.com/credential: key-auth
+type: Opaque
+stringData:
+  key: "Bearer lead-key-12345"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-user-key
+  namespace: kong
+  labels:
+    konghq.com/credential: key-auth
+type: Opaque
+stringData:
+  key: "admin-key-12345"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-user-key-bearer
+  namespace: kong
+  labels:
+    konghq.com/credential: key-auth
+type: Opaque
+stringData:
+  key: "Bearer admin-key-12345"
+---
+# --- ACL Credentials ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lead-user-acl
+  namespace: kong
+  labels:
+    konghq.com/credential: acl
+type: Opaque
+stringData:
+  group: "gemini-access"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-user-acl-gemini
+  namespace: kong
+  labels:
+    konghq.com/credential: acl
+type: Opaque
+stringData:
+  group: "gemini-access"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-user-acl-anthropic
+  namespace: kong
+  labels:
+    konghq.com/credential: acl
+type: Opaque
+stringData:
+  group: "anthropic-access"
+---
+# --- Consumers ---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: dev-user
+  namespace: kong
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: dev-user
+custom_id: dev
+credentials:
+  - dev-user-key
+  - dev-user-key-bearer
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: team-lead
+  namespace: kong
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: team-lead
+custom_id: lead
+credentials:
+  - lead-user-key
+  - lead-user-key-bearer
+  - lead-user-acl
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: admin-user
+  namespace: kong
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: admin-user
+custom_id: admin
+credentials:
+  - admin-user-key
+  - admin-user-key-bearer
+  - admin-user-acl-gemini
+  - admin-user-acl-anthropic
