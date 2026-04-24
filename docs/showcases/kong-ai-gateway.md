@@ -407,53 +407,39 @@ When Kuma is enabled, all inter-service communication within the AI platform is 
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Kuma Mesh (mTLS)                        │
 │                                                                 │
-│  kong ──────🔒──────▶ ai-platform/ollama                       │
-│  kong ──────🔒──────▶ ai-platform/open-webui                   │
-│  kong ──────🔒──────▶ ai-platform/keycloak                     │
-│  open-webui ─🔒─────▶ ai-platform/ollama (RAG embeddings)     │
-│  open-webui ─🔒─────▶ ai-platform/redis                      │
-│                                                                 │
-│  🔒 = mTLS encrypted    ❌ = all other traffic denied          │
-│                                                                 │
-│  mTLS mode: STRICT for ai-platform (all AI traffic encrypted) │
-│  Redis port excluded (non-HTTP protocol, direct connection)    │
-│  Kuma CNI mode (no root init container needed)                 │
+│  Kong Gateway has a Kuma sidecar for mesh membership           │
+│  Kuma GUI available at kuma-gui.example.com:8081/gui           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Traffic policies (default-deny):**
+**Current scope:**
+- Kong Gateway runs with a Kuma sidecar (mesh member)
+- Kuma control plane with CNI mode installed
+- MeshTrafficPermission policies configured (allow-all within mesh)
+- Kuma GUI exposed via Kong HTTPRoute
 
-| Policy | From | To | Action |
-|--------|------|----|--------|
-| `kong-to-ai-platform` | kong namespace | ai-platform namespace | Allow |
-| `kong-to-monitoring` | kong namespace | monitoring namespace | Allow |
-| `prometheus-scrape` | monitoring namespace | all namespaces | Allow |
-| `webui-to-ollama` | open-webui | ollama | Allow |
-| `keycloak-self` | keycloak | keycloak | Allow |
-| `deny-all` | everything else | everything | Deny |
+**Known limitation:** Kong Gateway in Kuma's `gateway` mode resolves upstream hostnames to Pod IPs. Kuma's Envoy outbound listeners are bound to Service ClusterIPs. This causes traffic to bypass the Envoy proxy (passthrough) and arrive at the backend without mTLS. This is a known interaction between Kong's DNS resolution and Kuma's transparent proxy. In production, this can be addressed by configuring Kong to use ClusterIPs or by using Kuma's `MeshGateway` CRD instead of Kong's built-in routing.
 
-**Verify mTLS is active:**
+**Verify mesh status:**
 
 ```bash
 # Check sidecar injection
-kubectl get pods -n ai-platform -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{", "}{end}{"\n"}{end}'
+kubectl get pods -n kong -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{", "}{end}{"\n"}{end}'
 
 # Check mesh policies
 kubectl get meshtrafficpermissions -n kuma-cp
 
-# View mTLS certificates via Kuma GUI
+# View Kuma GUI
 # https://kuma-gui.example.com:8081/gui
 ```
-
-This ensures that even within the cluster, no service can eavesdrop on LLM prompts or responses.
 
 **Data sovereignty by provider:**
 
 | Provider | Prompt leaves cluster? | Transport |
 |----------|----------------------|-----------|
-| Ollama (local) | No — full sovereignty | mTLS (Kuma) |
-| Gemini (cloud) | Yes — sent to Google | mTLS (internal) + TLS (external) |
-| Anthropic (cloud) | Yes — sent to Anthropic | mTLS (internal) + TLS (external) |
+| Ollama (local) | No — full sovereignty | Internal cluster network |
+| Gemini (cloud) | Yes — sent to Google | TLS (external) |
+| Anthropic (cloud) | Yes — sent to Anthropic | TLS (external) |
 
 For maximum data sovereignty, use **Ollama only** and leave cloud providers unconfigured. The AI Gateway Failover (Enterprise) can be configured to only fall back to cloud providers when the local model is unavailable — ensuring that prompts only leave the cluster in degraded scenarios, not during normal operation.
 

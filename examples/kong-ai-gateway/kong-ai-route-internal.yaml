@@ -4,8 +4,9 @@ metadata:
   name: ai-proxy-ollama-internal
   namespace: kong
   annotations:
-    konghq.com/plugins: ai-proxy-ollama,ai-key-auth,ai-http-log
+    konghq.com/plugins: ai-key-auth,ai-http-log
     konghq.com/strip-path: "true"
+    konghq.com/read-timeout: "300000"
 spec:
   parentRefs:
     - name: kong

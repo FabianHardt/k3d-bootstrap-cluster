@@ -16,7 +16,7 @@ spec:
   - backendRefs:
     - name: kong-gateway-manager
       kind: Service
-      port: 8002
+      port: 8445
     matches:
     - path:
         type: PathPrefix
@@ -40,7 +40,7 @@ spec:
   - backendRefs:
     - name: kong-gateway-admin
       kind: Service
-      port: 8001
+      port: 8444
     matches:
     - path:
         type: PathPrefix

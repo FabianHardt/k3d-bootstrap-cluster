@@ -137,6 +137,8 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
 
   echo "Applying Kong Manager and Admin routes..."
   kubectl apply -f ../kong-gateway/httproute-kong-manager.yaml
+  kubectl annotate svc kong-gateway-admin -n kong konghq.com/protocol=https --overwrite
+  kubectl annotate svc kong-gateway-manager -n kong konghq.com/protocol=https --overwrite
 
   echo "Kong Enterprise ready with Manager UI and Admin API."
 fi
