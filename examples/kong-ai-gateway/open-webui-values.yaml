@@ -37,3 +37,5 @@ extraEnvVars:
     value: "5"
   - name: CONTENT_EXTRACTION_ENGINE
     value: "default"
+  - name: AIOHTTP_CLIENT_TIMEOUT
+    value: "300"

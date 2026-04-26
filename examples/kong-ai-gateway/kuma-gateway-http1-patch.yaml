@@ -1,0 +1,105 @@
+# Force HTTP/1.1 on all outbound clusters for ai-platform services
+# Kuma gateway dataplanes default to HTTP/2, but Kong/OpenWebUI/Keycloak use HTTP/1.1
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-ollama
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: ollama_ai-platform_svc_11434
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-keycloak
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: keycloak_ai-platform_svc_80
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-openwebui
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: open-webui_ai-platform_svc_80
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-redis
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: open-webui-redis_ai-platform_svc_6379
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}

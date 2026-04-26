@@ -22,7 +22,18 @@ kubectl delete ingress -n demo httpbin
 fi
 
 echo "\nInstall Gateway API extension"
-kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+kubectl delete validatingadmissionpolicy safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+kubectl delete validatingadmissionpolicybinding safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml | \
+  python3 -c "
+import sys
+docs = sys.stdin.read().split('\n---\n')
+excluded_kinds = (
+    'kind: ValidatingAdmissionPolicy',
+    'kind: ValidatingAdmissionPolicyBinding',
+)
+print('\n---\n'.join(d for d in docs if not any(kind in d for kind in excluded_kinds)))
+" | kubectl apply --server-side -f -
 
 echo "\nUpdating cert-manager to work with Gateway API"
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager \

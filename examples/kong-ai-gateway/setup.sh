@@ -116,6 +116,20 @@ if [[ -n "${ANTHROPIC_API_KEY}" ]]; then
   fi
 fi
 
+# --- Kong env vault + API key env vars ---
+HELM_EXTRA_ARGS=""
+if [[ "${GEMINI_ENABLED}" == "true" ]]; then
+  HELM_EXTRA_ARGS="${HELM_EXTRA_ARGS} --set gateway.customEnv.KONG_GEMINI_API_KEY.valueFrom.secretKeyRef.name=gemini-api-key --set gateway.customEnv.KONG_GEMINI_API_KEY.valueFrom.secretKeyRef.key=api-key"
+fi
+if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
+  HELM_EXTRA_ARGS="${HELM_EXTRA_ARGS} --set gateway.customEnv.KONG_ANTHROPIC_API_KEY.valueFrom.secretKeyRef.name=anthropic-api-key --set gateway.customEnv.KONG_ANTHROPIC_API_KEY.valueFrom.secretKeyRef.key=api-key"
+fi
+
+if [[ -n "${HELM_EXTRA_ARGS}" ]]; then
+  echo "Configuring Kong env vault for API key references..."
+  kubectl apply -f kong-vault-env.yaml
+fi
+
 # --- Kong Enterprise License (optional) ---
 if [[ -f ${LICENSE_FILE} ]]; then
   echo ""
@@ -132,7 +146,8 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
   echo "License applied."
 
   echo "Upgrading Kong with Enterprise features (Manager UI, Admin API)..."
-  helm upgrade kong kong/ingress --version 0.24.0 --values ../kong-gateway/values.yaml --namespace kong
+  # shellcheck disable=SC2086
+  helm upgrade kong kong/ingress --version 0.24.0 --values ../kong-gateway/values.yaml --namespace kong ${HELM_EXTRA_ARGS}
   kubectl wait deployment kong-gateway -n kong --for=condition=Available=true --timeout=120s
 
   echo "Applying Kong Manager and Admin routes..."
@@ -186,7 +201,7 @@ if [[ -f ${LICENSE_FILE} ]]; then
       weight: 50
       auth:
         param_name: key
-        param_value: \"{vault://env/GEMINI_API_KEY}\"
+        param_value: \"{vault://my-env/GEMINI_API_KEY}\"
         param_location: query
       model:
         provider: gemini
@@ -199,7 +214,7 @@ if [[ -f ${LICENSE_FILE} ]]; then
       weight: 10
       auth:
         header_name: x-api-key
-        header_value: \"{vault://env/ANTHROPIC_API_KEY}\"
+        header_value: \"{vault://my-env/ANTHROPIC_API_KEY}\"
       model:
         provider: anthropic
         name: claude-haiku-3-5-20241022
@@ -263,7 +278,11 @@ kubectl apply -f kong-consumers.yaml
 
 # --- AI Proxy Routes ---
 echo "Applying AI Proxy HTTPRoutes..."
-kubectl apply -f kong-ai-models-response.yaml
+if [[ -f ${LICENSE_FILE} ]]; then
+  kubectl apply -f kong-ai-models-response-enterprise.yaml
+else
+  kubectl apply -f kong-ai-models-response.yaml
+fi
 kubectl apply -f kong-ai-route.yaml
 kubectl apply -f kong-ai-route-internal.yaml
 kubectl apply -f kong-ai-route-models.yaml
@@ -275,25 +294,6 @@ fi
 
 if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
   kubectl apply -f kong-ai-route-anthropic.yaml
-fi
-
-# Enterprise: Patch routes to use OIDC + key-auth OR pattern
-if [[ -f ${LICENSE_FILE} ]]; then
-  echo "Patching AI routes for OIDC consumer mapping..."
-  OIDC_PLUGINS="ai-proxy-ollama,ai-key-auth-or-oidc,ai-oidc,ai-http-log"
-  kubectl annotate httproute ai-proxy-ollama -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
-  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
-
-  if [[ "${GEMINI_ENABLED}" == "true" ]]; then
-    kubectl annotate httproute ai-proxy-gemini -n kong konghq.com/plugins="ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc,acl-gemini,ai-http-log" --overwrite
-  fi
-  if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
-    kubectl annotate httproute ai-proxy-anthropic -n kong konghq.com/plugins="ai-proxy-anthropic,ai-key-auth-or-oidc,ai-oidc,acl-anthropic,ai-http-log" --overwrite
-  fi
-  kubectl annotate httproute ai-proxy-failover -n kong konghq.com/plugins="ai-proxy-advanced-failover,ai-key-auth-or-oidc,ai-oidc,ai-http-log" --overwrite
-  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-oidc,ai-http-log" --overwrite
-  echo "Routes patched: API key OR OIDC token accepted."
-  echo "Internal route upgraded to ai-proxy-advanced (multi-model)."
 fi
 
 # --- Monitoring (optional) ---
@@ -347,8 +347,6 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
 
   echo "Applying Kong http-log plugin for token metrics..."
   kubectl apply -f kong-http-log-plugin.yaml
-  kubectl apply -f kong-ai-route.yaml
-  kubectl apply -f kong-ai-route-internal.yaml
 
   echo "Applying Grafana route..."
   kubectl apply -f grafana-route.yaml
@@ -401,6 +399,9 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
   echo "Applying mTLS mesh policies..."
   kubectl apply -f kuma-mesh-policies.yaml
 
+  echo "Applying HTTP/1.1 proxy patches (Kuma defaults to HTTP/2, upstream services need HTTP/1.1)..."
+  kubectl apply -f kuma-gateway-http1-patch.yaml
+
   echo "Restarting pods to inject Kuma sidecars..."
   kubectl rollout restart deployment/ollama -n ai-platform
   kubectl rollout restart deployment/kong-gateway -n kong
@@ -412,6 +413,16 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
   echo "Waiting for pods to be ready with Kuma sidecars..."
   kubectl wait deployment ollama -n ai-platform --for=condition=Available=true --timeout=300s
   kubectl wait deployment kong-gateway -n kong --for=condition=Available=true --timeout=120s
+
+  # Force KIC to re-read service-upstream annotations.
+  # KIC caches endpoint targets (Pod IPs) from before Kuma was enabled.
+  # Re-toggling the annotation forces KIC to switch to Service DNS targets (ClusterIPs),
+  # which is required for Kuma's outbound listeners to match and apply mTLS.
+  echo "Re-syncing service-upstream annotations for KIC..."
+  for SVC in ollama keycloak; do
+    kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream- 2>/dev/null || true
+    kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream="true" 2>/dev/null || true
+  done
 
   echo "Kuma mTLS enabled. All AI platform traffic is now encrypted."
 fi
@@ -432,7 +443,61 @@ kubectl rollout status statefulset/open-webui -n ai-platform --timeout=300s
 
 kubectl apply -f open-webui-route.yaml
 
+# Create initial admin user so OIDC users get DEFAULT_USER_ROLE (user).
+# OpenWebUI makes the first signup user admin — by seeding a platform admin account
+# via localhost (inside the pod), all subsequent OIDC logins receive the 'user' role.
+WEBUI_ADMIN_EMAIL="admin@ai-platform.local"
+WEBUI_ADMIN_PASSWORD="admin"
+echo "Seeding platform admin account..."
+kubectl exec -n ai-platform open-webui-0 -c open-webui -- python3 -c "
+import urllib.request, json, time
+for i in range(15):
+    try:
+        req = urllib.request.Request(
+            'http://localhost:8080/api/v1/auths/signup',
+            data=json.dumps({'name':'Platform Admin','email':'${WEBUI_ADMIN_EMAIL}','password':'${WEBUI_ADMIN_PASSWORD}'}).encode(),
+            headers={'Content-Type':'application/json'}
+        )
+        resp = urllib.request.urlopen(req)
+        data = json.loads(resp.read())
+        if data.get('role') == 'admin':
+            print('OK: Platform admin seeded. OIDC users will get user role.')
+        else:
+            print('WARNING: Seeded user got role=' + data.get('role','?') + ' (expected admin)')
+        break
+    except Exception as e:
+        if i < 14:
+            time.sleep(2)
+        else:
+            print('WARNING: Could not seed platform admin. First OIDC user will become admin.')
+"
+
+if [[ "${KUMA_ENABLED}" == "true" ]]; then
+  echo "Annotating OpenWebUI service for Kuma mTLS (ClusterIP routing)..."
+  kubectl annotate svc open-webui -n ai-platform konghq.com/service-upstream="true" --overwrite
+fi
+
 # --- Done ---
+# --- Enterprise: Patch routes (must run AFTER monitoring/kuma to avoid being overwritten) ---
+if [[ -f ${LICENSE_FILE} ]]; then
+  echo ""
+  echo "Patching AI routes for OIDC consumer mapping..."
+  OIDC_PLUGINS="ai-proxy-ollama,ai-key-auth-or-oidc,ai-oidc,ai-http-log"
+  kubectl annotate httproute ai-proxy-ollama -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
+  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
+
+  if [[ "${GEMINI_ENABLED}" == "true" ]]; then
+    kubectl annotate httproute ai-proxy-gemini -n kong konghq.com/plugins="ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc,acl-gemini,ai-http-log" --overwrite
+  fi
+  if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
+    kubectl annotate httproute ai-proxy-anthropic -n kong konghq.com/plugins="ai-proxy-anthropic,ai-key-auth-or-oidc,ai-oidc,acl-anthropic,ai-http-log" --overwrite
+  fi
+  kubectl annotate httproute ai-proxy-failover -n kong konghq.com/plugins="ai-proxy-advanced-failover,ai-key-auth-or-oidc,ai-oidc,ai-http-log" --overwrite
+  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-oidc,ai-http-log" --overwrite
+  echo "Routes patched: API key OR OIDC token accepted."
+  echo "Internal route upgraded to ai-proxy-advanced (multi-model)."
+fi
+
 echo ""
 echo "============================================="
 echo "  Kong AI Gateway + OpenWebUI deployed!"
@@ -488,8 +553,9 @@ if [[ "${MONITORING_ENABLED}" == "true" ]]; then
 fi
 echo "--- OpenWebUI ---"
 echo "  Open in browser: https://chat.example.com:8081"
+echo "  Admin login:     ${WEBUI_ADMIN_EMAIL} / ${WEBUI_ADMIN_PASSWORD}"
 if [[ -f ${LICENSE_FILE} ]]; then
-  echo "  Login: click 'Keycloak' (dev/dev, lead/lead, or admin/admin)"
+  echo "  OIDC login:      click 'Keycloak' (dev/dev, lead/lead, or admin/admin)"
   echo ""
   echo "--- Keycloak Admin Console ---"
   echo "  https://keycloak.example.com:8081"

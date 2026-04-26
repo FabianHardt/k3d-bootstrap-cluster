@@ -8,13 +8,13 @@ helm repo update
 
 installKumaStandalone
 
-KONG_EXISTS=$(kubectl get ns kong-cp || echo "false")
+KONG_EXISTS=$(kubectl get ns kong 2>/dev/null || echo "false")
 if [ "$KONG_EXISTS" == "false" ]
 then
 cd ../kong-gateway/
 bash setup.sh
 else
-echo "Skipping kong deployment, already installed"
+echo "Skipping Kong deployment, already installed."
 fi
 
 cd ../kuma-mesh/

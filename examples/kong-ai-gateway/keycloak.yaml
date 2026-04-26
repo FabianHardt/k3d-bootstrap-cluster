@@ -152,11 +152,14 @@ metadata:
   namespace: ai-platform
   labels:
     app: keycloak
+  annotations:
+    konghq.com/service-upstream: "true"
 spec:
   selector:
     app: keycloak
   ports:
-    - port: 8080
+    - name: http
+      port: 80
       targetPort: 8080
       protocol: TCP
 ---
@@ -201,4 +204,4 @@ spec:
             value: /
       backendRefs:
         - name: keycloak
-          port: 8080
+          port: 80

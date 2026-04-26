@@ -8,7 +8,7 @@ config:
   route_type: "llm/v1/chat"
   auth:
     param_name: "key"
-    param_value: "{vault://env/GEMINI_API_KEY}"
+    param_value: "{vault://my-env/GEMINI_API_KEY}"
     param_location: "query"
   model:
     provider: gemini

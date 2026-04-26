@@ -120,9 +120,9 @@ controlPlane:
 
   envVars: { }
 
-  extraConfigMaps: {}
+  extraConfigMaps: []
 
-  extraSecrets: {}
+  extraSecrets: []
 
   webhooks:
     validator:

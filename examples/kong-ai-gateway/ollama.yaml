@@ -68,6 +68,8 @@ metadata:
   namespace: ai-platform
   labels:
     app: ollama
+  annotations:
+    konghq.com/service-upstream: "true"
 spec:
   selector:
     app: ollama

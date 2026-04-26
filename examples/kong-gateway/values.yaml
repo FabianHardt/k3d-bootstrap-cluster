@@ -15,6 +15,11 @@ gateway:
     log_level: debug
     admin_gui_url: https://kong-manager.example.com:8081
     admin_api_uri: https://kong-admin.example.com:8081
+    # Prefer A records (ClusterIP) over SRV records (Pod IPs).
+    # Required for Kuma mTLS: outbound listeners match on ClusterIP:port.
+    dns_order: A,CNAME
+    # Allow pre-function/post-function plugins to use require('cjson') etc.
+    untrusted_lua: "on"
 
 
   autoscaling:
@@ -23,7 +28,7 @@ gateway:
     maxReplicas: 2
   image:
     repository: kong/kong-gateway
-    tag: 3.13.0.2
+    tag: 3.14.0.1
   serviceMonitor:
     enabled: true
     labels:

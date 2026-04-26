@@ -5,18 +5,18 @@ This showcase demonstrates how to use **Kong AI Gateway** as a centralized proxy
 ## Architecture
 
 ```
-                                                ┌─────────────────┐
-                                           ┌───▶│  Ollama (local)  │  Default, free
-                                           │    │  - llama3.2:1b   │  Chat model
-┌───────────┐    ┌──────────────────────┐  │    │  - nomic-embed   │  Embeddings (RAG)
-│  Browser   │──▶│   Kong AI Gateway    │──┤    └─────────────────┘
-│ (OpenWebUI)│   │                      │  │    ┌─────────────────┐
-└───────────┘   │  - ai-proxy plugin   │  ├───▶│  Google Gemini   │  Optional, free tier
-                │  - key-auth plugin   │  │    └─────────────────┘
-                │  - http-log (metrics)│  │    ┌─────────────────┐
-                │  - rate-limit (Ent.) │  └───▶│  Anthropic API   │  Optional, paid
-                │  - prompt-guard (E.) │       └─────────────────┘
-                └──────────────────────┘
+                                                 ┌─────────────────┐
+                                            ┌───▶│  Ollama (local) │  Default, free
+                                            │    │  - llama3.2:1b  │  Chat model
+┌────────────┐    ┌──────────────────────┐  │    │  - nomic-embed  │  Embeddings (RAG)
+│  Browser   │──▶ │   Kong AI Gateway    │──┤    └─────────────────┘
+│ (OpenWebUI)│    │                      │  │    ┌─────────────────┐
+└────────────┘    │  - ai-proxy plugin   │  ├───▶│  Google Gemini  │  Optional, free tier
+                  │  - key-auth plugin   │  │    └─────────────────┘
+                  │  - http-log (metrics)│  │    ┌─────────────────┐
+                  │  - rate-limit (Ent.) │  └───▶│  Anthropic API  │  Optional, paid
+                  │  - prompt-guard (E.) │       └─────────────────┘
+                  └──────────────────────┘
                          │
         ┌────────────────┼────────────────┐
         ▼                ▼                ▼
@@ -162,7 +162,7 @@ Place a `license.json` file in the `examples/kong-ai-gateway/` directory before 
 ### Direct API call via curl (Ollama — free, always available)
 
 ```bash
-curl -k -H "apikey: demo-api-key-12345" \
+curl -k -H "apikey: dev-key-12345" \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Hello! What is Kubernetes?"}],"model":"llama3.2:1b"}' \
   https://ai.example.com:8081/ollama/v1/chat/completions
@@ -171,18 +171,33 @@ curl -k -H "apikey: demo-api-key-12345" \
 ### Direct API call via curl (Gemini — if configured)
 
 ```bash
-curl -k -H "apikey: demo-api-key-12345" \
+# Requires team-lead or admin-user API key (dev-user returns 403)
+curl -k -H "apikey: lead-key-12345" \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Hello! What is Kubernetes?"}],"model":"gemini-2.5-flash"}' \
   https://ai.example.com:8081/gemini/v1/chat/completions
+```
+
+### Model list per consumer
+
+```bash
+# dev-user sees Ollama models only
+curl -k -H "apikey: dev-key-12345" https://ai.example.com:8081/ollama/v1/models
+
+# lead-user sees Ollama + Gemini
+curl -k -H "apikey: lead-key-12345" https://ai.example.com:8081/ollama/v1/models
+
+# admin-user sees all models
+curl -k -H "apikey: admin-key-12345" https://ai.example.com:8081/ollama/v1/models
 ```
 
 ### OpenWebUI
 
 1. Open `https://chat.example.com:8081` in your browser
 2. **OSS mode:** No login required — open access
-3. **Enterprise mode:** Click "Login with Keycloak" (user: `demo` / password: `demo`)
-4. Select `llama3.2:1b` from the model dropdown and start chatting
+3. **Enterprise mode:** Click "Login with Keycloak" (`dev`/`dev`, `lead`/`lead`, or `admin`/`admin`)
+4. The model dropdown shows only the models your role is authorized for
+5. Select a model and start chatting
 
 ### Verify API authentication
 
@@ -193,6 +208,16 @@ curl -k -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Hello"}],"model":"llama3.2:1b"}' \
   https://ai.example.com:8081/ollama/v1/chat/completions
 # Returns 401 Unauthorized
+```
+
+### Verify model access control
+
+```bash
+# dev-user trying to use Gemini → 403 Forbidden
+curl -k -H "apikey: dev-key-12345" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Hello"}],"model":"gemini-2.5-flash"}' \
+  https://ai.example.com:8081/gemini/v1/chat/completions
 ```
 
 ## How it works
@@ -240,10 +265,18 @@ Three consumer groups with different provider access levels are pre-configured:
 | `team-lead` | `lead-key-12345` | `lead` / `lead` | Yes | Yes | No (403) |
 | `admin-user` | `admin-key-12345` | `admin` / `admin` | Yes | Yes | Yes |
 
-Access control is enforced via Kong's `acl` plugin:
+Access control is enforced at two levels in Kong:
+
+**Route-level ACL** (`acl` plugin):
 - **Ollama route**: No ACL — all authenticated consumers can access
 - **Gemini route**: ACL group `gemini-access` required (team-lead, admin-user)
 - **Anthropic route**: ACL group `anthropic-access` required (admin-user only)
+
+**Per-user model filtering** (`post-function` + `pre-function` plugins):
+- **Model list** (`ai-models-filtered`): A `post-function` plugin on the `/v1/models` routes dynamically returns only the models the user is authorized for. It identifies the user via the `X-OpenWebUI-User-Email` header (forwarded by OpenWebUI) or the Kong consumer's `custom_id` (for direct API access).
+- **Chat enforcement** (`ai-model-acl`): A `pre-function` plugin on chat routes validates the requested model against the user's role and returns 403 if unauthorized. Embedding requests (`/v1/embeddings`) are excluded from this check since RAG uses `nomic-embed-text` internally.
+
+This ensures users only **see** and can only **use** models matching their role — both in the OpenWebUI dropdown and via direct API calls.
 
 The `key-auth` plugin accepts the key via the `apikey` header (for curl) or the `Authorization: Bearer` header (for OpenAI-compatible clients like OpenWebUI).
 
@@ -251,11 +284,12 @@ Consumer API keys are separate from provider API keys (Gemini, Anthropic). Provi
 
 ### OpenWebUI Integration
 
-OpenWebUI connects to Kong's AI proxy as an OpenAI-compatible backend:
+OpenWebUI connects to Kong's AI proxy as an OpenAI-compatible backend. All traffic — including model discovery and RAG embeddings — is routed through Kong:
 
-- **Chat**: All chat requests go through Kong (`/ollama/v1/chat/completions`), enabling centralized authentication, logging, and metrics
-- **Model discovery**: Kong returns a curated model list via the `request-termination` plugin on `/ollama/v1/models`, hiding internal models like the embedding model
-- **RAG embeddings**: OpenWebUI connects directly to Ollama for embedding generation (no Kong proxy needed for internal cluster traffic)
+- **Chat**: All chat requests go through Kong (`/ollama/v1/chat/completions`), enabling centralized authentication, logging, and metrics. With Enterprise, the internal route uses `ai-proxy-advanced` (multi-model) so a single connection handles all providers.
+- **Model discovery**: Kong returns a per-user filtered model list via a `post-function` plugin on `/ollama/v1/models`. The plugin reads the `X-OpenWebUI-User-Email` header (forwarded when `ENABLE_FORWARD_USER_INFO_HEADERS=true`) and returns only the models the user is authorized for. The embedding model (`nomic-embed-text`) is excluded from the list.
+- **RAG embeddings**: OpenWebUI uses the OpenAI embedding engine (`RAG_EMBEDDING_ENGINE=openai`) routed through Kong to Ollama. This prevents OpenWebUI from discovering Ollama models directly (which would bypass Kong's model filtering).
+- **Access control bypass**: OpenWebUI's built-in model access control is disabled (`BYPASS_MODEL_ACCESS_CONTROL=true`) since Kong handles authorization. Users have the `user` role (`DEFAULT_USER_ROLE=user`) so they cannot modify OpenWebUI settings.
 
 ### RAG (Retrieval-Augmented Generation)
 
@@ -418,7 +452,7 @@ When Kuma is enabled, all inter-service communication within the AI platform is 
 - MeshTrafficPermission policies configured (allow-all within mesh)
 - Kuma GUI exposed via Kong HTTPRoute
 
-**Known limitation:** Kong Gateway in Kuma's `gateway` mode resolves upstream hostnames to Pod IPs. Kuma's Envoy outbound listeners are bound to Service ClusterIPs. This causes traffic to bypass the Envoy proxy (passthrough) and arrive at the backend without mTLS. This is a known interaction between Kong's DNS resolution and Kuma's transparent proxy. In production, this can be addressed by configuring Kong to use ClusterIPs or by using Kuma's `MeshGateway` CRD instead of Kong's built-in routing.
+**Kong + Kuma integration:** Kong Gateway resolves upstream hostnames to Pod IPs by default, which bypasses Kuma's Envoy outbound listeners (bound to Service ClusterIPs). This is solved by annotating all meshed backend Services with `konghq.com/service-upstream: "true"`, which forces Kong to route via ClusterIP. Additionally, `MeshProxyPatch` resources override Kuma's default HTTP/2 protocol on outbound clusters to HTTP/1.1 (required for Ollama, Keycloak, and OpenWebUI backends).
 
 **Verify mesh status:**
 

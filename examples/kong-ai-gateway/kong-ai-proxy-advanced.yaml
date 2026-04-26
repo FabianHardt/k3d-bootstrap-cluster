@@ -31,7 +31,7 @@ config:
       weight: 50
       auth:
         param_name: "key"
-        param_value: "{vault://env/GEMINI_API_KEY}"
+        param_value: "{vault://my-env/GEMINI_API_KEY}"
         param_location: "query"
       model:
         provider: gemini
@@ -41,7 +41,7 @@ config:
       weight: 10
       auth:
         header_name: "x-api-key"
-        header_value: "{vault://env/ANTHROPIC_API_KEY}"
+        header_value: "{vault://my-env/ANTHROPIC_API_KEY}"
       model:
         provider: anthropic
         name: claude-haiku-3-5-20241022

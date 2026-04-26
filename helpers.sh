@@ -112,7 +112,21 @@ deployKong()
   helm repo add kong https://charts.konghq.com || true
   helm repo update kong
 
-  kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+  # Install experimental Gateway API CRDs (superset of standard).
+  # Remove the ValidatingAdmissionPolicy that blocks experimental-on-top-of-standard
+  # upgrades — Kuma and other mesh controllers need the experimental CRDs.
+  kubectl delete validatingadmissionpolicy safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+  kubectl delete validatingadmissionpolicybinding safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+  curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml | \
+    python3 -c "
+import sys
+docs = sys.stdin.read().split('\n---\n')
+excluded_kinds = (
+    'kind: ValidatingAdmissionPolicy',
+    'kind: ValidatingAdmissionPolicyBinding',
+)
+print('\n---\n'.join(d for d in docs if not any(kind in d for kind in excluded_kinds)))
+" | kubectl apply --server-side -f -
 
   kubectl create namespace kong || true
 
