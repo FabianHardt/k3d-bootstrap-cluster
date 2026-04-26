@@ -16,6 +16,16 @@ data:
         "completion_tokens": {},
         "total_tokens": {},
         "requests": {},
+        "cost_usd": {},           # estimated cost in USD
+    }
+
+    # Pricing per 1M tokens (USD) — inflated for demo visibility
+    # (small 1b models produce few tokens, so real rates look boring)
+    PRICING = {
+        # provider: (prompt_per_1M, completion_per_1M)
+        "ollama":    (500, 1500),      # simulated on-prem cost (GPU compute + energy)
+        "gemini":    (150, 600),       # cloud API
+        "anthropic": (1000, 5000),     # premium cloud API
     }
 
     def key(provider, model, consumer):
@@ -23,34 +33,68 @@ data:
 
     def parse_log_entry(entry):
         try:
-            # Kong http-log sends service/route/consumer info
-            service_name = entry.get("service", {}).get("name", "unknown")
-            consumer_name = entry.get("consumer", {}).get("username", "anonymous")
+            # --- Consumer ---
+            # Prefer OpenWebUI forwarded user identity over Kong consumer
+            headers = entry.get("request", {}).get("headers", {})
+            owui_email = headers.get("x-openwebui-user-email", "")
+            if owui_email:
+                # Map email to display name (strip @domain)
+                consumer_name = owui_email.split("@")[0]
+            else:
+                # Use custom_id (matches Keycloak username) with fallback to username
+                consumer = entry.get("consumer", {})
+                consumer_name = consumer.get("custom_id") or consumer.get("username", "anonymous")
 
-            # Extract provider from service name (e.g. "httproute.kong.ai-proxy-ollama.0")
-            provider = "unknown"
-            if "ollama" in service_name:
-                provider = "ollama"
-            elif "gemini" in service_name:
-                provider = "gemini"
-            elif "anthropic" in service_name:
-                provider = "anthropic"
-
-            # Token usage from custom_fields_by_lua (ai_response contains raw body)
+            # --- Parse AI response ---
             ai_response = entry.get("ai_response", "")
             usage = None
             model = "unknown"
+            provider = "unknown"
 
             if ai_response:
                 try:
-                    if isinstance(ai_response, str):
-                        resp = json.loads(ai_response)
-                    else:
-                        resp = ai_response
-                    usage = resp.get("usage")
-                    model = resp.get("model", "unknown")
+                    resp = json.loads(ai_response) if isinstance(ai_response, str) else ai_response
                 except Exception:
-                    pass
+                    resp = {}
+
+                # OpenAI / Ollama format: {"model": "...", "choices": [...], "usage": {...}}
+                if "choices" in resp:
+                    model = resp.get("model", "unknown")
+                    usage = resp.get("usage")
+                    provider = "ollama"
+
+                # Gemini format: {"candidates": [...], "usageMetadata": {...}}
+                elif "candidates" in resp:
+                    provider = "gemini"
+                    model = "gemini-2.5-flash"
+                    meta = resp.get("usageMetadata", {})
+                    if meta:
+                        usage = {
+                            "prompt_tokens": meta.get("promptTokenCount", 0),
+                            "completion_tokens": meta.get("candidatesTokenCount", 0),
+                            "total_tokens": meta.get("totalTokenCount", 0),
+                        }
+
+                # Anthropic format: {"content": [...], "usage": {...}}
+                elif "content" in resp and "usage" in resp:
+                    provider = "anthropic"
+                    model = resp.get("model", "unknown")
+                    au = resp.get("usage", {})
+                    usage = {
+                        "prompt_tokens": au.get("input_tokens", 0),
+                        "completion_tokens": au.get("output_tokens", 0),
+                        "total_tokens": au.get("input_tokens", 0) + au.get("output_tokens", 0),
+                    }
+
+            # Fallback: detect provider from service name
+            if provider == "unknown":
+                service_name = entry.get("service", {}).get("name", "")
+                if "gemini" in service_name:
+                    provider = "gemini"
+                elif "anthropic" in service_name:
+                    provider = "anthropic"
+                elif "ollama" in service_name:
+                    provider = "ollama"
 
             k = key(provider, model, consumer_name)
 
@@ -63,6 +107,10 @@ data:
                     metrics["prompt_tokens"][k] = metrics["prompt_tokens"].get(k, 0) + prompt
                     metrics["completion_tokens"][k] = metrics["completion_tokens"].get(k, 0) + completion
                     metrics["total_tokens"][k] = metrics["total_tokens"].get(k, 0) + total
+                    # Estimated cost
+                    p_rate, c_rate = PRICING.get(provider, (1.0, 3.0))
+                    cost = (prompt * p_rate + completion * c_rate) / 1_000_000
+                    metrics["cost_usd"][k] = metrics["cost_usd"].get(k, 0.0) + cost
 
             return True
         except Exception as e:
@@ -95,6 +143,12 @@ data:
             for k, v in metrics["requests"].items():
                 provider, model, consumer = k.split("|")
                 lines.append(f'ai_llm_requests_total{{provider="{provider}",model="{model}",consumer="{consumer}"}} {v}')
+
+            lines.append("# HELP ai_llm_estimated_cost_usd Estimated cost in USD")
+            lines.append("# TYPE ai_llm_estimated_cost_usd counter")
+            for k, v in metrics["cost_usd"].items():
+                provider, model, consumer = k.split("|")
+                lines.append(f'ai_llm_estimated_cost_usd{{provider="{provider}",model="{model}",consumer="{consumer}"}} {v:.6f}')
 
         return "\n".join(lines) + "\n"
 

@@ -39,6 +39,7 @@ spec:
   parentRefs:
     - name: kong
       namespace: kong
+      sectionName: kong-http-internal
   rules:
     - matches:
         - path:

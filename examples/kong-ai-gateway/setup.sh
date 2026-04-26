@@ -152,8 +152,18 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
 
   echo "Applying Kong Manager and Admin routes..."
   kubectl apply -f ../kong-gateway/httproute-kong-manager.yaml
-  kubectl annotate svc kong-gateway-admin -n kong konghq.com/protocol=https --overwrite
-  kubectl annotate svc kong-gateway-manager -n kong konghq.com/protocol=https --overwrite
+
+  # Add HTTP listener without hostname filter for internal cluster routes (OpenWebUI → Kong).
+  # Gateway API listeners with hostname: *.example.com reject internal requests.
+  echo "Adding internal HTTP listener to Gateway..."
+  kubectl patch gateway kong -n kong --type=json -p='[
+    {"op": "add", "path": "/spec/listeners/-", "value": {
+      "name": "kong-http-internal",
+      "port": 80,
+      "protocol": "HTTP",
+      "allowedRoutes": {"namespaces": {"from": "All"}}
+    }}
+  ]' 2>/dev/null || true
 
   echo "Kong Enterprise ready with Manager UI and Admin API."
 fi
@@ -278,13 +288,13 @@ kubectl apply -f kong-consumers.yaml
 
 # --- AI Proxy Routes ---
 echo "Applying AI Proxy HTTPRoutes..."
-if [[ -f ${LICENSE_FILE} ]]; then
-  kubectl apply -f kong-ai-models-response-enterprise.yaml
-else
-  kubectl apply -f kong-ai-models-response.yaml
-fi
 kubectl apply -f kong-ai-route.yaml
 kubectl apply -f kong-ai-route-internal.yaml
+
+# --- Per-user model filtering ---
+echo "Applying per-user model filtering..."
+kubectl apply -f kong-ai-models-filtered.yaml
+kubectl apply -f kong-ai-model-acl-plugin.yaml
 kubectl apply -f kong-ai-route-models.yaml
 
 

@@ -87,7 +87,7 @@ kubectl apply -f kong-ai-route-anthropic.yaml
 Add the following entries to `/etc/hosts`:
 
 ```
-127.0.0.1 ai.example.com chat.example.com keycloak.example.com grafana.example.com
+127.0.0.1 ai.example.com chat.example.com keycloak.example.com grafana.example.com kong-manager.example.com kong-admin.example.com
 ```
 
 ## Installation
@@ -102,12 +102,13 @@ The script will:
 2. Optionally deploy **OpenBao** and **cert-manager** for TLS certificates
 3. Deploy **Ollama** with `llama3.2:1b` (chat) and `nomic-embed-text` (RAG embeddings), optionally `qwen2.5-coder:1.5b` and `gemma3:1b`
 4. Optionally prompt for **Gemini** and **Anthropic** API keys
-5. Apply Kong AI plugins per provider (ai-proxy, key-auth)
-6. Deploy a demo consumer with API key `demo-api-key-12345`
-7. Optionally deploy **Prometheus + Grafana** monitoring with pre-built AI dashboard and token metrics exporter
+5. Apply Kong AI plugins per provider (ai-proxy, key-auth, per-user model filtering)
+6. Deploy three consumers with different access levels (`dev-user`, `team-lead`, `admin-user`)
+7. Optionally deploy **Prometheus + Grafana** monitoring with pre-built AI dashboard, token metrics, and cost estimation
 8. Optionally enable **Kuma Service Mesh** with mTLS for confidential computing
-9. Deploy **OpenWebUI** via Helm (with RAG support, all traffic routed through Kong)
-10. Set up HTTPRoutes for all endpoints
+9. Deploy **OpenWebUI** via Helm (all traffic including RAG embeddings routed through Kong)
+10. Seed a platform admin account so OIDC users get the `user` role (no settings access)
+11. Set up HTTPRoutes for all endpoints
 
 ### Kong Enterprise (optional)
 
@@ -147,7 +148,7 @@ Place a `license.json` file in the `examples/kong-ai-gateway/` directory before 
 
 | Service | URL | Auth |
 |---------|-----|------|
-| OpenWebUI | `https://chat.example.com:8081` | OSS: open / Enterprise: Keycloak OIDC |
+| OpenWebUI | `https://chat.example.com:8081` | OSS: open / Enterprise: Keycloak OIDC / Admin: `admin@ai-platform.local` / `admin` |
 | AI Proxy (Ollama) | `https://ai.example.com:8081/ollama/v1/chat/completions` | key-auth (`apikey` header) |
 | AI Proxy (Gemini) | `https://ai.example.com:8081/gemini/v1/chat/completions` | key-auth (`apikey` header) |
 | AI Proxy (Anthropic) | `https://ai.example.com:8081/anthropic/v1/chat/completions` | key-auth (`apikey` header) |
@@ -224,11 +225,24 @@ curl -k -H "apikey: dev-key-12345" \
 
 ### AI Proxy Plugin
 
-Each provider gets its own `ai-proxy` KongPlugin instance and HTTPRoute:
+**External routes** — each provider gets its own `ai-proxy` KongPlugin instance and HTTPRoute:
 
-- **Ollama**: Uses `provider: openai` with `upstream_url` pointing to the local Ollama service. Kong translates the OpenAI-format request and forwards it to Ollama's compatible endpoint.
+- **Ollama**: Uses `provider: openai` with `upstream_url` pointing to the local Ollama service.
 - **Gemini**: Injects the Gemini API key as a query parameter and transforms requests from OpenAI format to Gemini format.
 - **Anthropic**: Injects the Anthropic API key as an `x-api-key` header and transforms requests from OpenAI to Anthropic format.
+
+**Internal route (OpenWebUI)** — a single `ai-proxy-advanced` plugin with `model_alias` handles all providers through one endpoint:
+
+```
+OpenWebUI → Kong /ollama/v1/chat/completions
+              │
+              ├─ model: "llama3.2:1b"    → ai-proxy-advanced → Ollama
+              ├─ model: "gemma3:1b"      → ai-proxy-advanced → Ollama
+              ├─ model: "gemini-2.5-flash" → ai-proxy-advanced → Gemini API
+              └─ model: "claude-haiku-*"  → ai-proxy-advanced → Anthropic API
+```
+
+Each target in the `ai-proxy-advanced` plugin has a `model_alias` matching the model name that clients send. Kong routes the request to the correct provider based on the `model` field in the request body — no separate routes needed.
 
 All providers expose an OpenAI-compatible interface via Kong, so any OpenAI client (like OpenWebUI) can use them transparently.
 
@@ -334,8 +348,13 @@ When monitoring is enabled, the following components are deployed:
 | `ai_llm_completion_tokens_total` | Completion tokens by provider, model, consumer |
 | `ai_llm_tokens_total` | Total tokens by provider, model, consumer |
 | `ai_llm_requests_total` | Total LLM requests by provider, model, consumer |
+| `ai_llm_estimated_cost_usd` | Estimated cost in USD by provider, model, consumer |
 
-> **Note:** Token-level metrics are captured via Kong's `http-log` plugin with `custom_fields_by_lua`. For streaming responses, the request is counted but individual token counts are not available (the response body is chunked). Non-streaming requests (e.g., via curl) provide full token metrics.
+The exporter resolves the actual user identity from OpenWebUI's `X-OpenWebUI-User-Email` header (forwarded by `ENABLE_FORWARD_USER_INFO_HEADERS`). For direct API access, the Kong consumer's `custom_id` (matching the Keycloak username) is used. This ensures consistent consumer labels (`dev`, `lead`, `admin`) regardless of the access path.
+
+The exporter also parses responses from multiple providers: OpenAI/Ollama format (`choices` + `usage`), Gemini format (`candidates` + `usageMetadata`), and Anthropic format (`content` + `usage.input_tokens/output_tokens`).
+
+> **Note:** Token metrics require non-streaming responses. The `ai-proxy-advanced` plugin on the internal route disables streaming by default. For streaming requests via direct API, token counts are not available.
 
 The pre-installed **Kong AI Gateway** Grafana dashboard includes:
 
@@ -385,7 +404,7 @@ The mapping works via Kong's anonymous consumer pattern:
 3. `openid-connect` plugin tries JWT token → if valid, consumer is mapped via `preferred_username` → `custom_id`
 4. If neither succeeds, `request-termination` plugin returns 401
 
-> **Technical note:** OpenWebUI connects to Keycloak's discovery endpoint via the cluster-internal URL (`http://keycloak.ai-platform.svc.cluster.local:8080`), while browser redirects use the external URL (`https://keycloak.example.com:8081`). This split is necessary because the Kong Gateway terminates TLS externally, but internal cluster communication uses plain HTTP.
+> **Technical note:** OpenWebUI connects to Keycloak's discovery endpoint via the cluster-internal URL (`http://keycloak.ai-platform.svc.cluster.local/realms/ai-platform/.well-known/openid-configuration`), while browser redirects use the external URL (`https://keycloak.example.com:8081`). The Keycloak Service uses port 80 (targetPort 8080) so the internal URL has no port suffix.
 
 ### Enterprise: AI Gateway Failover
 
@@ -452,7 +471,13 @@ When Kuma is enabled, all inter-service communication within the AI platform is 
 - MeshTrafficPermission policies configured (allow-all within mesh)
 - Kuma GUI exposed via Kong HTTPRoute
 
-**Kong + Kuma integration:** Kong Gateway resolves upstream hostnames to Pod IPs by default, which bypasses Kuma's Envoy outbound listeners (bound to Service ClusterIPs). This is solved by annotating all meshed backend Services with `konghq.com/service-upstream: "true"`, which forces Kong to route via ClusterIP. Additionally, `MeshProxyPatch` resources override Kuma's default HTTP/2 protocol on outbound clusters to HTTP/1.1 (required for Ollama, Keycloak, and OpenWebUI backends).
+**Kong + Kuma integration requires three fixes:**
+
+1. **`KONG_DNS_ORDER=A,CNAME`** (in Helm values) — Kong prefers A records (ClusterIPs) over SRV records (Pod IPs) when resolving service DNS.
+2. **`konghq.com/service-upstream: "true"`** on meshed backend Services — forces KIC to pass the Service DNS name to Kong instead of resolving to Pod IPs. After enabling Kuma, the setup re-toggles these annotations to force KIC to re-read them (KIC caches endpoint targets from before Kuma was enabled).
+3. **`MeshProxyPatch`** resources — override Kuma's default HTTP/2 protocol on outbound clusters to HTTP/1.1 (required for Ollama, Keycloak, and OpenWebUI backends).
+
+> **Note:** Do NOT set `konghq.com/service-upstream` on Kong's own internal services (`kong-gateway-manager`, `kong-gateway-admin`). With multi-port services, KIC incorrectly selects the TLS port when this annotation is set. The manager/admin routes use HTTP backend ports (8002/8001) instead of HTTPS (8445/8444) to avoid self-signed certificate issues.
 
 **Verify mesh status:**
 
