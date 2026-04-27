@@ -23,6 +23,19 @@ datasources:
         access: proxy
         isDefault: true
         editable: true
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo.monitoring.svc.cluster.local:3200
+        access: proxy
+        editable: true
+        jsonData:
+          tracesToMetrics:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+          serviceMap:
+            datasourceUid: prometheus
 
 dashboardProviders:
   dashboardproviders.yaml:
@@ -36,6 +49,15 @@ dashboardProviders:
         editable: true
         options:
           path: /var/lib/grafana/dashboards/kong-ai
+      - name: kuma-mesh
+        orgId: 1
+        folder: Kuma
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/kuma-mesh
 
 dashboardsConfigMaps:
   kong-ai: grafana-dashboard-ai
+  kuma-mesh: grafana-dashboard-kuma

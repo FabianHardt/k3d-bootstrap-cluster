@@ -13,6 +13,9 @@ prometheus-pushgateway:
 server:
   persistentVolume:
     enabled: false
+  # Enable remote write receiver so Tempo can push service graph metrics
+  extraFlags:
+    - "web.enable-remote-write-receiver"
   resources:
     requests:
       memory: "256Mi"
@@ -30,3 +33,27 @@ extraScrapeConfigs: |
     scrape_interval: 10s
     static_configs:
       - targets: ['ai-metrics-exporter.monitoring.svc.cluster.local:9090']
+  - job_name: 'kuma-dataplanes'
+    scrape_interval: 15s
+    metrics_path: /metrics
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - kong
+            - ai-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_kuma_io_sidecar_injected]
+        action: keep
+        regex: "true"
+      - source_labels: [__address__]
+        action: replace
+        target_label: __address__
+        regex: ([^:]+)(?::\d+)?
+        replacement: ${1}:5670
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        target_label: app
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod

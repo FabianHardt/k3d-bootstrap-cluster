@@ -1,0 +1,22 @@
+# MeshMetric — enables Prometheus metrics on all Envoy sidecar proxies
+# Dataplanes expose metrics on port 5670 for Prometheus scraping
+apiVersion: kuma.io/v1alpha1
+kind: MeshMetric
+metadata:
+  name: mesh-metrics
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    sidecar:
+      includeUnused: false
+    backends:
+      - type: Prometheus
+        prometheus:
+          port: 5670
+          path: /metrics
+          tls:
+            mode: Disabled

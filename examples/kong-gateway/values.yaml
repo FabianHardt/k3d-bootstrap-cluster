@@ -20,6 +20,8 @@ gateway:
     dns_order: A,CNAME
     # Allow pre-function/post-function plugins to use require('cjson') etc.
     untrusted_lua: "on"
+    # Enable tracing instrumentation for OpenTelemetry plugin (default: off)
+    tracing_instrumentations: all
 
 
   autoscaling:

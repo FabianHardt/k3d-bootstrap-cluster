@@ -1,0 +1,27 @@
+# MeshTrace — sends Envoy sidecar traces to Tempo via OTLP/gRPC
+# Enables end-to-end tracing: Kong → Kuma sidecar (client) → Kuma sidecar (server) → backend
+apiVersion: kuma.io/v1alpha1
+kind: MeshTrace
+metadata:
+  name: otel-trace
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    backends:
+      - type: OpenTelemetry
+        openTelemetry:
+          endpoint: tempo.monitoring.svc.cluster.local:4317
+    sampling:
+      overall: 100
+      client: 100
+      random: 100
+    tags:
+      - name: kuma.io/service
+        header:
+          name: x-kuma-service
+      - name: kuma.io/zone
+        literal: local

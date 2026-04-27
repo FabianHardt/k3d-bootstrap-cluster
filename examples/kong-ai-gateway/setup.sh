@@ -276,6 +276,19 @@ ${FAILOVER_TARGETS}" | kubectl apply -f -
 
   echo "Updating model list for Enterprise (multi-model)..."
   kubectl apply -f kong-ai-models-response-enterprise.yaml
+
+  # --- AI Semantic Cache (Redis Stack + nomic-embed-text) ---
+  echo ""
+  echo "Deploying Redis Stack for AI semantic caching..."
+  kubectl apply -f redis-semantic-cache.yaml
+
+  echo "Waiting for Redis Stack to be ready..."
+  kubectl wait deployment redis-semantic-cache -n ai-platform --for=condition=Available=true --timeout=120s
+
+  echo "Applying AI Semantic Cache plugin..."
+  kubectl apply -f kong-ai-semantic-cache-plugin.yaml
+
+  echo "AI Semantic Cache enabled (threshold: 0.85, TTL: 3600s, embeddings: nomic-embed-text)"
 fi
 
 # --- ACL Plugins ---
@@ -332,15 +345,27 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
   echo "Waiting for Prometheus to be ready..."
   kubectl wait deployment prometheus-server -n monitoring --for=condition=Available=true --timeout=120s
 
-  echo "Creating Grafana dashboard ConfigMap..."
+  echo "Deploying Tempo and Grafana..."
+  helm repo add grafana https://grafana.github.io/helm-charts
+  helm repo update
+
+  helm upgrade --install tempo grafana/tempo \
+    --namespace monitoring \
+    --values tempo-values.yaml
+
+  echo "Waiting for Tempo to be ready..."
+  kubectl rollout status statefulset/tempo -n monitoring --timeout=120s
+
+  echo "Creating Grafana dashboard ConfigMaps..."
   kubectl create configmap grafana-dashboard-ai \
     --namespace monitoring \
     --from-file=kong-ai-gateway.json=grafana-dashboard-ai.json \
     --dry-run=client -o yaml | kubectl apply -f -
 
-  echo "Deploying Grafana..."
-  helm repo add grafana https://grafana.github.io/helm-charts
-  helm repo update
+  kubectl create configmap grafana-dashboard-kuma \
+    --namespace monitoring \
+    --from-file=kuma-mesh.json=grafana-dashboard-kuma.json \
+    --dry-run=client -o yaml | kubectl apply -f -
 
   helm upgrade --install grafana grafana/grafana \
     --namespace monitoring \
@@ -361,7 +386,10 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
   echo "Applying Grafana route..."
   kubectl apply -f grafana-route.yaml
 
-  echo "Monitoring stack deployed."
+  echo "Applying Kong OpenTelemetry tracing plugin (global)..."
+  kubectl apply -f kong-ai-tracing-plugin.yaml
+
+  echo "Monitoring stack deployed (Prometheus + Grafana + Tempo)."
 fi
 
 # --- Keycloak (Enterprise: OIDC for OpenWebUI) ---
@@ -405,12 +433,26 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
   echo "Enabling sidecar injection..."
   kubectl label ns kong kuma.io/sidecar-injection=enabled --overwrite
   kubectl label ns ai-platform kuma.io/sidecar-injection=enabled --overwrite
+  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
+    kubectl label ns monitoring kuma.io/sidecar-injection=enabled --overwrite
+  fi
 
   echo "Applying mTLS mesh policies..."
   kubectl apply -f kuma-mesh-policies.yaml
 
   echo "Applying HTTP/1.1 proxy patches (Kuma defaults to HTTP/2, upstream services need HTTP/1.1)..."
   kubectl apply -f kuma-gateway-http1-patch.yaml
+  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
+    kubectl apply -f kuma-monitoring-http1-patch.yaml
+  fi
+
+  echo "Applying MeshMetric policy for Prometheus scraping of Envoy sidecars..."
+  kubectl apply -f kuma-mesh-metric.yaml
+
+  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
+    echo "Applying MeshTrace policy for distributed tracing (Kong + Kuma → Tempo)..."
+    kubectl apply -f kuma-mesh-trace.yaml
+  fi
 
   echo "Restarting pods to inject Kuma sidecars..."
   kubectl rollout restart deployment/ollama -n ai-platform
@@ -418,11 +460,24 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
 
   if [[ -f ${LICENSE_FILE} ]]; then
     kubectl rollout restart deployment/keycloak -n ai-platform
+    kubectl rollout restart deployment/redis-semantic-cache -n ai-platform
+  fi
+
+  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
+    echo "Restarting monitoring pods for Kuma sidecar injection..."
+    kubectl rollout restart deployment/prometheus-server deployment/grafana deployment/ai-metrics-exporter -n monitoring
+    kubectl rollout restart statefulset/tempo -n monitoring
   fi
 
   echo "Waiting for pods to be ready with Kuma sidecars..."
   kubectl wait deployment ollama -n ai-platform --for=condition=Available=true --timeout=300s
   kubectl wait deployment kong-gateway -n kong --for=condition=Available=true --timeout=120s
+  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
+    kubectl wait deployment prometheus-server -n monitoring --for=condition=Available=true --timeout=120s
+    kubectl rollout status statefulset/tempo -n monitoring --timeout=120s
+    kubectl wait deployment grafana -n monitoring --for=condition=Available=true --timeout=120s
+    kubectl wait deployment ai-metrics-exporter -n monitoring --for=condition=Available=true --timeout=120s
+  fi
 
   # Force KIC to re-read service-upstream annotations.
   # KIC caches endpoint targets (Pod IPs) from before Kuma was enabled.
@@ -433,8 +488,13 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
     kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream- 2>/dev/null || true
     kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream="true" 2>/dev/null || true
   done
+  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
+    for SVC in grafana prometheus-server ai-metrics-exporter tempo; do
+      kubectl annotate svc "$SVC" -n monitoring konghq.com/service-upstream="true" --overwrite 2>/dev/null || true
+    done
+  fi
 
-  echo "Kuma mTLS enabled. All AI platform traffic is now encrypted."
+  echo "Kuma mTLS enabled. All traffic is now encrypted."
 fi
 
 # --- OpenWebUI ---
@@ -492,18 +552,18 @@ fi
 if [[ -f ${LICENSE_FILE} ]]; then
   echo ""
   echo "Patching AI routes for OIDC consumer mapping..."
-  OIDC_PLUGINS="ai-proxy-ollama,ai-key-auth-or-oidc,ai-oidc,ai-http-log"
+  OIDC_PLUGINS="ai-proxy-ollama,ai-key-auth-or-oidc,ai-oidc,ai-semantic-cache,ai-http-log"
   kubectl annotate httproute ai-proxy-ollama -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
   kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
 
   if [[ "${GEMINI_ENABLED}" == "true" ]]; then
-    kubectl annotate httproute ai-proxy-gemini -n kong konghq.com/plugins="ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc,acl-gemini,ai-http-log" --overwrite
+    kubectl annotate httproute ai-proxy-gemini -n kong konghq.com/plugins="ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc,acl-gemini,ai-semantic-cache,ai-http-log" --overwrite
   fi
   if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
-    kubectl annotate httproute ai-proxy-anthropic -n kong konghq.com/plugins="ai-proxy-anthropic,ai-key-auth-or-oidc,ai-oidc,acl-anthropic,ai-http-log" --overwrite
+    kubectl annotate httproute ai-proxy-anthropic -n kong konghq.com/plugins="ai-proxy-anthropic,ai-key-auth-or-oidc,ai-oidc,acl-anthropic,ai-semantic-cache,ai-http-log" --overwrite
   fi
-  kubectl annotate httproute ai-proxy-failover -n kong konghq.com/plugins="ai-proxy-advanced-failover,ai-key-auth-or-oidc,ai-oidc,ai-http-log" --overwrite
-  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-oidc,ai-http-log" --overwrite
+  kubectl annotate httproute ai-proxy-failover -n kong konghq.com/plugins="ai-proxy-advanced-failover,ai-key-auth-or-oidc,ai-oidc,ai-semantic-cache,ai-http-log" --overwrite
+  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-oidc,ai-semantic-cache,ai-http-log" --overwrite
   echo "Routes patched: API key OR OIDC token accepted."
   echo "Internal route upgraded to ai-proxy-advanced (multi-model)."
 fi
@@ -556,9 +616,10 @@ if [[ "${GEMINI_ENABLED}" == "true" ]]; then
   echo ""
 fi
 if [[ "${MONITORING_ENABLED}" == "true" ]]; then
-  echo "--- Monitoring ---"
+  echo "--- Monitoring & Observability ---"
   echo "  Grafana:    https://grafana.example.com:8081 (admin / admin)"
-  echo "  Dashboard:  Kong AI Gateway (pre-installed)"
+  echo "  Dashboards: Kong AI Gateway | Kuma Service Mesh"
+  echo "  Tracing:    Grafana Explore → Tempo datasource (Kong + Kuma → OTLP)"
   echo ""
 fi
 echo "--- OpenWebUI ---"
@@ -604,6 +665,8 @@ if [[ -f ${LICENSE_FILE} ]]; then
   echo "  - API key OR OIDC token authentication"
   echo "  - AI Rate Limiting (token-based): 10,000 tokens/minute"
   echo "  - AI Prompt Guard: blocks prompt injection attempts"
+  echo "  - AI Semantic Cache: Redis vector search + nomic-embed-text (threshold: 0.85)"
+  echo "    Verify cache hit: look for X-Cache-Status header in AI responses"
 else
   echo "  (No authentication — open access for demo)"
 fi
@@ -613,6 +676,11 @@ if [[ "${KUMA_ENABLED}" == "true" ]]; then
   echo "  mTLS: enabled (all inter-service traffic encrypted)"
   echo "  Policies: default-deny with explicit allow rules"
   echo "  Kuma GUI: https://kuma-gui.example.com:8081/gui"
+  echo "  Mesh Metrics: MeshMetric policy → Prometheus scraping on port 5670"
+  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
+    echo "  Mesh Tracing: MeshTrace policy → Tempo (OTLP/gRPC)"
+    echo "  Dashboard: Grafana → Kuma folder → Kuma Service Mesh"
+  fi
   echo ""
   echo "  Verify mTLS:"
   echo "    kubectl get dataplaneinsights -A"

@@ -1,0 +1,45 @@
+# Grafana Tempo — single-binary mode for local demo
+# Receives traces from Kong (OTLP/HTTP :4318) and Kuma (OTLP/gRPC :4317)
+# Query API on :3100 (Grafana datasource)
+tempo:
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: "0.0.0.0:4318"
+        grpc:
+          endpoint: "0.0.0.0:4317"
+  # Generate service graph + span metrics from traces for Grafana Service Map
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://prometheus-server.monitoring.svc.cluster.local:80/api/v1/write"
+    processor:
+      service_graphs:
+        dimensions:
+          - service.name
+      span_metrics:
+        dimensions:
+          - service.name
+  # Enable metrics generator processors for all tenants (required in single-binary mode)
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+          - span-metrics
+
+persistence:
+  enabled: false
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

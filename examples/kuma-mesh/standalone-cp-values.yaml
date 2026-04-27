@@ -122,7 +122,7 @@ controlPlane:
 
   extraConfigMaps: []
 
-  extraSecrets: []
+  extraSecrets: {}
 
   webhooks:
     validator:
