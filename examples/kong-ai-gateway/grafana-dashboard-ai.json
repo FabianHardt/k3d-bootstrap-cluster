@@ -411,20 +411,20 @@
     },
     {
       "title": "Estimated Total Cost (USD)",
-      "description": "Ollama: $0.10/$0.30 per 1M, Gemini: $0.15/$0.60 per 1M, Anthropic: $0.80/$4.00 per 1M tokens",
+      "description": "Pre-calculated by AI Metrics Exporter with demo pricing",
       "type": "stat",
       "gridPos": { "h": 5, "w": 8, "x": 0, "y": 42 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "((sum(ai_llm_prompt_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000001 + (sum(ai_llm_completion_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000003) + ((sum(ai_llm_prompt_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.00000015 + (sum(ai_llm_completion_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.0000006) + ((sum(ai_llm_prompt_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.0000008 + (sum(ai_llm_completion_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.000004)",
+          "expr": "sum(ai_llm_estimated_cost_usd)",
           "legendFormat": "Total Cost"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
-          "decimals": 4,
+          "decimals": 2,
           "thresholds": {
             "steps": [
               { "color": "green", "value": null },
@@ -437,28 +437,28 @@
     },
     {
       "title": "Cost by Provider (USD)",
-      "description": "Estimated cost per provider based on token usage",
+      "description": "Estimated cost per provider (demo pricing)",
       "type": "piechart",
       "gridPos": { "h": 5, "w": 8, "x": 8, "y": 42 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "(sum(ai_llm_prompt_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000001 + (sum(ai_llm_completion_tokens_total{provider=\"ollama\"}) or vector(0)) * 0.0000003",
+          "expr": "sum(ai_llm_estimated_cost_usd{provider=\"ollama\"})",
           "legendFormat": "Ollama (local)"
         },
         {
-          "expr": "(sum(ai_llm_prompt_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.00000015 + (sum(ai_llm_completion_tokens_total{provider=\"gemini\"}) or vector(0)) * 0.0000006",
+          "expr": "sum(ai_llm_estimated_cost_usd{provider=\"gemini\"})",
           "legendFormat": "Gemini"
         },
         {
-          "expr": "(sum(ai_llm_prompt_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.0000008 + (sum(ai_llm_completion_tokens_total{provider=\"anthropic\"}) or vector(0)) * 0.000004",
+          "expr": "sum(ai_llm_estimated_cost_usd{provider=\"anthropic\"})",
           "legendFormat": "Anthropic"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
-          "decimals": 4
+          "decimals": 2
         }
       },
       "options": {
@@ -471,30 +471,21 @@
     },
     {
       "title": "Cost by Consumer (USD)",
-      "description": "Estimated cost per consumer across all providers",
+      "description": "Estimated cost per consumer (demo pricing)",
       "type": "barchart",
       "gridPos": { "h": 5, "w": 8, "x": 16, "y": 42 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "(sum by (consumer) (ai_llm_prompt_tokens_total{provider=\"ollama\"}) * 0.0000001 + sum by (consumer) (ai_llm_completion_tokens_total{provider=\"ollama\"}) * 0.0000003) or vector(0)",
-          "legendFormat": "{{ consumer }} (Ollama)"
-        },
-        {
-          "expr": "(sum by (consumer) (ai_llm_prompt_tokens_total{provider=\"gemini\"}) * 0.00000015 + sum by (consumer) (ai_llm_completion_tokens_total{provider=\"gemini\"}) * 0.0000006) or vector(0)",
-          "legendFormat": "{{ consumer }} (Gemini)"
-        },
-        {
-          "expr": "(sum by (consumer) (ai_llm_prompt_tokens_total{provider=\"anthropic\"}) * 0.0000008 + sum by (consumer) (ai_llm_completion_tokens_total{provider=\"anthropic\"}) * 0.000004) or vector(0)",
-          "legendFormat": "{{ consumer }} (Anthropic)"
+          "expr": "sum by (consumer) (ai_llm_estimated_cost_usd)",
+          "legendFormat": "{{ consumer }}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
-          "decimals": 4,
+          "decimals": 2,
           "custom": {
-            "stacking": { "mode": "normal" },
             "fillOpacity": 50
           }
         }
@@ -506,7 +497,7 @@
       "gridPos": { "h": 3, "w": 24, "x": 0, "y": 47 },
       "options": {
         "mode": "markdown",
-        "content": "| Provider | Input (per 1M tokens) | Output (per 1M tokens) | Notes |\n|----------|----------------------|------------------------|-------|\n| Ollama (llama3.2:1b) | $0.10 | $0.30 | Simulated cost (self-hosted, actual cost is compute/energy) |\n| Google Gemini (2.5-flash) | $0.15 | $0.60 | Simulated cost (free tier in demo) |\n| Anthropic Claude (haiku-3.5) | $0.80 | $4.00 | Actual API pricing |"
+        "content": "| Provider | Input (per 1M tokens) | Output (per 1M tokens) | Notes |\n|----------|----------------------|------------------------|-------|\n| Ollama | $500 | $1,500 | Inflated demo pricing (self-hosted) |\n| Google Gemini | $150 | $600 | Inflated demo pricing (free tier) |\n| Anthropic Claude | $1,000 | $5,000 | Inflated demo pricing |"
       }
     },
     {

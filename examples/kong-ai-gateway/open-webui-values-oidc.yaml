@@ -67,3 +67,5 @@ extraEnvVars:
     value: "default"
   - name: AIOHTTP_CLIENT_TIMEOUT
     value: "300"
+  - name: ENABLE_OPENAI_STREAMING
+    value: "false"

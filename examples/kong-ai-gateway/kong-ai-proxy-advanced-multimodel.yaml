@@ -7,6 +7,9 @@ plugin: ai-proxy-advanced
 config:
   balancer:
     algorithm: round-robin
+    connect_timeout: 10000
+    read_timeout: 300000
+    write_timeout: 300000
   targets:
     - route_type: llm/v1/chat
       model:
