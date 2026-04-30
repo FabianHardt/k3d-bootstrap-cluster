@@ -143,7 +143,16 @@ metadata:
 rawLicenseString: '$(cat "${LICENSE_FILE}")'
 " | kubectl apply -f -
 
-  echo "License applied."
+  echo "License applied. Waiting for Kong to recognize Enterprise license..."
+  for i in $(seq 1 30); do
+    PLUGIN_COUNT=$(curl -sk https://kong-admin.example.com:8081/ 2>/dev/null | jq '.plugins.available_on_server | length' 2>/dev/null)
+    if [[ "${PLUGIN_COUNT}" -gt 50 ]]; then
+      echo "Enterprise license active (${PLUGIN_COUNT} plugins available)."
+      break
+    fi
+    echo "  waiting... (plugins: ${PLUGIN_COUNT:-?})"
+    sleep 2
+  done
 
   echo "Upgrading Kong with Enterprise features (Manager UI, Admin API)..."
   # shellcheck disable=SC2086
@@ -264,18 +273,6 @@ ${FAILOVER_TARGETS}" | kubectl apply -f -
   echo ""
   echo "Applying AI Proxy Advanced multi-model plugin..."
   kubectl apply -f kong-ai-proxy-advanced-multimodel.yaml
-  kubectl apply -f kong-ai-plugin-coder.yaml
-  kubectl apply -f kong-ai-plugin-gemma.yaml
-
-  echo "Applying multi-model routes..."
-  kubectl apply -f kong-ai-route-coder.yaml
-  kubectl apply -f kong-ai-route-coder-internal.yaml
-  kubectl apply -f kong-ai-route-gemma.yaml
-  kubectl apply -f kong-ai-route-gemma-internal.yaml
-  kubectl apply -f kong-ai-route-models-extra.yaml
-
-  echo "Updating model list for Enterprise (multi-model)..."
-  kubectl apply -f kong-ai-models-response-enterprise.yaml
 
   # --- AI Semantic Cache (Redis Stack + nomic-embed-text) ---
   echo ""
@@ -304,10 +301,9 @@ echo "Applying AI Proxy HTTPRoutes..."
 kubectl apply -f kong-ai-route.yaml
 kubectl apply -f kong-ai-route-internal.yaml
 
-# --- Per-user model filtering ---
-echo "Applying per-user model filtering..."
+# --- Model list routes ---
+echo "Applying model list routes..."
 kubectl apply -f kong-ai-models-filtered.yaml
-kubectl apply -f kong-ai-model-acl-plugin.yaml
 kubectl apply -f kong-ai-route-models.yaml
 
 
@@ -548,25 +544,6 @@ if [[ "${KUMA_ENABLED}" == "true" ]]; then
 fi
 
 # --- Done ---
-# --- Enterprise: Patch routes (must run AFTER monitoring/kuma to avoid being overwritten) ---
-if [[ -f ${LICENSE_FILE} ]]; then
-  echo ""
-  echo "Patching AI routes for OIDC consumer mapping..."
-  OIDC_PLUGINS="ai-proxy-ollama,ai-key-auth-or-oidc,ai-oidc,ai-semantic-cache,ai-http-log"
-  kubectl annotate httproute ai-proxy-ollama -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
-  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="${OIDC_PLUGINS}" --overwrite
-
-  if [[ "${GEMINI_ENABLED}" == "true" ]]; then
-    kubectl annotate httproute ai-proxy-gemini -n kong konghq.com/plugins="ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc,acl-gemini,ai-semantic-cache,ai-http-log" --overwrite
-  fi
-  if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
-    kubectl annotate httproute ai-proxy-anthropic -n kong konghq.com/plugins="ai-proxy-anthropic,ai-key-auth-or-oidc,ai-oidc,acl-anthropic,ai-semantic-cache,ai-http-log" --overwrite
-  fi
-  kubectl annotate httproute ai-proxy-failover -n kong konghq.com/plugins="ai-proxy-advanced-failover,ai-key-auth-or-oidc,ai-oidc,ai-semantic-cache,ai-http-log" --overwrite
-  kubectl annotate httproute ai-proxy-ollama-internal -n kong konghq.com/plugins="ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-oidc,ai-semantic-cache,ai-http-log" --overwrite
-  echo "Routes patched: API key OR OIDC token accepted."
-  echo "Internal route upgraded to ai-proxy-advanced (multi-model)."
-fi
 
 echo ""
 echo "============================================="

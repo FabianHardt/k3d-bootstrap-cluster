@@ -6,20 +6,7 @@ metadata:
   namespace: kong
   annotations:
     kubernetes.io/ingress.class: kong
-    konghq.com/plugins: ai-block-anonymous
 username: anonymous
----
-# Block unauthenticated requests (applied to anonymous consumer only)
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: ai-block-anonymous
-  namespace: kong
-plugin: request-termination
-config:
-  status_code: 401
-  content_type: "application/json"
-  body: '{"message":"Unauthorized — provide an API key or OIDC token"}'
 ---
 # OIDC plugin for JWT validation and consumer mapping
 apiVersion: configuration.konghq.com/v1

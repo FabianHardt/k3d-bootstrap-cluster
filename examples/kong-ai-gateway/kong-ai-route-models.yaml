@@ -4,7 +4,7 @@ metadata:
   name: ai-models-ollama
   namespace: kong
   annotations:
-    konghq.com/plugins: ai-key-auth,ai-models-filtered
+    konghq.com/plugins: ai-key-auth-or-oidc,ai-oidc,ai-models-filtered
 spec:
   parentRefs:
     - name: kong
@@ -16,6 +16,8 @@ spec:
         - path:
             type: Exact
             value: /ollama/v1/models
+      timeouts:
+        backendRequest: "300s"
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -34,17 +36,19 @@ metadata:
   name: ai-models-ollama-internal
   namespace: kong
   annotations:
-    konghq.com/plugins: ai-key-auth,ai-models-filtered
+    konghq.com/plugins: ai-key-auth-or-oidc,ai-models-filtered
 spec:
   parentRefs:
     - name: kong
       namespace: kong
-      sectionName: kong-http-internal
   rules:
     - matches:
         - path:
             type: Exact
             value: /ollama/v1/models
+      timeouts:
+        backendRequest: "300s"
       backendRefs:
-        - name: kong-gateway-admin
-          port: 8001
+        - name: ollama
+          namespace: ai-platform
+          port: 11434

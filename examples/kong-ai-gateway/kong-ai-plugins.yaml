@@ -1,24 +1,21 @@
+# ai-force-nostream: Forces stream:false in request body so Kong receives
+# complete responses for token metrics and correct Content-Length.
+# Requires KONG_UNTRUSTED_LUA=on in Kong gateway config.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
-  name: ai-proxy-ollama
+  name: ai-force-nostream
   namespace: kong
-plugin: ai-proxy
+plugin: pre-function
 config:
-  route_type: "llm/v1/chat"
-  model:
-    provider: openai
-    name: llama3.2:1b
-    options:
-      upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
----
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: ai-key-auth
-  namespace: kong
-plugin: key-auth
-config:
-  key_names:
-    - apikey
-    - authorization
+  access:
+    - |
+      local body = kong.request.get_raw_body()
+      if body and #body > 0 then
+        local cjson = require("cjson.safe")
+        local json = cjson.decode(body)
+        if json then
+          json.stream = false
+          kong.service.request.set_raw_body(cjson.encode(json))
+        end
+      end
