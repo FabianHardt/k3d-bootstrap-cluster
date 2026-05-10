@@ -77,3 +77,4 @@ spec:
     - port: 11434
       targetPort: 11434
       protocol: TCP
+      appProtocol: http

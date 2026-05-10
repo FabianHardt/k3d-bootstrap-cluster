@@ -164,11 +164,18 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
 
   # Add HTTP listener without hostname filter for internal cluster routes (OpenWebUI → Kong).
   # Gateway API listeners with hostname: *.example.com reject internal requests.
+  # Uses port 8000 (Kong's native proxy port) to avoid conflicting with Keycloak's port 80
+  # in Kuma's exclude-outbound-ports annotation — port 80 must stay in-mesh for mTLS.
   echo "Adding internal HTTP listener to Gateway..."
+  kubectl patch svc kong-gateway-proxy -n kong --type=json -p='[
+    {"op": "add", "path": "/spec/ports/-", "value": {
+      "name": "kong-proxy-internal", "port": 8000, "targetPort": 8000, "protocol": "TCP"
+    }}
+  ]' 2>/dev/null || true
   kubectl patch gateway kong -n kong --type=json -p='[
     {"op": "add", "path": "/spec/listeners/-", "value": {
       "name": "kong-http-internal",
-      "port": 80,
+      "port": 8000,
       "protocol": "HTTP",
       "allowedRoutes": {"namespaces": {"from": "All"}}
     }}
@@ -541,6 +548,9 @@ for i in range(15):
 if [[ "${KUMA_ENABLED}" == "true" ]]; then
   echo "Annotating OpenWebUI service for Kuma mTLS (ClusterIP routing)..."
   kubectl annotate svc open-webui -n ai-platform konghq.com/service-upstream="true" --overwrite
+  # NOTE: Do NOT set appProtocol: http on OpenWebUI. The gateway dataplane's
+  # 5s streamIdleTimeout kills SSE streaming responses. MeshTimeout cannot override
+  # gateway listener timeouts. Tracing still works via Kong's OpenTelemetry plugin.
 fi
 
 # --- Done ---

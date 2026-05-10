@@ -247,3 +247,4 @@ spec:
     - port: 9090
       targetPort: 9090
       protocol: TCP
+      appProtocol: http

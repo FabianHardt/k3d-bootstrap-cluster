@@ -33,6 +33,12 @@ tempo:
           - service-graphs
           - span-metrics
 
+# Exclude gRPC OTLP port from Kuma sidecar inbound interception.
+# Kuma's meshtrace:opentelemetry cluster sends plain gRPC (no mTLS) to Tempo.
+# Without this, Tempo's sidecar expects mTLS and rejects the connection (503).
+podAnnotations:
+  traffic.kuma.io/exclude-inbound-ports: "4317"
+
 persistence:
   enabled: false
 

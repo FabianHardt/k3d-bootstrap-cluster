@@ -1,5 +1,8 @@
 podAnnotations:
-  traffic.kuma.io/exclude-outbound-ports: "6379"
+  # Port 443: Kong Gateway Proxy is a Kuma gateway dataplane, not a mesh backend.
+  #           Other sidecars can't route to it via mTLS — exclude for direct access.
+  # Port 6379: Redis uses binary protocol, not HTTP.
+  traffic.kuma.io/exclude-outbound-ports: "443,6379"
 
 serviceAccount:
   automountServiceAccountToken: true
@@ -9,7 +12,10 @@ websocket:
     pods:
       annotations:
         traffic.kuma.io/exclude-inbound-ports: "6379"
-        traffic.kuma.io/exclude-outbound-ports: "6379"
+        # Port 443: Kong Gateway Proxy is a Kuma gateway dataplane, not a mesh backend.
+  #           Other sidecars can't route to it via mTLS — exclude for direct access.
+  # Port 6379: Redis uses binary protocol, not HTTP.
+  traffic.kuma.io/exclude-outbound-ports: "443,6379"
 
 ollama:
   enabled: false
@@ -21,7 +27,7 @@ extraEnvVars:
   - name: ENABLE_OLLAMA_API
     value: "false"
   - name: OPENAI_API_BASE_URLS
-    value: "http://kong-gateway-proxy.kong.svc.cluster.local:80/ollama/v1"
+    value: "https://kong-gateway-proxy.kong.svc.cluster.local:443/ollama/v1"
   - name: OPENAI_API_KEYS
     value: "admin-key-12345"
   - name: WEBUI_AUTH

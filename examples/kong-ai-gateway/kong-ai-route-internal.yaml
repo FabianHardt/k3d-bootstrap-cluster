@@ -5,7 +5,7 @@ metadata:
   name: ai-proxy-ollama-internal
   namespace: kong
   annotations:
-    konghq.com/plugins: ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-force-nostream,ai-http-log
+    konghq.com/plugins: ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-http-log
     konghq.com/strip-path: "true"
 spec:
   parentRefs:

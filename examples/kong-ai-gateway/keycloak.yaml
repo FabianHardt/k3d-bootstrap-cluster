@@ -162,6 +162,12 @@ spec:
       port: 80
       targetPort: 8080
       protocol: TCP
+      appProtocol: http
+    - name: http-direct
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+      appProtocol: http
 ---
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
