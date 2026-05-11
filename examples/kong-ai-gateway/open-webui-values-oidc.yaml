@@ -17,6 +17,14 @@ websocket:
   # Port 6379: Redis uses binary protocol, not HTTP.
   traffic.kuma.io/exclude-outbound-ports: "8000,6379"
 
+# Force Kuma to treat the service as TCP (not HTTP) despite port name "http".
+# Without this, Kuma auto-detects HTTP from the port name and applies
+# stream_idle_timeout (5s on gateway dataplanes) which kills SSE streaming.
+service:
+  annotations:
+    konghq.com/service-upstream: "true"
+    80.service.kuma.io/protocol: tcp
+
 ollama:
   enabled: false
 

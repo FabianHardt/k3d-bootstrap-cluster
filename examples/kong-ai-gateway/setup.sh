@@ -322,6 +322,26 @@ if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
   kubectl apply -f kong-ai-route-anthropic.yaml
 fi
 
+# --- MCP Tool Server (SearXNG web search) ---
+echo ""
+echo "Deploying SearXNG (meta search engine) + MCP Server..."
+
+kubectl apply -f searxng.yaml
+kubectl apply -f mcp-searxng.yaml
+
+echo "Waiting for SearXNG to be ready..."
+kubectl wait deployment searxng -n ai-platform --for=condition=Available=true --timeout=120s
+
+echo "Waiting for MCP Server to be ready..."
+kubectl wait deployment mcp-searxng -n ai-platform --for=condition=Available=true --timeout=120s
+
+echo "Applying Kong MCP Gateway route (authentication + rate limiting)..."
+kubectl apply -f kong-mcp-route.yaml
+
+echo "MCP Search Tool deployed."
+echo "  Kong MCP endpoint: https://ai.example.com:8081/mcp"
+echo "  Internal endpoint: http://kong-gateway-proxy.kong.svc.cluster.local:8000/mcp"
+
 # --- Monitoring (optional) ---
 echo ""
 read -r -p "Deploy Monitoring (Prometheus + Grafana) for AI metrics? (y/N): " DEPLOY_MONITORING
@@ -452,13 +472,16 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
   echo "Applying MeshMetric policy for Prometheus scraping of Envoy sidecars..."
   kubectl apply -f kuma-mesh-metric.yaml
 
+  echo "Applying MeshTimeout + MeshRetry for LLM traffic (Kuma defaults are too short for inference)..."
+  kubectl apply -f kuma-mesh-timeout.yaml
+
   if [[ "${MONITORING_ENABLED}" == "true" ]]; then
     echo "Applying MeshTrace policy for distributed tracing (Kong + Kuma → Tempo)..."
     kubectl apply -f kuma-mesh-trace.yaml
   fi
 
   echo "Restarting pods to inject Kuma sidecars..."
-  kubectl rollout restart deployment/ollama -n ai-platform
+  kubectl rollout restart deployment/ollama deployment/searxng deployment/mcp-searxng -n ai-platform
   kubectl rollout restart deployment/kong-gateway -n kong
 
   if [[ -f ${LICENSE_FILE} ]]; then
@@ -487,7 +510,7 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
   # Re-toggling the annotation forces KIC to switch to Service DNS targets (ClusterIPs),
   # which is required for Kuma's outbound listeners to match and apply mTLS.
   echo "Re-syncing service-upstream annotations for KIC..."
-  for SVC in ollama keycloak; do
+  for SVC in ollama keycloak searxng mcp-searxng; do
     kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream- 2>/dev/null || true
     kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream="true" 2>/dev/null || true
   done
@@ -543,6 +566,62 @@ for i in range(15):
             time.sleep(2)
         else:
             print('WARNING: Could not seed platform admin. First OIDC user will become admin.')
+"
+
+# Register MCP tool server in OpenWebUI (via Admin API)
+echo "Registering MCP Search Tool Server in OpenWebUI..."
+kubectl exec -n ai-platform open-webui-0 -c open-webui -- python3 -c "
+import urllib.request, json
+# Login as admin
+req = urllib.request.Request('http://localhost:8080/api/v1/auths/signin',
+    data=json.dumps({'email':'${WEBUI_ADMIN_EMAIL}','password':'${WEBUI_ADMIN_PASSWORD}'}).encode(),
+    headers={'Content-Type':'application/json'})
+resp = urllib.request.urlopen(req, timeout=5)
+token = json.loads(resp.read()).get('token')
+
+# Register MCP server via Kong internal route
+mcp_config = {
+    'TOOL_SERVER_CONNECTIONS': [{
+        'url': 'http://mcp-searxng.ai-platform.svc.cluster.local:3000/mcp',
+        'path': '',
+        'type': 'mcp',
+        'auth_type': 'none',
+        'key': '',
+        'info': {
+            'id': 'searxng-web-search',
+            'name': 'SearXNG Web Search',
+            'description': 'Privacy-respecting meta search via Kong MCP Gateway'
+        },
+        'config': {
+            'enable': True,
+            'access_grants': [
+                {'principal_type': 'user', 'principal_id': '*', 'permission': 'read'}
+            ]
+        }
+    }]
+}
+req = urllib.request.Request('http://localhost:8080/api/v1/configs/tool_servers',
+    data=json.dumps(mcp_config).encode(),
+    headers={'Content-Type':'application/json','Authorization':f'Bearer {token}'})
+try:
+    resp = urllib.request.urlopen(req, timeout=10)
+    print('OK: MCP Search Tool Server registered (Kong → SearXNG)')
+
+    # Enable tools permission for non-admin users
+    req = urllib.request.Request('http://localhost:8080/api/v1/users/default/permissions',
+        headers={'Authorization':f'Bearer {token}'})
+    resp = urllib.request.urlopen(req, timeout=5)
+    perms = json.loads(resp.read())
+    perms['workspace']['tools'] = True
+    perms['chat']['controls'] = True
+    perms['features']['direct_tool_servers'] = True
+    req = urllib.request.Request('http://localhost:8080/api/v1/users/default/permissions',
+        data=json.dumps(perms).encode(),
+        headers={'Content-Type':'application/json','Authorization':f'Bearer {token}'})
+    urllib.request.urlopen(req, timeout=5)
+    print('OK: Tools permission enabled for users')
+except Exception as e:
+    print(f'WARNING: Could not register MCP server: {e}')
 "
 
 if [[ "${KUMA_ENABLED}" == "true" ]]; then
@@ -609,6 +688,22 @@ if [[ "${MONITORING_ENABLED}" == "true" ]]; then
   echo "  Tracing:    Grafana Explore → Tempo datasource (Kong + Kuma → OTLP)"
   echo ""
 fi
+echo "--- MCP Tool Server (Web Search via Kong) ---"
+echo "  SearXNG:      Privacy-respecting meta search (Google, Bing, DDG, ...)"
+echo "  MCP endpoint: https://ai.example.com:8081/mcp (key-auth + rate-limited)"
+echo "  Internal:     http://kong-gateway-proxy.kong.svc.cluster.local:8000/mcp"
+echo ""
+echo "  Test MCP via curl:"
+echo "  curl -k -H 'apikey: admin-key-12345' \\"
+echo "    -H 'Content-Type: application/json' \\"
+echo "    -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}' \\"
+echo "    https://ai.example.com:8081/mcp"
+echo ""
+echo "  Configure in OpenWebUI: Admin → External Tools → + Add Server"
+echo "    Type:       MCP (Streamable HTTP)"
+echo "    Server URL: http://kong-gateway-proxy.kong.svc.cluster.local:8000/mcp"
+echo "    Auth:       None (key-auth handled by Kong via internal route)"
+echo ""
 echo "--- OpenWebUI ---"
 echo "  Open in browser: https://chat.example.com:8081"
 echo "  Admin login:     ${WEBUI_ADMIN_EMAIL} / ${WEBUI_ADMIN_PASSWORD}"

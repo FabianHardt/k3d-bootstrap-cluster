@@ -1,0 +1,66 @@
+# Kong route for MCP Server — exposes /mcp through the gateway
+# Demonstrates Kong as an MCP Gateway with authentication and rate limiting.
+#
+# External route (ai.example.com/mcp): key-auth + rate-limiting + tracing
+# Internal route (kong:8000/mcp): key-auth only (for OpenWebUI tool calls)
+---
+# Rate limiting plugin for MCP search calls (prevent search engine abuse)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: mcp-rate-limit
+  namespace: kong
+plugin: rate-limiting
+config:
+  minute: 30
+  policy: local
+  fault_tolerant: true
+  hide_client_headers: false
+---
+# External MCP route (for direct API access via curl/clients)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-searxng
+  namespace: kong
+  annotations:
+    konghq.com/strip-path: "false"
+    konghq.com/plugins: ai-key-auth-or-oidc,mcp-rate-limit,ai-http-log
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  hostnames:
+    - "ai.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+      backendRefs:
+        - name: mcp-searxng
+          namespace: ai-platform
+          port: 3000
+---
+# Internal MCP route (OpenWebUI → Kong → MCP Server)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-searxng-internal
+  namespace: kong
+  annotations:
+    konghq.com/strip-path: "false"
+    konghq.com/plugins: ai-key-auth-or-oidc,mcp-rate-limit,ai-http-log
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+      backendRefs:
+        - name: mcp-searxng
+          namespace: ai-platform
+          port: 3000
