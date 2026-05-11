@@ -44,6 +44,14 @@ npx playwright test --ui
 | **Kong ACL** | dev-user is blocked from Gemini (403 Forbidden) |
 | **MCP Endpoint** | SearXNG MCP server responds via Kong with correct protocol |
 | **Rate Limiting** | Kong rate-limit headers present on MCP endpoint |
+| **Grafana Datasources** | Prometheus + Tempo datasources configured |
+| **AI Dashboard Panels** | Token usage, cost, and request panels exist |
+| **Kuma Dashboard** | Service mesh dashboard exists |
+| **Token Metrics** | `ai_llm_tokens_total` etc. present in Prometheus |
+| **Token Usage per Consumer** | Prometheus query returns per-user token counts |
+| **Cost per Consumer** | Prometheus query returns estimated USD cost per user |
+| **Kong Traces** | Tempo has distributed traces from Kong OpenTelemetry |
+| **Dashboard Rendering** | Grafana Kong AI Gateway dashboard renders in browser |
 
 ## Architecture
 

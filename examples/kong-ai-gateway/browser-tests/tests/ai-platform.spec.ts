@@ -185,3 +185,181 @@ test.describe('Kong AI Gateway API', () => {
     expect(response.headers()['ratelimit-remaining']).toBeDefined();
   });
 });
+
+test.describe('Grafana Observability', () => {
+  const GRAFANA_URL = 'https://grafana.example.com:8081';
+  const GRAFANA_AUTH = { username: 'admin', password: 'admin' };
+
+  test('Grafana is accessible and has datasources', async ({ request }) => {
+    const response = await request.get(`${GRAFANA_URL}/api/datasources`, {
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+      },
+      ignoreHTTPSErrors: true,
+    });
+    expect(response.status()).toBe(200);
+    const datasources = await response.json();
+    const names = datasources.map((ds: any) => ds.name);
+    expect(names).toContain('Prometheus');
+    expect(names).toContain('Tempo');
+  });
+
+  test('Kong AI Gateway dashboard exists with token panels', async ({ request }) => {
+    const response = await request.get(`${GRAFANA_URL}/api/dashboards/uid/kong-ai-gateway`, {
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+      },
+      ignoreHTTPSErrors: true,
+    });
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    const panelTitles = data.dashboard.panels
+      .flatMap((p: any) => p.panels ? p.panels.map((s: any) => s.title) : [p.title]);
+    // Token usage panels
+    expect(panelTitles).toContain('Total Prompt Tokens');
+    expect(panelTitles).toContain('Total Completion Tokens');
+    expect(panelTitles).toContain('Token Usage by Consumer');
+    // Cost panels
+    expect(panelTitles).toContain('Estimated Total Cost (USD)');
+    expect(panelTitles).toContain('Cost by Consumer (USD)');
+    expect(panelTitles).toContain('Cost by Provider (USD)');
+  });
+
+  test('Kuma Service Mesh dashboard exists', async ({ request }) => {
+    const response = await request.get(`${GRAFANA_URL}/api/dashboards/uid/kuma-mesh`, {
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+      },
+      ignoreHTTPSErrors: true,
+    });
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.dashboard.title).toBe('Kuma Service Mesh');
+  });
+
+  test('Prometheus has token and cost metrics', async ({ request }) => {
+    // Query Grafana's unified alerting query endpoint which is more stable than the datasource proxy
+    const response = await request.get(`${GRAFANA_URL}/api/datasources/uid/prometheus`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64') },
+      ignoreHTTPSErrors: true,
+    });
+    expect(response.status()).toBe(200);
+    const ds = await response.json();
+    // Build direct Prometheus URL from datasource config
+    const promUrl = ds.url;
+
+    // Query Prometheus via Grafana datasource proxy with retry
+    let metricsResponse;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      metricsResponse = await request.get(
+        `${GRAFANA_URL}/api/datasources/proxy/uid/prometheus/api/v1/label/__name__/values`,
+        {
+          headers: { 'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64') },
+          ignoreHTTPSErrors: true,
+        },
+      );
+      if (metricsResponse.status() === 200) break;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    expect(metricsResponse!.status()).toBe(200);
+    const data = await metricsResponse!.json();
+    const metrics = data.data as string[];
+    expect(metrics).toContain('ai_llm_tokens_total');
+    expect(metrics).toContain('ai_llm_estimated_cost_usd');
+    expect(metrics).toContain('ai_llm_requests_total');
+  });
+
+  test('token usage per consumer is queryable', async ({ request }) => {
+    const query = 'sum by (consumer) (ai_llm_tokens_total)';
+    let response;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await request.get(
+        `${GRAFANA_URL}/api/datasources/proxy/uid/prometheus/api/v1/query?query=${encodeURIComponent(query)}`,
+        {
+          headers: { 'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64') },
+          ignoreHTTPSErrors: true,
+        },
+      );
+      if (response.status() === 200) break;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    expect(response!.status()).toBe(200);
+    const data = await response!.json();
+    expect(data.status).toBe('success');
+    const results = data.data.result;
+    expect(results.length).toBeGreaterThan(0);
+    const consumers = results.map((r: any) => r.metric.consumer);
+    console.log(`  Token usage by consumer: ${consumers.join(', ')}`);
+  });
+
+  test('estimated cost per consumer is queryable', async ({ request }) => {
+    const query = 'sum by (consumer) (ai_llm_estimated_cost_usd)';
+    let response;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await request.get(
+        `${GRAFANA_URL}/api/datasources/proxy/uid/prometheus/api/v1/query?query=${encodeURIComponent(query)}`,
+        {
+          headers: { 'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64') },
+          ignoreHTTPSErrors: true,
+        },
+      );
+      if (response.status() === 200) break;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    expect(response!.status()).toBe(200);
+    const data = await response!.json();
+    expect(data.status).toBe('success');
+    const results = data.data.result;
+    expect(results.length).toBeGreaterThan(0);
+    for (const r of results) {
+      const cost = parseFloat(r.value[1]);
+      console.log(`  Consumer "${r.metric.consumer}": $${cost.toFixed(6)}`);
+    }
+  });
+
+  test('Tempo has Kong traces', async ({ request }) => {
+    const response = await request.get(
+      `${GRAFANA_URL}/api/datasources/proxy/uid/tempo/api/search?tags=service.name%3Dkong&limit=5`,
+      {
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+        },
+        ignoreHTTPSErrors: true,
+      },
+    );
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.traces.length).toBeGreaterThan(0);
+    // Verify trace has expected structure
+    const trace = data.traces[0];
+    expect(trace.traceID).toBeDefined();
+    expect(trace.rootServiceName).toBeDefined();
+    expect(trace.durationMs).toBeGreaterThan(0);
+    console.log(`  Found ${data.traces.length} Kong traces, latest: ${trace.rootTraceName} (${trace.durationMs}ms)`);
+  });
+
+  test('Grafana dashboards render in browser', async ({ page }) => {
+    // Login to Grafana
+    await page.goto(`${GRAFANA_URL}/login`);
+    await page.fill('input[name="user"]', 'admin');
+    await page.fill('input[name="password"]', 'admin');
+    await page.getByRole('button', { name: /log in/i }).first().click();
+    await page.waitForTimeout(2000);
+
+    // Open Kong AI Gateway dashboard
+    await page.goto(`${GRAFANA_URL}/d/kong-ai-gateway?orgId=1&refresh=10s`);
+    await page.waitForTimeout(5000);
+
+    // Verify key panels are visible (top row, no scroll needed)
+    await expect(page.locator('text=Total AI Requests').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Request Rate by Provider').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Requests by Consumer').first()).toBeVisible({ timeout: 10000 });
+
+    // Scroll down to token/cost section and verify
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(2000);
+    await expect(page.locator('text=Token Usage by Consumer').first()).toBeVisible({ timeout: 10000 });
+
+    await page.screenshot({ path: 'test-results/grafana-ai-dashboard.png', fullPage: true });
+  });
+});

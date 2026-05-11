@@ -15,21 +15,18 @@ config:
       model:
         provider: openai
         name: llama3.2:1b
-        model_alias: llama3.2:1b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
     - route_type: llm/v1/chat
       model:
         provider: openai
         name: qwen2.5-coder:1.5b
-        model_alias: qwen2.5-coder:1.5b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
     - route_type: llm/v1/chat
       model:
         provider: openai
         name: gemma3:1b
-        model_alias: gemma3:1b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
     - route_type: llm/v1/chat
@@ -40,4 +37,3 @@ config:
       model:
         provider: gemini
         name: gemini-2.5-flash
-        model_alias: gemini-2.5-flash
