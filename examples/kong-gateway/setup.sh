@@ -24,7 +24,9 @@ print('\n---\n'.join(d for d in docs if not any(kind in d for kind in excluded_k
 " | kubectl apply --server-side -f -
 
 # Enable Gateway API support in cert-manager now that the CRDs are installed
-helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace \
+helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
   --set crds.enabled=true \
   --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
   --set config.kind="ControllerConfiguration" \
