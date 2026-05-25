@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Crossplane Platform Engineering showcase (`examples/crossplane/`) demonstrating the Platform Team / Developer Team split with Crossplane and the Kubernetes provider. The Platform Team defines an `AppEnvironment` XRD and Composition; developers create a single Claim and receive a fully provisioned Namespace, Deployment, Service, and Ingress/HTTPRoute automatically. Supports both HAProxy and Kong Gateway API ingress modes. Includes German-language documentation for classroom use (`docs/showcases/crossplane.md`).
+* Headlamp Kubernetes Dashboard added as an optional component in the interactive cluster setup (`create-sample.sh`). Detects existing ingress controller and deploys the corresponding Helm values file for HAProxy, Kong Gateway, or Traefik. If no ingress controller is detected, Headlamp is installed without ingress resources and can be accessed via `kubectl port-forward` instead. Dedicated documentation page for the Headlamp showcase (`docs/showcases/headlamp.md`).
 
 ### Changed
 
