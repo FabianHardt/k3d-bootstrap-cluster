@@ -36,7 +36,7 @@ At least you have the option to deploy **httpbin sample deployment**, which is d
 The container from https://kennethreitz.org/ is used here. The sample uses an `Ingress` (HAProxy/Traefik) or an `HTTPRoute` (Kong), and a *NodePort* is also exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
 The httpbin demo is deployed from the **local running container registry**, just for demo purpose, to show the usage of a user defined registry with k3d.
 
-*Optional (K8s > 1.24 needed):* Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/#/login). The nessecary login token you can get with the following command: `kubectl -n k8s-dashboard describe secrets dashboard-admin-token | grep token:`
+*Optional (K8s > 1.24 needed):* Headlamp Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/). The necessary login token you can get with the following command: `kubectl create token headlamp --namespace kube-system`
 
 After running this script you can visit the Demo HTTPBin Application by typing `127-0-0-1.nip.io:<Load-Balancer-Port>` in your Browser. If you are using an other `DEMO_DOMAIN` you can use `<Cluster-Name>.<DEMO_DOMAIN>:<Load-Balancer-Port>` (e.q. `demo.example.com:8080`).
 
