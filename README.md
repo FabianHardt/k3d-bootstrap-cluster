@@ -106,6 +106,8 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/confluent.md)
 - Kyverno - https://github.com/kyverno/kyverno
   - Installation is documented here [README](docs/showcases/kyverno.md)
+- CloudNativePG - https://cloudnative-pg.io
+  - Installation is documented here [README](docs/showcases/cloudnative-pg.md)
 - Calico NetworkPolicies - https://github.com/projectcalico/calico
   - Manal steps and demo are documented here [README](https://github.com/projectcalico/calico)
 

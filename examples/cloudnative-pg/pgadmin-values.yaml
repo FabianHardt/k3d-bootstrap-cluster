@@ -1,0 +1,36 @@
+---
+env:
+  email: admin@example.com
+  password: admin
+  pgpassfile: |
+    sample-pg-rw.cloudnative-pg.svc:5432:sampledb:appuser:apppassword
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  ingressClassName: haproxy
+  hosts:
+    - host: pgadmin.127-0-0-1.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+
+serverDefinitions:
+  enabled: true
+  servers:
+    1:
+      Name: "sample-pg (primary)"
+      Group: "CloudNativePG"
+      Port: 5432
+      Username: "appuser"
+      Host: "sample-pg-rw.cloudnative-pg.svc.cluster.local"
+      SSLMode: "prefer"
+      MaintenanceDB: "sampledb"
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
