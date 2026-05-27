@@ -1,0 +1,46 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudnative-pg
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: sample-pg
+  namespace: cloudnative-pg
+spec:
+  instances: 1
+
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: "128MB"
+
+  bootstrap:
+    initdb:
+      database: sampledb
+      owner: appuser
+      secret:
+        name: sample-pg-app-secret
+
+  storage:
+    size: 1Gi
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sample-pg-app-secret
+  namespace: cloudnative-pg
+type: kubernetes.io/basic-auth
+stringData:
+  username: appuser
+  password: apppassword
