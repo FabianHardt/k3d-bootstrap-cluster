@@ -34,7 +34,7 @@ fi
 
 helm repo add openbao https://openbao.github.io/openbao-helm
 helm repo add jetstack https://charts.jetstack.io
-helm repo update
+helm repo update || true
 
 helm upgrade --install openbao openbao/openbao --values "${OPENBAO_VALUES}" --namespace openbao --create-namespace
 
