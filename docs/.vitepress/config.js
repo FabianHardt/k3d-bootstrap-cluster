@@ -67,7 +67,7 @@ export default {
                     { text: "Calico NetworkPolicy", link: "/showcases/calico-network-policies.html" },
                     { text: "Cluster API (CAPI)", link: "/showcases/cluster-api.html" },
                     { text: "Crossplane Platform Engineering", link: "/showcases/crossplane.html" },
-                    { text: "Cloudnative-PG", link: "/showcases/cloudnative-pg.html" }
+                    { text: "CloudNativePG", link: "/showcases/cloudnative-pg.html" }
                 ]
             },
             {
