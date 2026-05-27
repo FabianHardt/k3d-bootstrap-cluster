@@ -24,4 +24,18 @@ kubectl create token headlamp --namespace kube-system
 
 ### Show Headlamp UI
 
-The Headlamp UI is exposed via `Ingress` or `HTTPRoute`, you can open Headlamp in a browser of your choice: https://dashboard.127-0-0-1.nip.io:8081/
+The setup script auto-detects your ingress controller and configures access accordingly.
+
+**With an ingress controller (HAProxy, Traefik, or Kong):**
+
+The Headlamp UI is exposed via `Ingress` or `HTTPRoute`. Open it in a browser: https://dashboard.127-0-0-1.nip.io:8081/
+
+**Without an ingress controller:**
+
+Use a port-forward instead:
+
+```bash
+kubectl port-forward -n kube-system svc/headlamp 8080:80
+```
+
+Then open: http://localhost:8080
