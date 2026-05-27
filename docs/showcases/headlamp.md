@@ -35,7 +35,7 @@ The Headlamp UI is exposed via `Ingress` or `HTTPRoute`. Open it in a browser: h
 Use a port-forward instead:
 
 ```bash
-kubectl port-forward -n kube-system svc/headlamp 8080:80
+kubectl port-forward -n kube-system svc/headlamp 9080:80
 ```
 
-Then open: http://localhost:8080
+Then open: http://localhost:9080

@@ -32,8 +32,8 @@ if [ -n "${VALUES_FILE:-}" ]; then
   echo "Login to Headlamp via https://dashboard.127-0-0-1.nip.io:8081"
 else
   echo "No ingress configured. Access Headlamp via port-forward:"
-  echo "  kubectl port-forward -n kube-system svc/headlamp 8080:80"
-  echo "Then open: http://localhost:8080"
+  echo "  kubectl port-forward -n kube-system svc/headlamp 9080:80"
+  echo "Then open: http://localhost:9080"
 fi
 echo ""
 echo "Token (sensitive — do not share):"
