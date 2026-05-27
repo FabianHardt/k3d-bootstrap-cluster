@@ -3,13 +3,13 @@ set -o errexit
 
 BASE_DIR=$(dirname "${BASH_SOURCE[0]}")
 
-if kubectl get ingressclass haproxy &>/dev/null 2>&1; then
+if kubectl get ingressclass haproxy &>/dev/null; then
   echo "Auto-detected HAProxy ingress controller"
   VALUES_FILE="${BASE_DIR}/values-ingress-haproxy.yaml"
-elif kubectl get namespace kong &>/dev/null 2>&1 || kubectl get gatewayclass kong &>/dev/null 2>&1; then
+elif kubectl get gatewayclass kong &>/dev/null; then
   echo "Auto-detected Kong Gateway"
   VALUES_FILE="${BASE_DIR}/values-route-kong.yaml"
-elif kubectl get ingressclass traefik &>/dev/null 2>&1; then
+elif kubectl get ingressclass traefik &>/dev/null; then
   echo "Auto-detected Traefik ingress controller"
   VALUES_FILE="${BASE_DIR}/values-ingress-traefik.yaml"
 else
