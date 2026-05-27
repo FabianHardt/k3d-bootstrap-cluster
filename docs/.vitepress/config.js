@@ -57,7 +57,7 @@ export default {
                 collapsible: true,
                 items: [
                     { text: "External DNS", link: "/showcases/external-dns.html" },
-                    { text: "Vault", link: "/showcases/vault.html" },
+                    { text: "OpenBao", link: "/showcases/openbao.html" },
                     { text: "External Secrets Operator", link: "/showcases/external-secrets.html" },
                     { text: "Kong API Gateway", link: "/showcases/kong.html" },
                     { text: "Kuma Service Mesh", link: "/showcases/kuma.html" },
@@ -67,7 +67,8 @@ export default {
                     { text: "Calico NetworkPolicy", link: "/showcases/calico-network-policies.html" },
                     { text: "Cluster API (CAPI)", link: "/showcases/cluster-api.html" },
                     { text: "Crossplane Platform Engineering", link: "/showcases/crossplane.html" },
-                    { text: "CloudNativePG", link: "/showcases/cloudnative-pg.html" }
+                    { text: "CloudNativePG", link: "/showcases/cloudnative-pg.html" },
+                    { text: "Headlamp (Dashboard)", link: "/showcases/headlamp.html" }
                 ]
             },
             {

@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [1.3.0] - 2026-05-27
+
+### Added
+
+* Headlamp Kubernetes Dashboard added as an optional component in the interactive cluster setup (`create-sample.sh`). Detects existing ingress controller and deploys the corresponding Helm values file for HAProxy, Kong Gateway, or Traefik. If no ingress controller is detected, Headlamp is installed without ingress resources and can be accessed via `kubectl port-forward` instead. Dedicated documentation page for the Headlamp showcase (`docs/showcases/headlamp.md`).
+
+### Fixed
+
+* Helm repo for cert-manager could not be resolved on fresh installations. The Kong Gateway setup script (`examples/kong-gateway/setup.sh`) now adds the `jetstack` Helm repository explicitly before attempting to install cert-manager ([#52](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/52)).
+
+## [1.2.0] - 2026-04-20
+
+### Added
+
+* Crossplane Platform Engineering showcase (`examples/crossplane/`) demonstrating the Platform Team / Developer Team split with Crossplane and the Kubernetes provider. The Platform Team defines an `AppEnvironment` XRD and Composition; developers create a single Claim and receive a fully provisioned Namespace, Deployment, Service, and Ingress/HTTPRoute automatically. Supports both HAProxy and Kong Gateway API ingress modes. Includes German-language documentation for classroom use (`docs/showcases/crossplane.md`).
+
 ## [1.1.1] - 2026-04-09
 
 ### Fixed
@@ -181,7 +197,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added external-dns sample. Demonstrates ExternalDNS, which configures an external CoreDNS server - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/2
 - Added Hashicorp Vault as CA server in combination with cert-manager do demonstrate auto generated certificates - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/6
 
-[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.1...HEAD
+[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.9.0...v1.0.0

@@ -1,0 +1,9 @@
+---
+ingress:
+  enabled: true
+  ingressClassName: haproxy
+  hosts:
+    - host: dashboard.127-0-0-1.nip.io
+      paths:
+        - path: /
+          type: ImplementationSpecific

@@ -63,6 +63,10 @@ if (($KONG_FLAG == 1)); then
   deployKong
 fi
 
+if (($DASHBOARD_FLAG == 1)); then
+  bash "${ACT_DIR}/examples/headlamp/setup.sh"
+fi
+
 if (($HTTPBIN_SAMPLE_FLAG == 1)); then
   top "Provisioning Persistent Volume"
   cat <<EOF | kubectl apply -f -
