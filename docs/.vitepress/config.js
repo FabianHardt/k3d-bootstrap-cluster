@@ -68,7 +68,8 @@ export default {
                     { text: "Cluster API (CAPI)", link: "/showcases/cluster-api.html" },
                     { text: "Crossplane Platform Engineering", link: "/showcases/crossplane.html" },
                     { text: "CloudNativePG", link: "/showcases/cloudnative-pg.html" },
-                    { text: "Headlamp (Dashboard)", link: "/showcases/headlamp.html" }
+                    { text: "Headlamp (Dashboard)", link: "/showcases/headlamp.html" },
+                    { text: "Kafka-Cluster", link: "/showcases/strimzi.html" }
                 ]
             },
             {

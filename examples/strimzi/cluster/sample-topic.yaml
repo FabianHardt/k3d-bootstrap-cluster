@@ -1,0 +1,15 @@
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: sample-topic
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    cleanup.policy: delete
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
