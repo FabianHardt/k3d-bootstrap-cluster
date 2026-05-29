@@ -9,15 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* **Distributed Tracing** for the Kong AI Gateway showcase (`examples/kong-ai-gateway/`). Grafana Tempo receives traces via OTLP from both Kong (HTTP, port 4318) and Kuma Envoy sidecars (gRPC, port 4317). Traces are visualized in Grafana via the Tempo datasource with Service Graph, Node Graph, and a "Recent Traces" table on the Kuma dashboard. Requires `tracing_instrumentations: all` in the Kong Gateway Helm values and `appProtocol: http` on upstream Kubernetes Service ports so Kuma configures HTTP listeners with tracing.
-* **Kuma Service Mesh Dashboard** in Grafana (`grafana-dashboard-kuma.json`). Panels: Active Dataplanes, mTLS Certificate Expiry, Request Rate / Error Rate / Latency by Service, Bandwidth, Dataplanes table, Service Graph metrics (request rate and p95 latency between services), Recent Traces table, and a live Service Map (Node Graph from Tempo).
-* **Semantic Caching** via Kong `ai-semantic-cache` plugin (Enterprise). Uses a dedicated Redis Stack deployment (`redis/redis-stack-server`) for vector similarity search and Ollama's `nomic-embed-text` model (768 dimensions) for embeddings. Similarity threshold 0.85, cosine distance, TTL 3600s.
-* **Tempo** deployment (`tempo-values.yaml`) using the `grafana/tempo` Helm chart in single-binary mode. Metrics generator enabled with `service-graphs` and `span-metrics` processors, remote-writing to Prometheus for the Grafana Service Map.
-* **MeshMetric** policy (`kuma-mesh-metric.yaml`) enabling Prometheus scraping of Envoy sidecar metrics on port 5670.
-* **MeshTrace** policy (`kuma-mesh-trace.yaml`) sending Envoy sidecar traces to Tempo via OTLP/gRPC with 100% sampling.
-* **MeshProxyPatch** resources for monitoring services (`kuma-monitoring-http1-patch.yaml`): forces HTTP/1.1 on Grafana, Prometheus, AI-Metrics-Exporter, and Tempo outbound clusters. Uses `origin: outbound` and camelCase JSON patch paths (`typedExtensionProtocolOptions`, `explicitHttpConfig`, `httpProtocolOptions`) matching the pattern in `kuma-gateway-http1-patch.yaml`.
-* Separate internal embeddings route (`ai-embeddings-ollama-internal`) in `kong-ai-route-internal.yaml` that proxies `/ollama/v1/embeddings` directly to Ollama without the `ai-proxy-advanced` plugin, fixing OpenWebUI RAG document upload.
-* Crossplane Platform Engineering showcase (`examples/crossplane/`) demonstrating the Platform Team / Developer Team split with Crossplane and the Kubernetes provider. The Platform Team defines an `AppEnvironment` XRD and Composition; developers create a single Claim and receive a fully provisioned Namespace, Deployment, Service, and Ingress/HTTPRoute automatically. Supports both HAProxy and Kong Gateway API ingress modes. Includes German-language documentation for classroom use (`docs/showcases/crossplane.md`).
+* CloudNativePG showcase (`examples/cloudnative-pg/`) demonstrating the CloudNativePG operator for managing PostgreSQL clusters on Kubernetes. Deploys a sample `Cluster` CR with a pre-configured database, and pgAdmin 4 as a web UI client — pre-registered with the sample cluster. Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/cloudnative-pg.md`).
+* Grafana Observability Stack showcase (`examples/grafana-stack/`) with Grafana, Prometheus, and Tempo deployed via Helm charts. Demonstrates OpenTelemetry instrumentation of the Kong AI Gateway plugins with span export to Tempo, and metrics collection by Prometheus. Includes a pre-configured Grafana dashboard for visualising AI plugin performance and costs, and documentation (`docs/showcases/grafana-stack.md`).
 
 ### Changed
 
@@ -44,11 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* Kong OpenTelemetry plugin: `traces_endpoint` (not `endpoint`), `sampling_rate` (not `sample_rate`), `propagation.default_format` (not deprecated `header_type`), `sampling_strategy: parent_probability_fallback` with explicit `propagation.extract/inject` arrays. Without these, Kong sets `propagation_only: true` and never exports spans.
-* Kuma MeshProxyPatch for monitoring services: must use camelCase paths (`/typedExtensionProtocolOptions`, `explicitHttpConfig`, `httpProtocolOptions`) and `origin: outbound` in the match block. Snake_case paths silently fail.
-* Tempo gRPC inbound port 4317 excluded from Kuma sidecar interception (`traffic.kuma.io/exclude-inbound-ports: "4317"`). Without this, Kuma's `meshtrace:opentelemetry` cluster (plain gRPC, no mTLS) cannot reach Tempo's sidecar-protected inbound listener.
-* Grafana Tempo datasource URL corrected from port 3100 to 3200 (Tempo query API).
-* `setup.sh` Tempo wait command: `kubectl rollout status statefulset/tempo` instead of `kubectl wait deployment tempo` (Tempo Helm chart deploys a StatefulSet).
+## [1.3.0] - 2026-05-27
+
+### Added
+
+* Headlamp Kubernetes Dashboard added as an optional component in the interactive cluster setup (`create-sample.sh`). Detects existing ingress controller and deploys the corresponding Helm values file for HAProxy, Kong Gateway, or Traefik. If no ingress controller is detected, Headlamp is installed without ingress resources and can be accessed via `kubectl port-forward` instead. Dedicated documentation page for the Headlamp showcase (`docs/showcases/headlamp.md`).
+
+### Fixed
+
+* Helm repo for cert-manager could not be resolved on fresh installations. The Kong Gateway setup script (`examples/kong-gateway/setup.sh`) now adds the `jetstack` Helm repository explicitly before attempting to install cert-manager ([#52](https://github.com/FabianHardt/k3d-bootstrap-cluster/pull/52)).
+
+## [1.2.0] - 2026-04-20
+
+### Added
+
+* Crossplane Platform Engineering showcase (`examples/crossplane/`) demonstrating the Platform Team / Developer Team split with Crossplane and the Kubernetes provider. The Platform Team defines an `AppEnvironment` XRD and Composition; developers create a single Claim and receive a fully provisioned Namespace, Deployment, Service, and Ingress/HTTPRoute automatically. Supports both HAProxy and Kong Gateway API ingress modes. Includes German-language documentation for classroom use (`docs/showcases/crossplane.md`).
 
 ## [1.1.1] - 2026-04-09
 
@@ -212,7 +215,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added external-dns sample. Demonstrates ExternalDNS, which configures an external CoreDNS server - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/2
 - Added Hashicorp Vault as CA server in combination with cert-manager do demonstrate auto generated certificates - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/6
 
-[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.1...HEAD
+[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v0.9.0...v1.0.0
