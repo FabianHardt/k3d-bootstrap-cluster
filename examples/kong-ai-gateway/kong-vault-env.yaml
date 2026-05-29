@@ -1,0 +1,11 @@
+apiVersion: configuration.konghq.com/v1alpha1
+kind: KongVault
+metadata:
+  name: env-vault
+  annotations:
+    kubernetes.io/ingress.class: kong
+spec:
+  backend: env
+  prefix: my-env
+  config:
+    prefix: "KONG_"

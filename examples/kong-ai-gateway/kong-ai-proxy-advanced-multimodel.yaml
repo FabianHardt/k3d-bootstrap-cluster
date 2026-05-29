@@ -1,0 +1,43 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-advanced-multimodel
+  namespace: kong
+plugin: ai-proxy-advanced
+config:
+  balancer:
+    algorithm: round-robin
+    connect_timeout: 10000
+    read_timeout: 300000
+    write_timeout: 300000
+  # NOTE: model_alias is added in a second pass at the end of setup.sh.
+  # Reason: model_alias is part of the Enterprise schema which KIC only picks up
+  # asynchronously after the license secret is applied — applying it here would
+  # fail with `unknown field model_alias` on a fresh install.
+  targets:
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: llama3.2:1b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: qwen2.5-coder:1.5b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: gemma3:1b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      auth:
+        param_name: key
+        param_value: "{vault://my-env/GEMINI_API_KEY}"
+        param_location: query
+      model:
+        provider: gemini
+        name: gemini-2.5-flash

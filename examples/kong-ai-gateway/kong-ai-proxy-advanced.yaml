@@ -1,0 +1,50 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-advanced-failover
+  namespace: kong
+plugin: ai-proxy-advanced
+config:
+  balancer:
+    algorithm: priority
+    retries: 3
+    max_fails: 2
+    fail_timeout: 30000
+    failover_criteria:
+      - error
+      - timeout
+      - http_429
+      - http_500
+      - http_502
+      - http_503
+  targets:
+    # Priority 1: Local Ollama (free, sovereign)
+    - route_type: llm/v1/chat
+      weight: 100
+      model:
+        provider: openai
+        name: llama3.2:1b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    # Priority 2: Google Gemini (cloud, free tier)
+    - route_type: llm/v1/chat
+      weight: 50
+      auth:
+        param_name: "key"
+        param_value: "{vault://my-env/GEMINI_API_KEY}"
+        param_location: "query"
+      model:
+        provider: gemini
+        name: gemini-2.5-flash
+    # Priority 3: Anthropic Claude (cloud, paid)
+    - route_type: llm/v1/chat
+      weight: 10
+      auth:
+        header_name: "x-api-key"
+        header_value: "{vault://my-env/ANTHROPIC_API_KEY}"
+      model:
+        provider: anthropic
+        name: claude-haiku-3-5-20241022
+        options:
+          max_tokens: 4096
+          anthropic_version: "2023-06-01"

@@ -65,7 +65,7 @@ kubectl -n openbao exec --stdin=true --tty=true openbao-0 -- bao write pki/roles
     allowed_domains=example.com \
     allow_subdomains=true \
     allow_glob_domains=true \
-    max_ttl=72h
+    max_ttl=2160h
 kubectl -n openbao exec --stdin=true openbao-0 -- bao policy write pki - <<EOF
 path "pki*"                             { capabilities = ["read", "list"] }
 path "pki/sign/example-com"             { capabilities = ["create", "update"] }
@@ -141,6 +141,8 @@ spec:
   issuerRef:
     kind: ClusterIssuer
     name: openbao-issuer
+  duration: 2160h
+  renewBefore: 360h
   commonName: '*.example.com'
   dnsNames:
   - '*.example.com'" | kubectl apply -f -

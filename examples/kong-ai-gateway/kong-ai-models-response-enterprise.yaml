@@ -1,0 +1,10 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-models-response
+  namespace: kong
+plugin: request-termination
+config:
+  status_code: 200
+  content_type: "application/json"
+  body: '{"object":"list","data":[{"id":"llama3.2:1b","object":"model","created":1700000000,"owned_by":"ollama"},{"id":"qwen2.5-coder:1.5b","object":"model","created":1700000000,"owned_by":"ollama"},{"id":"gemma3:1b","object":"model","created":1700000000,"owned_by":"ollama"}]}'

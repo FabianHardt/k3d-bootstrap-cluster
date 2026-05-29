@@ -1,0 +1,63 @@
+# Redis Stack for AI Semantic Cache (Enterprise)
+# Includes RediSearch + RedisJSON modules for vector similarity search
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-semantic-cache
+  namespace: ai-platform
+  labels:
+    app: redis-semantic-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-semantic-cache
+  template:
+    metadata:
+      labels:
+        app: redis-semantic-cache
+        kuma.io/sidecar-injection: enabled
+      annotations:
+        traffic.kuma.io/exclude-inbound-ports: "6379"
+        traffic.kuma.io/exclude-outbound-ports: "6379"
+    spec:
+      containers:
+        - name: redis
+          image: redis/redis-stack-server:7.4.0-v3
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 10
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-semantic-cache
+  namespace: ai-platform
+  labels:
+    app: redis-semantic-cache
+  annotations:
+    konghq.com/service-upstream: "true"
+spec:
+  selector:
+    app: redis-semantic-cache
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP

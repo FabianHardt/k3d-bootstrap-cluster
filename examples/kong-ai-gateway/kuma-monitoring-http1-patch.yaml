@@ -1,0 +1,136 @@
+# Force HTTP/1.1 on outbound clusters for monitoring services
+# Same pattern as kuma-gateway-http1-patch.yaml — required because
+# Kuma gateway dataplanes default all outbound clusters to HTTP/2.
+# Grafana, Prometheus, Tempo (Query/OTLP), and AI-Metrics-Exporter only speak HTTP/1.1.
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-grafana
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: grafana_monitoring_svc_80
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-prometheus
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: prometheus-server_monitoring_svc_80
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-ai-exporter
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: ai-metrics-exporter_monitoring_svc_9090
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+# Tempo Query API (port 3200) — used by Grafana datasource
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-tempo-query
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: tempo_monitoring_svc_3200
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+# Tempo OTLP HTTP receiver (port 4318) — used by Kong OpenTelemetry plugin
+# Note: Tempo OTLP gRPC (port 4317) is NOT patched — gRPC is HTTP/2 by design.
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-tempo-otlp
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: tempo_monitoring_svc_4318
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}

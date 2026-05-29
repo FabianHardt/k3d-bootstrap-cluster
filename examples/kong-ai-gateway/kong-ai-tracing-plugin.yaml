@@ -1,0 +1,24 @@
+# Global OpenTelemetry tracing plugin (applied to all routes automatically)
+# Sends traces to Tempo via OTLP/HTTP — same pattern as kong-monitoring-plugin.yaml
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: ai-opentelemetry
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    global: "true"
+plugin: opentelemetry
+config:
+  traces_endpoint: "http://tempo.monitoring.svc.cluster.local:4318/v1/traces"
+  resource_attributes:
+    service.name: "kong-ai-gateway"
+  sampling_rate: 1.0
+  propagation:
+    default_format: w3c
+    extract:
+      - w3c
+      - b3
+    inject:
+      - w3c
+  sampling_strategy: parent_probability_fallback

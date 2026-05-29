@@ -1,0 +1,87 @@
+podAnnotations:
+  # Port 8000: Kong Gateway Proxy internal listener — gateway dataplane, not a mesh backend.
+  #            Other sidecars can't route to it via mTLS — exclude for direct access.
+  # Port 6379: Redis uses binary protocol, not HTTP.
+  traffic.kuma.io/exclude-outbound-ports: "8000,6379"
+
+serviceAccount:
+  automountServiceAccountToken: true
+
+websocket:
+  redis:
+    pods:
+      annotations:
+        traffic.kuma.io/exclude-inbound-ports: "6379"
+        # Port 8000: Kong Gateway Proxy internal listener — gateway dataplane, not a mesh backend.
+  #            Other sidecars can't route to it via mTLS — exclude for direct access.
+  # Port 6379: Redis uses binary protocol, not HTTP.
+  traffic.kuma.io/exclude-outbound-ports: "8000,6379"
+
+# Force Kuma to treat the service as TCP (not HTTP) despite port name "http".
+# Without this, Kuma auto-detects HTTP from the port name and applies
+# stream_idle_timeout (5s on gateway dataplanes) which kills SSE streaming.
+service:
+  annotations:
+    konghq.com/service-upstream: "true"
+    80.service.kuma.io/protocol: tcp
+
+ollama:
+  enabled: false
+
+pipelines:
+  enabled: false
+
+extraEnvVars:
+  - name: ENABLE_OLLAMA_API
+    value: "false"
+  - name: OLLAMA_BASE_URLS
+    value: ""
+  - name: OLLAMA_BASE_URL
+    value: ""
+  - name: OPENAI_API_BASE_URLS
+    value: "http://kong-gateway-proxy.kong.svc.cluster.local:8000/ollama/v1"
+  - name: OPENAI_API_KEYS
+    value: "admin-key-12345"
+  - name: ENABLE_FORWARD_USER_INFO_HEADERS
+    value: "true"
+  - name: WEBUI_SECRET_KEY
+    value: "k3d-ai-platform-secret-key-do-not-change"
+  - name: WEBUI_AUTH
+    value: "true"
+  - name: ENABLE_OAUTH_SIGNUP
+    value: "true"
+  - name: OAUTH_MERGE_ACCOUNTS_BY_EMAIL
+    value: "true"
+  - name: OAUTH_PROVIDER_NAME
+    value: "Keycloak"
+  - name: OPENID_PROVIDER_URL
+    value: "http://keycloak.ai-platform.svc.cluster.local:8080/realms/ai-platform/.well-known/openid-configuration"
+  - name: OAUTH_CLIENT_ID
+    value: "kong-ai-gateway"
+  - name: OAUTH_CLIENT_SECRET
+    value: "kong-ai-gateway-secret"
+  - name: OAUTH_SCOPES
+    value: "openid profile email"
+  - name: OPENID_REDIRECT_URI
+    value: "https://chat.example.com:8081/oauth/oidc/callback"
+  - name: WEBUI_AUTH_SIGNOUT_REDIRECT_URL
+    value: "https://chat.example.com:8081"
+  - name: DEFAULT_USER_ROLE
+    value: "user"
+  - name: BYPASS_MODEL_ACCESS_CONTROL
+    value: "true"
+  # RAG Configuration (OpenAI engine against Ollama's OpenAI-compatible API)
+  - name: RAG_EMBEDDING_ENGINE
+    value: "openai"
+  - name: RAG_EMBEDDING_MODEL
+    value: "nomic-embed-text"
+  - name: RAG_OPENAI_API_BASE_URL
+    value: "http://kong-gateway-proxy.kong.svc.cluster.local:8000/ollama/v1"
+  - name: RAG_OPENAI_API_KEY
+    value: "admin-key-12345"
+  - name: RAG_TOP_K
+    value: "5"
+  - name: CONTENT_EXTRACTION_ENGINE
+    value: "default"
+  - name: AIOHTTP_CLIENT_TIMEOUT
+    value: "300"

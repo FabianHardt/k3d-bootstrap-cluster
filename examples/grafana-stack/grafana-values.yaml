@@ -1,0 +1,46 @@
+adminUser: admin
+adminPassword: admin
+
+persistence:
+  enabled: false
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "500m"
+
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    # Watch all namespaces so dashboards from feature-specific examples
+    # (kuma-mesh, kong-ai-gateway, ...) are picked up automatically.
+    searchNamespace: ALL
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus-server.monitoring.svc.cluster.local:80
+        access: proxy
+        isDefault: true
+        editable: true
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo.monitoring.svc.cluster.local:3200
+        access: proxy
+        editable: true
+        jsonData:
+          tracesToMetrics:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+          serviceMap:
+            datasourceUid: prometheus

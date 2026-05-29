@@ -8,4 +8,5 @@ k3d-cluster.yaml
 httpbin/httpbin.yaml
 examples/external-dns/values.yaml
 examples/kong-gateway/license.json
+examples/kong-ai-gateway/license.json
 examples/openbao/init-keys.json

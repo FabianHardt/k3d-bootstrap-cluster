@@ -1,0 +1,51 @@
+# Default Mesh with mTLS and MeshServices enabled
+apiVersion: kuma.io/v1alpha1
+kind: Mesh
+metadata:
+  name: default
+spec:
+  meshServices:
+    mode: ReachableBackends
+  mtls:
+    enabledBackend: ca-1
+    backends:
+      - name: ca-1
+        type: builtin
+        dpCert:
+          rotation:
+            expiration: 24h
+---
+# STRICT mTLS for AI platform namespace (all AI traffic encrypted)
+apiVersion: kuma.io/v1alpha1
+kind: MeshTLS
+metadata:
+  name: strict-ai-platform
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Dataplane
+    labels:
+      k8s.kuma.io/namespace: ai-platform
+  rules:
+    - default:
+        mode: Strict
+---
+# Allow all traffic within the mesh (explicit allow-all)
+# Combined with STRICT mTLS on ai-platform, all AI traffic is encrypted
+apiVersion: kuma.io/v1alpha1
+kind: MeshTrafficPermission
+metadata:
+  name: allow-all-mesh
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  from:
+    - targetRef:
+        kind: Mesh
+      default:
+        action: Allow

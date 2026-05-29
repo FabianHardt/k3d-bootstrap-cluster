@@ -1,0 +1,19 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-models-gemini-internal
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-key-auth,ai-models-response-gemini
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /gemini-internal/v1/models
+      backendRefs:
+        - name: kong-gateway-admin
+          port: 8001

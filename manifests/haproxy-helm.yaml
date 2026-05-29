@@ -26,6 +26,6 @@ spec:
     controller:
       ingressClass: haproxy
       publishService:
-        enabled: true
+        enabled: false
       config:
         use-forwarded-headers: "true"

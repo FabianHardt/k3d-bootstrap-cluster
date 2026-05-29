@@ -10,10 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * CloudNativePG showcase (`examples/cloudnative-pg/`) demonstrating the CloudNativePG operator for managing PostgreSQL clusters on Kubernetes. Deploys a sample `Cluster` CR with a pre-configured database, and pgAdmin 4 as a web UI client — pre-registered with the sample cluster. Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/cloudnative-pg.md`).
+* Grafana Observability Stack showcase (`examples/grafana-stack/`) with Grafana, Prometheus, and Tempo deployed via Helm charts. Demonstrates OpenTelemetry instrumentation of the Kong AI Gateway plugins with span export to Tempo, and metrics collection by Prometheus. Includes a pre-configured Grafana dashboard for visualising AI plugin performance and costs, and documentation (`docs/showcases/grafana-stack.md`).
 
 ### Changed
 
+* **Kong AI Gateway plugin consolidation**: reduced from 24 to 14 plugins and from 15 to 9 routes. Removed per-model routes and plugins (`ai-proxy-coder`, `ai-proxy-gemma`, `ai-proxy-ollama`, `ai-models-response-coder`, `ai-models-response-gemma`, `ai-models-response-enterprise`). All models are now routed through `ai-proxy-advanced-multimodel` on the unified `/ollama/*` route. Authentication unified to `ai-key-auth-or-oidc` everywhere (removed separate `ai-key-auth`). Removed unused plugins: `ai-block-anonymous`, `ai-model-acl`, `acl-anthropic`.
+* All AI route YAML files now contain the final plugin annotations directly (OIDC, semantic cache, nostream, tracing) instead of being patched at the end of `setup.sh`. The Enterprise route-patching block in `setup.sh` was removed.
+* `kong-ai-plugins.yaml` now contains only the `ai-force-nostream` pre-function plugin (was: `ai-proxy-ollama` + `ai-key-auth`).
+* `kong-ai-oidc-plugin.yaml` simplified: removed `ai-block-anonymous` request-termination plugin. The anonymous consumer remains for the OIDC fallback chain.
+* Kong Gateway Helm values (`examples/kong-gateway/values.yaml`): added `tracing_instrumentations: all` to enable OpenTelemetry span export.
+* Grafana values (`grafana-values.yaml`): added Tempo datasource (port 3200) with Service Map and Node Graph enabled. Added Kuma dashboard provider and ConfigMap.
+* Prometheus values (`prometheus-values.yaml`): added `kuma-dataplanes` scrape job using `kubernetes_sd_configs` with `kuma.io/sidecar-injected` annotation filter on port 5670. Added `web.enable-remote-write-receiver` flag for Tempo metrics generator.
+* Grafana AI dashboard (`grafana-dashboard-ai.json`): cost panels now use the pre-calculated `ai_llm_estimated_cost_usd` metric from the AI Metrics Exporter instead of inline token-price multiplication. Pricing reference table updated to show the inflated demo pricing.
+* `ai-proxy-advanced-multimodel` plugin: added `read_timeout: 300000` in balancer config to handle Ollama model swap delays. Removed `model_alias` field (requires Enterprise license to be loaded first).
+* `setup.sh`: Enterprise license wait loop now actively polls the Kong Admin API for plugin count (>50 = Enterprise) instead of a fixed `sleep 5`. Monitoring namespace is added to the Kuma mesh with sidecar injection when both monitoring and Kuma are enabled.
+* Kuma standalone values (`examples/kuma-mesh/standalone-cp-values.yaml`): changed `extraSecrets` from `[]` (array) to `{}` (map) to fix Helm template error with newer Kuma chart versions.
+
 ### Removed
+
+* Separate per-model routes and plugins: `kong-ai-route-coder.yaml`, `kong-ai-route-coder-internal.yaml`, `kong-ai-route-gemma.yaml`, `kong-ai-route-gemma-internal.yaml`, `kong-ai-route-models-extra.yaml` are no longer applied by `setup.sh`. Files remain on disk for reference.
+* `ai-proxy-ollama`, `ai-proxy-coder`, `ai-proxy-gemma` plugins (replaced by `ai-proxy-advanced-multimodel`).
+* `ai-key-auth` plugin (replaced by `ai-key-auth-or-oidc` on all routes).
+* `ai-block-anonymous`, `ai-model-acl`, `acl-anthropic` plugins (unused after consolidation).
+* `ai-models-response`, `ai-models-response-coder`, `ai-models-response-gemma`, `ai-models-response-enterprise` plugins (replaced by `ai-models-filtered` post-function).
+* Enterprise route-patching block at the end of `setup.sh` (routes now have correct annotations in their YAML files).
 
 ### Fixed
 

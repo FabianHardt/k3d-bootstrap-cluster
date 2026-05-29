@@ -1,0 +1,54 @@
+# Internal chat route (OpenWebUI → Kong): multimodel routing, no OIDC
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-proxy-ollama-internal
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-proxy-advanced-multimodel,ai-key-auth-or-oidc,ai-http-log
+    konghq.com/strip-path: "true"
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ollama/v1/chat
+      timeouts:
+        backendRequest: "300s"
+      backendRefs:
+        - name: ollama
+          namespace: ai-platform
+          port: 11434
+---
+# Internal embeddings route (OpenWebUI RAG → Ollama): direct proxy, no ai-proxy plugin
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-embeddings-ollama-internal
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-key-auth-or-oidc,ai-http-log
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ollama/v1/embeddings
+      timeouts:
+        backendRequest: "300s"
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /v1/embeddings
+      backendRefs:
+        - name: ollama
+          namespace: ai-platform
+          port: 11434

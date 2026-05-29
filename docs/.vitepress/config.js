@@ -1,5 +1,5 @@
 
-const ref = "v1.0.0";
+const ref = "v1.4.0";
 const base =  "/k3d-bootstrap-cluster/"
 
 export default {
@@ -63,12 +63,14 @@ export default {
                     { text: "Kuma Service Mesh", link: "/showcases/kuma.html" },
                     { text: "Confluent for Kubernetes", link: "/showcases/confluent.html" },
                     { text: "Kyverno", link: "/showcases/kyverno.html" },
+                    { text: "Kong AI Gateway", link: "/showcases/kong-ai-gateway.html" },
                     { text: "Kong Gateway Operator", link: "/showcases/kong-gateway-operator.html" },
                     { text: "Calico NetworkPolicy", link: "/showcases/calico-network-policies.html" },
                     { text: "Cluster API (CAPI)", link: "/showcases/cluster-api.html" },
                     { text: "Crossplane Platform Engineering", link: "/showcases/crossplane.html" },
                     { text: "CloudNativePG", link: "/showcases/cloudnative-pg.html" },
-                    { text: "Headlamp (Dashboard)", link: "/showcases/headlamp.html" }
+                    { text: "Headlamp (Dashboard)", link: "/showcases/headlamp.html" },
+                    { text: "Grafana Observability Stack", link: "/showcases/grafana-stack.html" }
                 ]
             },
             {
