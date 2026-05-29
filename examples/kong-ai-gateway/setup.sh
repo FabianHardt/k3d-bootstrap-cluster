@@ -360,17 +360,17 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
 
   echo "Creating Grafana dashboard for AI Platform..."
   kubectl create configmap grafana-dashboard-ai \
-    --namespace ai-platform \
+    --namespace monitoring \
     --from-file=kong-ai-gateway.json=grafana-dashboard-ai.json \
     --dry-run=client -o yaml | kubectl apply -f -
 
-  kubectl label configmap grafana-dashboard-ai -n ai-platform grafana_dashboard=true --overwrite
+  kubectl label configmap grafana-dashboard-ai -n monitoring grafana_dashboard=true --overwrite
 
   echo "Deploying AI Metrics Exporter..."
   kubectl apply -f ai-metrics-exporter.yaml
 
   echo "Waiting for AI Metrics Exporter to be ready..."
-  kubectl wait deployment ai-metrics-exporter -n ai-platform --for=condition=Available=true --timeout=120s
+  kubectl wait deployment ai-metrics-exporter -n monitoring --for=condition=Available=true --timeout=120s
 
   echo "Applying Kong http-log plugin for token metrics..."
   kubectl apply -f kong-http-log-plugin.yaml
@@ -500,13 +500,15 @@ kubectl rollout status statefulset/open-webui -n ai-platform --timeout=300s
 
 kubectl apply -f open-webui-route.yaml
 
-# Create initial admin user so OIDC users get DEFAULT_USER_ROLE (user).
-# OpenWebUI makes the first signup user admin — by seeding a platform admin account
-# via localhost (inside the pod), all subsequent OIDC logins receive the 'user' role.
-WEBUI_ADMIN_EMAIL="admin@ai-platform.local"
-WEBUI_ADMIN_PASSWORD="admin"
-echo "Seeding platform admin account..."
-kubectl exec -n ai-platform open-webui-0 -c open-webui -- python3 -c "
+if [[ -f ${LICENSE_FILE} ]]; then
+  # OIDC mode only: seed a platform admin so subsequent OIDC users get DEFAULT_USER_ROLE (user)
+  # instead of admin (OpenWebUI promotes the first signup to admin).
+  # In non-OIDC mode WEBUI_AUTH=false — creating any user breaks that invariant
+  # ("You can't turn off authentication because there are existing users").
+  WEBUI_ADMIN_EMAIL="admin@ai-platform.local"
+  WEBUI_ADMIN_PASSWORD="admin"
+  echo "Seeding platform admin account..."
+  kubectl exec -n ai-platform open-webui-0 -c open-webui -- python3 -c "
 import urllib.request, json, time
 for i in range(15):
     try:
@@ -529,9 +531,12 @@ for i in range(15):
             print('WARNING: Could not seed platform admin. First OIDC user will become admin.')
 "
 
-# Register MCP tool server in OpenWebUI (via Admin API)
-echo "Registering MCP Search Tool Server in OpenWebUI..."
-kubectl exec -n ai-platform open-webui-0 -c open-webui -- python3 -c "
+  # Register MCP tool server in OpenWebUI (via Admin API).
+  # Requires the seeded admin token, so only runs in OIDC mode.
+  # In non-OIDC mode, the auto-admin user can add the MCP tool manually via the UI:
+  #   Settings → Tools → Add Tool Server →  http://mcp-searxng.ai-platform.svc.cluster.local:3000/mcp
+  echo "Registering MCP Search Tool Server in OpenWebUI..."
+  kubectl exec -n ai-platform open-webui-0 -c open-webui -- python3 -c "
 import urllib.request, json
 # Login as admin
 req = urllib.request.Request('http://localhost:8080/api/v1/auths/signin',
@@ -584,6 +589,12 @@ try:
 except Exception as e:
     print(f'WARNING: Could not register MCP server: {e}')
 "
+else
+  echo "Non-OIDC mode (WEBUI_AUTH=false): skipping admin seed + MCP auto-registration."
+  echo "  To enable the SearXNG MCP tool in OpenWebUI, open Settings → Tools → Add Tool Server:"
+  echo "    URL:  http://mcp-searxng.ai-platform.svc.cluster.local:3000/mcp"
+  echo "    Type: mcp"
+fi
 
 if [[ "${KUMA_ENABLED}" == "true" ]]; then
   echo "Annotating OpenWebUI service for Kuma mTLS (ClusterIP routing)..."
@@ -591,6 +602,60 @@ if [[ "${KUMA_ENABLED}" == "true" ]]; then
   # NOTE: Do NOT set appProtocol: http on OpenWebUI. The gateway dataplane's
   # 5s streamIdleTimeout kills SSE streaming responses. MeshTimeout cannot override
   # gateway listener timeouts. Tracing still works via Kong's OpenTelemetry plugin.
+fi
+
+if [[ -f ${LICENSE_FILE} ]]; then
+  # Second-pass apply: now that KIC has fully loaded the Enterprise license schema,
+  # patch the multi-model plugin with model_alias on each target. This enables
+  # per-model routing — Kong matches the request body's "model" field against
+  # each target's model_alias instead of round-robin distributing blindly
+  # (which would fail with "cannot use own model - must be: X" on mismatch).
+  echo "Enabling per-model routing on AI Proxy Advanced (model_alias)..."
+  cat <<'EOF' | kubectl apply -f -
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-advanced-multimodel
+  namespace: kong
+plugin: ai-proxy-advanced
+config:
+  balancer:
+    algorithm: round-robin
+    connect_timeout: 10000
+    read_timeout: 300000
+    write_timeout: 300000
+  targets:
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: llama3.2:1b
+        model_alias: llama3.2:1b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: qwen2.5-coder:1.5b
+        model_alias: qwen2.5-coder:1.5b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      model:
+        provider: openai
+        name: gemma3:1b
+        model_alias: gemma3:1b
+        options:
+          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+    - route_type: llm/v1/chat
+      auth:
+        param_name: key
+        param_value: "{vault://my-env/GEMINI_API_KEY}"
+        param_location: query
+      model:
+        provider: gemini
+        name: gemini-2.5-flash
+        model_alias: gemini-2.5-flash
+EOF
 fi
 
 # --- Done ---

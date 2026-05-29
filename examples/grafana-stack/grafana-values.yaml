@@ -16,6 +16,9 @@ sidecar:
   dashboards:
     enabled: true
     label: grafana_dashboard
+    # Watch all namespaces so dashboards from feature-specific examples
+    # (kuma-mesh, kong-ai-gateway, ...) are picked up automatically.
+    searchNamespace: ALL
 
 datasources:
   datasources.yaml:

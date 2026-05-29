@@ -9,10 +9,10 @@ plugin: ai-semantic-cache
 config:
   embeddings:
     model:
-      provider: ollama # Is only allowed with license
+      provider: openai
       name: nomic-embed-text
       options:
-        upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434"
+        upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/embeddings"
   vectordb:
     strategy: redis
     threshold: 0.85

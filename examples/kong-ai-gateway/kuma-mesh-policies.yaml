@@ -25,13 +25,11 @@ metadata:
     kuma.io/mesh: default
 spec:
   targetRef:
-    kind: MeshSubset
-    tags:
+    kind: Dataplane
+    labels:
       k8s.kuma.io/namespace: ai-platform
-  from:
-    - targetRef:
-        kind: Mesh
-      default:
+  rules:
+    - default:
         mode: Strict
 ---
 # Allow all traffic within the mesh (explicit allow-all)

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ai-metrics-exporter
-  namespace: ai-platform
+  namespace: monitoring
 data:
   exporter.py: |
     from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -192,7 +192,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ai-metrics-exporter
-  namespace: ai-platform
+  namespace: monitoring
   labels:
     app: ai-metrics-exporter
 spec:
@@ -237,7 +237,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ai-metrics-exporter
-  namespace: ai-platform
+  namespace: monitoring
   labels:
     app: ai-metrics-exporter
 spec:

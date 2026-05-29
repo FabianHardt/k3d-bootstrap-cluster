@@ -10,6 +10,10 @@ config:
     connect_timeout: 10000
     read_timeout: 300000
     write_timeout: 300000
+  # NOTE: model_alias is added in a second pass at the end of setup.sh.
+  # Reason: model_alias is part of the Enterprise schema which KIC only picks up
+  # asynchronously after the license secret is applied — applying it here would
+  # fail with `unknown field model_alias` on a fresh install.
   targets:
     - route_type: llm/v1/chat
       model:
