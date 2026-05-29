@@ -1,5 +1,5 @@
 
-const ref = "v1.0.0";
+const ref = "v1.3.0";
 const base =  "/k3d-bootstrap-cluster/"
 
 export default {
@@ -67,7 +67,8 @@ export default {
                     { text: "Kong Gateway Operator", link: "/showcases/kong-gateway-operator.html" },
                     { text: "Calico NetworkPolicy", link: "/showcases/calico-network-policies.html" },
                     { text: "Cluster API (CAPI)", link: "/showcases/cluster-api.html" },
-                    { text: "Crossplane Platform Engineering", link: "/showcases/crossplane.html" }
+                    { text: "Crossplane Platform Engineering", link: "/showcases/crossplane.html" },
+                    { text: "Grafana Observability Stack", link: "/showcases/grafana-stack.html" }
                 ]
             },
             {

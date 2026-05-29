@@ -9,7 +9,7 @@ plugin: ai-semantic-cache
 config:
   embeddings:
     model:
-      provider: ollama
+      provider: ollama # Is only allowed with license
       name: nomic-embed-text
       options:
         upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434"

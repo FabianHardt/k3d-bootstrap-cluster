@@ -50,7 +50,7 @@ echo "Deploying Ollama..."
 kubectl apply -f ollama.yaml
 
 echo "Waiting for Ollama to be ready..."
-kubectl wait deployment ollama -n ai-platform --for=condition=Available=true --timeout=300s
+kubectl wait deployment ollama -n ai-platform --for=condition=Available=true --timeout=600s
 
 echo "Pulling llama3.2:1b model (this may take a few minutes)..."
 kubectl exec -n ai-platform deployment/ollama -- ollama pull llama3.2:1b
@@ -348,6 +348,9 @@ read -r -p "Deploy Monitoring (Prometheus + Grafana) for AI metrics? (y/N): " DE
 
 if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
   MONITORING_ENABLED=true
+  cd ../grafana-stack/
+  bash setup.sh
+  cd ../kong-ai-gateway/
 
   echo "Applying Kong Prometheus plugin (global)..."
   kubectl apply -f kong-monitoring-plugin.yaml
@@ -355,64 +358,25 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
   echo "Creating Kong metrics service..."
   kubectl apply -f kong-metrics-service.yaml
 
-  kubectl create namespace monitoring || true
-
-  echo "Deploying Prometheus..."
-  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-  helm repo update
-
-  helm upgrade --install prometheus prometheus-community/prometheus \
-    --namespace monitoring \
-    --values prometheus-values.yaml
-
-  echo "Waiting for Prometheus to be ready..."
-  kubectl wait deployment prometheus-server -n monitoring --for=condition=Available=true --timeout=120s
-
-  echo "Deploying Tempo and Grafana..."
-  helm repo add grafana https://grafana.github.io/helm-charts
-  helm repo update
-
-  helm upgrade --install tempo grafana/tempo \
-    --namespace monitoring \
-    --values tempo-values.yaml
-
-  echo "Waiting for Tempo to be ready..."
-  kubectl rollout status statefulset/tempo -n monitoring --timeout=120s
-
-  echo "Creating Grafana dashboard ConfigMaps..."
+  echo "Creating Grafana dashboard for AI Platform..."
   kubectl create configmap grafana-dashboard-ai \
-    --namespace monitoring \
+    --namespace ai-platform \
     --from-file=kong-ai-gateway.json=grafana-dashboard-ai.json \
     --dry-run=client -o yaml | kubectl apply -f -
 
-  kubectl create configmap grafana-dashboard-kuma \
-    --namespace monitoring \
-    --from-file=kuma-mesh.json=grafana-dashboard-kuma.json \
-    --dry-run=client -o yaml | kubectl apply -f -
-
-  helm upgrade --install grafana grafana/grafana \
-    --namespace monitoring \
-    --values grafana-values.yaml
-
-  echo "Waiting for Grafana to be ready..."
-  kubectl wait deployment grafana -n monitoring --for=condition=Available=true --timeout=120s
+  kubectl label configmap grafana-dashboard-ai -n ai-platform grafana_dashboard=true --overwrite
 
   echo "Deploying AI Metrics Exporter..."
   kubectl apply -f ai-metrics-exporter.yaml
 
   echo "Waiting for AI Metrics Exporter to be ready..."
-  kubectl wait deployment ai-metrics-exporter -n monitoring --for=condition=Available=true --timeout=120s
+  kubectl wait deployment ai-metrics-exporter -n ai-platform --for=condition=Available=true --timeout=120s
 
   echo "Applying Kong http-log plugin for token metrics..."
   kubectl apply -f kong-http-log-plugin.yaml
 
-  echo "Applying Grafana route..."
-  kubectl apply -f grafana-route.yaml
-
   echo "Applying Kong OpenTelemetry tracing plugin (global)..."
   kubectl apply -f kong-ai-tracing-plugin.yaml
-
-  echo "Monitoring stack deployed (Prometheus + Grafana + Tempo)."
 fi
 
 # --- Keycloak (Enterprise: OIDC for OpenWebUI) ---
@@ -456,9 +420,6 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
   echo "Enabling sidecar injection..."
   kubectl label ns kong kuma.io/sidecar-injection=enabled --overwrite
   kubectl label ns ai-platform kuma.io/sidecar-injection=enabled --overwrite
-  if [[ "${MONITORING_ENABLED}" == "true" ]]; then
-    kubectl label ns monitoring kuma.io/sidecar-injection=enabled --overwrite
-  fi
 
   echo "Applying mTLS mesh policies..."
   kubectl apply -f kuma-mesh-policies.yaml

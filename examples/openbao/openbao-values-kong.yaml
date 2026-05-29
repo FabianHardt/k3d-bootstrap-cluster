@@ -4,6 +4,8 @@ injector:
 server:
   ingress:
     enabled: false
+  dataStorage:
+    size: 1Gi
   statefulSet:
     securityContext:
       container:

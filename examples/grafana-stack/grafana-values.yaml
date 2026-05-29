@@ -12,6 +12,11 @@ resources:
     memory: "256Mi"
     cpu: "500m"
 
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+
 datasources:
   datasources.yaml:
     apiVersion: 1
@@ -36,28 +41,3 @@ datasources:
             enabled: true
           serviceMap:
             datasourceUid: prometheus
-
-dashboardProviders:
-  dashboardproviders.yaml:
-    apiVersion: 1
-    providers:
-      - name: kong-ai
-        orgId: 1
-        folder: Kong
-        type: file
-        disableDeletion: false
-        editable: true
-        options:
-          path: /var/lib/grafana/dashboards/kong-ai
-      - name: kuma-mesh
-        orgId: 1
-        folder: Kuma
-        type: file
-        disableDeletion: false
-        editable: true
-        options:
-          path: /var/lib/grafana/dashboards/kuma-mesh
-
-dashboardsConfigMaps:
-  kong-ai: grafana-dashboard-ai
-  kuma-mesh: grafana-dashboard-kuma
