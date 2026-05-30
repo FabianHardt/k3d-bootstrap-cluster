@@ -34,10 +34,11 @@ bash run-loadtests.sh avro-schemaregistry
 ```
 
 The script will:
-1. Create a `KafkaTopic` CR for the test topic
-2. Upload the k6 script as a `ConfigMap`
-3. Run a Kubernetes `Job` using the `mostafamoradian/xk6-kafka` image
-4. Stream the k6 summary output on completion
+1. Delete any leftover Job from a previous run
+2. Create a `KafkaTopic` CR for the test topic
+3. Upload the k6 script as a `ConfigMap`
+4. Run a Kubernetes `Job` using the `mostafamoradian/xk6-kafka` image
+5. Stream the k6 summary output on completion
 
 ## Inspecting Results
 
@@ -49,17 +50,17 @@ http://kafka-ui.127-0-0-1.nip.io:8080
 
 Navigate to **Topics → k6-plain / k6-json / k6-avro → Messages**.
 
-For Avro messages, Schema Registry schemas are visible at:
+For Avro messages, schemas registered during the test are visible at:
 
 ```
-http://schema-registry.127-0-0-1.nip.io:8080/subjects
+http://schema-registry.127-0-0-1.nip.io:8080/apis/ccompat/v7/subjects
 ```
 
 Or from inside the cluster:
 
 ```bash
 kubectl run curl --rm -it --image=curlimages/curl --restart=Never -- \
-  curl -s http://schema-registry.kafka:8081/subjects | tr ',' '\n'
+  curl -s http://apicurio-registry-app-service.kafka:8080/apis/ccompat/v7/subjects
 ```
 
 ## Customising the Tests
@@ -69,23 +70,37 @@ The k6 scripts read their configuration from environment variables. To change VU
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BOOTSTRAP_SERVERS` | `kafka-cluster-kafka-bootstrap.kafka:9092` | Kafka bootstrap address |
-| `SCHEMA_REGISTRY_URL` | `http://schema-registry.kafka:8081` | Schema Registry URL |
+| `SCHEMA_REGISTRY_URL` | `http://apicurio-registry-app-service.kafka:8080/apis/ccompat/v7` | Confluent-compatible Schema Registry URL |
 
 VU count and duration are controlled by the `options` export at the top of each `.js` file.
+
+## Writing New Scripts
+
+`xk6-kafka 1.3.0` treats string `key` and `value` fields in `produce()` as **base64-encoded bytes**. Always encode plain strings before passing them:
+
+```js
+import { b64encode } from "k6/encoding";
+
+writer.produce({
+  messages: [{ key: b64encode("my-key"), value: b64encode("my-value") }],
+});
+```
+
+Avro serialization via `schemaRegistry.serialize()` returns binary data directly and does not need additional encoding.
 
 ## Running k6 Locally (Alternative)
 
 If you have a custom k6 binary with xk6-kafka built in, and the Kafka services are port-forwarded:
 
 ```bash
-# Forward Kafka and Schema Registry
+# Forward Kafka bootstrap and Schema Registry
 kubectl port-forward svc/kafka-cluster-kafka-bootstrap -n kafka 9092:9092 &
-kubectl port-forward svc/schema-registry -n kafka 8081:8081 &
+kubectl port-forward svc/apicurio-registry-app-service -n kafka 8080:8080 &
 
 # Run a test
 BOOTSTRAP_SERVERS=localhost:9092 \
-SCHEMA_REGISTRY_URL=http://localhost:8081 \
-k6 run plain-message.js
+SCHEMA_REGISTRY_URL=http://localhost:8080/apis/ccompat/v7 \
+k6 run avro-schemaregistry.js
 ```
 
 Build a local xk6-kafka binary:

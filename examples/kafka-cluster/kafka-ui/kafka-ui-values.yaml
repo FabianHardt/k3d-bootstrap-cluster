@@ -8,9 +8,6 @@ yamlApplicationConfig:
         bootstrapServers: kafka-cluster-kafka-bootstrap.kafka:9092
         schemaRegistry: http://apicurio-registry-app-service.kafka:8080/apis/ccompat/v7
         schemaRegistryType: APICURIO
-        kafkaConnect:
-          - name: kafka-bridge
-            address: http://kafka-bridge-bridge-service.kafka:8080
   auth:
     type: disabled
   management:

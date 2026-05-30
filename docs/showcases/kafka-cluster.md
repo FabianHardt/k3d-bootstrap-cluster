@@ -2,22 +2,17 @@
 
 [Strimzi](https://strimzi.io) is a CNCF project that provides a Kubernetes operator for running Apache Kafka. It manages the full Kafka lifecycle — cluster provisioning, rolling upgrades, configuration management, topic and user creation — through Kubernetes custom resources.
 
-This showcase deploys a production-sized, KRaft-based Kafka cluster (no ZooKeeper) with Confluent Schema Registry, Kafka HTTP Bridge, and [kafka-ui](https://github.com/provectus/kafka-ui) as a web management console. All cluster resources (topics, users) are managed exclusively via Strimzi CRDs, keeping cluster state fully declarative and reproducible from Git.
+This showcase deploys a production-sized, KRaft-based Kafka cluster (no ZooKeeper) with Apicurio Registry for schema management, Kafka HTTP Bridge, and [kafka-ui](https://github.com/provectus/kafka-ui) as a web management console. All cluster resources (topics, users) are managed exclusively via Strimzi CRDs, keeping cluster state fully declarative and reproducible from Git.
 
 ### Preconditions
 
-- A running k3d cluster with **at least 3 worker nodes** — the production pod anti-affinity rule places one broker per node.
-
-  ```bash
-  k3d cluster create demo --agents 3
-  ```
-
+- The demo cluster must have at least **3 worker nodes** — the production pod anti-affinity rule places one broker per node.
 - The httpbin sample is not required for this showcase.
 
 ### Installation
 
 ```bash
-cd examples/strimzi
+cd examples/kafka-cluster
 
 # With HAProxy Ingress Controller
 HAPROXY_FLAG=Yes bash setup.sh
@@ -65,41 +60,6 @@ kubectl port-forward svc/kafka-ui -n kafka 8888:80
 
 Then open: http://localhost:8888
 
-### External Access (NodePort)
-
-The cluster exposes a dedicated external listener on NodePort 32100 (bootstrap) with individual broker ports 32000–32002. This allows native Kafka clients and CLI tools running outside the cluster to connect directly.
-
-Get the node IP:
-
-```bash
-kubectl get nodes -o wide
-```
-
-Connect from outside the cluster (replace `<NODE_IP>` with the value from above):
-
-```bash
-# kafkactl
-kafkactl --brokers <NODE_IP>:32100 get topics
-
-# kcat
-kcat -b <NODE_IP>:32100 -L
-
-# kafka-console-producer (Kafka CLI)
-kafka-console-producer.sh --bootstrap-server <NODE_IP>:32100 --topic sample-topic
-```
-
-Example `kafkactl` context (`~/.config/kafkactl/config.yml`):
-
-```yaml
-contexts:
-  k3d-kafka:
-    brokers:
-      - <NODE_IP>:32100
-current-context: k3d-kafka
-```
-
-> **k3d on macOS:** Docker Desktop does not route container network IPs to the host. Use `kubectl port-forward svc/kafka-cluster-kafka-external-bootstrap -n kafka 32100:32100` as an alternative, or map the NodePorts at cluster creation time with `k3d cluster create demo --agents 3 -p "32000-32002:32000-32002@agent:0,1,2" -p "32100:32100@loadbalancer"`.
-
 ### Kafka HTTP Bridge
 
 The Bridge exposes a REST API for producing and consuming Kafka messages over HTTP.
@@ -146,7 +106,7 @@ kubectl describe kafkatopic sample-topic -n kafka
 To create a new topic, apply a manifest:
 
 ```yaml
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: my-topic
@@ -166,10 +126,10 @@ spec:
 
 The `loadtest/` subdirectory contains k6 load tests covering plain string, JSON, and Avro (via Schema Registry) message patterns. Tests run as Kubernetes Jobs inside the cluster.
 
-See [`loadtest/README.md`](../../examples/strimzi/loadtest/README.md) for details.
+See [`loadtest/README.md`](../../examples/kafka-cluster/loadtest/README.md) for details.
 
 ```bash
-cd examples/strimzi/loadtest
+cd examples/kafka-cluster/loadtest
 bash run-loadtests.sh
 ```
 
@@ -179,8 +139,6 @@ bash run-loadtests.sh
 |----------|---------|
 | Plain — in-cluster | `kafka-cluster-kafka-bootstrap.kafka:9092` |
 | TLS — in-cluster | `kafka-cluster-kafka-bootstrap.kafka:9093` |
-| External bootstrap — NodePort | `<NODE_IP>:32100` |
-| External brokers — NodePort | `<NODE_IP>:32000` / `:32001` / `:32002` |
 | Apicurio Registry (compat API) | `http://apicurio-registry-app-service.kafka:8080/apis/ccompat/v7` |
 | HTTP Bridge | `http://kafka-bridge-bridge-service.kafka:8080` |
 

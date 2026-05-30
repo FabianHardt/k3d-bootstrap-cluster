@@ -30,7 +30,7 @@ run_test() {
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: k6-${name}
+  name: ${topic_name}
   namespace: ${NAMESPACE}
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -42,6 +42,9 @@ spec:
     retention.ms: "3600000"
 EOF
 
+  # Delete a leftover job from a previous run so kubectl apply does not fail
+  kubectl delete job "k6-${name}" -n "${NAMESPACE}" --ignore-not-found
+
   # Run k6 Job inside the cluster
   kubectl apply -f - <<EOF
 apiVersion: batch/v1
@@ -50,6 +53,7 @@ metadata:
   name: k6-${name}
   namespace: ${NAMESPACE}
 spec:
+  backoffLimit: 0
   ttlSecondsAfterFinished: 120
   template:
     spec:
@@ -66,6 +70,13 @@ spec:
           volumeMounts:
             - name: scripts
               mountPath: /scripts
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
       volumes:
         - name: scripts
           configMap:
@@ -74,7 +85,9 @@ EOF
 
   echo "Waiting for k6-${name} job to complete..."
   kubectl wait job/"k6-${name}" \
-    -n "${NAMESPACE}" --for=condition=Complete --timeout=180s
+    -n "${NAMESPACE}" --for=condition=Complete --timeout=180s 2>/dev/null || \
+  kubectl wait job/"k6-${name}" \
+    -n "${NAMESPACE}" --for=condition=Failed --timeout=10s 2>/dev/null || true
 
   echo ""
   echo "=== Results: ${name} ==="

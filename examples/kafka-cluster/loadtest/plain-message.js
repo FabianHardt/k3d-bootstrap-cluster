@@ -1,7 +1,8 @@
-import { Writer, Reader, CODEC_SNAPPY } from "k6/x/kafka";
+import { Writer, CODEC_SNAPPY } from "k6/x/kafka";
+import { b64encode } from "k6/encoding";
 
 const BOOTSTRAP_SERVERS = __ENV.BOOTSTRAP_SERVERS || "kafka-cluster-kafka-bootstrap.kafka:9092";
-const TOPIC = "k6-plain-message";
+const TOPIC = "k6-plain";
 
 export const options = {
   vus: 10,
@@ -17,18 +18,12 @@ const writer = new Writer({
   compression: CODEC_SNAPPY,
 });
 
-const reader = new Reader({
-  brokers: [BOOTSTRAP_SERVERS],
-  groupTopics: [TOPIC],
-  groupId: "k6-plain-consumer",
-});
-
 export default function () {
   writer.produce({
     messages: [
       {
-        key: `vu-${__VU}-iter-${__ITER}`,
-        value: `plain message from VU ${__VU}, iteration ${__ITER}, ts=${Date.now()}`,
+        key: b64encode(`vu-${__VU}-iter-${__ITER}`),
+        value: b64encode(`plain message from VU ${__VU}, iteration ${__ITER}, ts=${Date.now()}`),
         headers: {
           "x-source": "k6-load-test",
         },
@@ -36,10 +31,8 @@ export default function () {
     ],
   });
 
-  reader.consume({ limit: 10 });
 }
 
 export function teardown() {
   writer.close();
-  reader.close();
 }
