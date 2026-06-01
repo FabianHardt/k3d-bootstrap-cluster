@@ -1,0 +1,26 @@
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaBridge
+metadata:
+  name: kafka-bridge
+  namespace: kafka
+spec:
+  replicas: 2
+  bootstrapServers: kafka-cluster-kafka-bootstrap:9092
+  http:
+    port: 8080
+  producer:
+    config:
+      acks: "all"
+      linger.ms: 5
+      compression.type: snappy
+  consumer:
+    config:
+      auto.offset.reset: earliest
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

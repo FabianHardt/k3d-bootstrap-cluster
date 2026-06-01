@@ -61,7 +61,6 @@ export default {
                     { text: "External Secrets Operator", link: "/showcases/external-secrets.html" },
                     { text: "Kong API Gateway", link: "/showcases/kong.html" },
                     { text: "Kuma Service Mesh", link: "/showcases/kuma.html" },
-                    { text: "Confluent for Kubernetes", link: "/showcases/confluent.html" },
                     { text: "Kyverno", link: "/showcases/kyverno.html" },
                     { text: "Kong AI Gateway", link: "/showcases/kong-ai-gateway.html" },
                     { text: "Kong Gateway Operator", link: "/showcases/kong-gateway-operator.html" },
@@ -70,7 +69,8 @@ export default {
                     { text: "Crossplane Platform Engineering", link: "/showcases/crossplane.html" },
                     { text: "CloudNativePG", link: "/showcases/cloudnative-pg.html" },
                     { text: "Headlamp (Dashboard)", link: "/showcases/headlamp.html" },
-                    { text: "Grafana Observability Stack", link: "/showcases/grafana-stack.html" }
+                    { text: "Grafana Observability Stack", link: "/showcases/grafana-stack.html" },
+                    { text: "Kafka Cluster", link: "/showcases/kafka-cluster.html" }
                 ]
             },
             {

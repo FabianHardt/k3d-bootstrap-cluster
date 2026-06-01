@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * CloudNativePG showcase (`examples/cloudnative-pg/`) demonstrating the CloudNativePG operator for managing PostgreSQL clusters on Kubernetes. Deploys a sample `Cluster` CR with a pre-configured database, and pgAdmin 4 as a web UI client — pre-registered with the sample cluster. Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/cloudnative-pg.md`).
 * Grafana Observability Stack showcase (`examples/grafana-stack/`) with Grafana, Prometheus, and Tempo deployed via Helm charts. Demonstrates OpenTelemetry instrumentation of the Kong AI Gateway plugins with span export to Tempo, and metrics collection by Prometheus. Includes a pre-configured Grafana dashboard for visualising AI plugin performance and costs, and documentation (`docs/showcases/grafana-stack.md`).
+* Strimzi Kafka cluster showcase (`examples/kafka-cluster/`) deploying a production-sized, KRaft-based Kafka cluster (no ZooKeeper) using the Strimzi operator 1.0.0. Includes 3 brokers in combined controller/broker mode via `KafkaNodePool`, Apicurio Registry (operator-managed, Kafka SQL storage), Kafka HTTP Bridge, and kafbat-ui as a web management console. Comes with k6 load tests for plain, JSON, and Avro message patterns (`examples/kafka-cluster/loadtest/`). Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/kafka-cluster.md`).
 
 ### Changed
 
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `ai-block-anonymous`, `ai-model-acl`, `acl-anthropic` plugins (unused after consolidation).
 * `ai-models-response`, `ai-models-response-coder`, `ai-models-response-gemma`, `ai-models-response-enterprise` plugins (replaced by `ai-models-filtered` post-function).
 * Enterprise route-patching block at the end of `setup.sh` (routes now have correct annotations in their YAML files).
+* Confluent for Kubernetes showcase (`examples/confluent/`) — replaced by the Strimzi Kafka cluster showcase. Strimzi is CNCF-hosted, fully open-source, and supports the current KRaft-based Kafka deployment model without ZooKeeper.
 
 ### Fixed
 

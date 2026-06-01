@@ -1,0 +1,24 @@
+---
+watchNamespaces:
+  - kafka
+
+# k3d is resource-constrained: certificate generation blocks the Vert.x
+# event loop long enough to miss the default 10s renewDeadline.
+# Increase timeouts so leader election still works correctly on this cluster.
+extraEnvs:
+  - name: STRIMZI_LEADER_ELECTION_LEASE_DURATION_MS
+    value: "300000"
+  - name: STRIMZI_LEADER_ELECTION_RENEW_DEADLINE_MS
+    value: "240000"
+  - name: STRIMZI_LEADER_ELECTION_RETRY_PERIOD_MS
+    value: "20000"
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 768Mi
+
+logLevel: INFO
