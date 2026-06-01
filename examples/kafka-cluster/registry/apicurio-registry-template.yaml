@@ -1,0 +1,32 @@
+---
+apiVersion: registry.apicur.io/v1
+kind: ApicurioRegistry3
+metadata:
+  name: apicurio-registry
+  namespace: kafka
+spec:
+  app:
+    storage:
+      type: kafkasql
+      kafkasql:
+        bootstrapServers: kafka-cluster-kafka-bootstrap.kafka:9092
+    replicas: 2
+    # Allow the UI origin to call the API from the browser. Quarkus' default
+    # CORS allow-list only covers localhost:8888.
+    env:
+      - name: QUARKUS_HTTP_CORS_ORIGINS
+        value: ${UI_ORIGIN}
+    # An empty host makes the operator skip Ingress creation; setup.sh passes
+    # empty values when no ingress controller is selected.
+    ingress:
+      host: ${SCHEMA_REGISTRY_HOST}
+      ingressClassName: ${INGRESS_CLASS}
+  ui:
+    # Tell the SPA the absolute API URL (incl. the non-standard port). Without
+    # this, the UI derives the URL from window.location and drops the :8080.
+    env:
+      - name: REGISTRY_API_URL
+        value: ${API_URL}
+    ingress:
+      host: ${SCHEMA_REGISTRY_UI_HOST}
+      ingressClassName: ${INGRESS_CLASS}
