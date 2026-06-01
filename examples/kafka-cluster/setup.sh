@@ -109,37 +109,28 @@ kubectl wait deployment/apicurio-registry-operator-v${APICURIO_VERSION} \
 # Kafka SQL journal topic (unlimited retention, compaction off — raw event log)
 kubectl apply -f registry/apicurio-journal-topic.yaml
 
-# Registry instance — operator reconciles and creates app/ui deployments + services
+# Registry instance — operator reconciles the app/ui deployments, services, and
+# (when a host is set) the operator-managed Ingresses for each component.
+if [ "${INGRESS_MODE}" != "none" ]; then
+  export INGRESS_CLASS="${INGRESS_MODE}"
+  export SCHEMA_REGISTRY_HOST="schema-registry.127-0-0-1.nip.io"
+  export SCHEMA_REGISTRY_UI_HOST="schema-registry-ui.127-0-0-1.nip.io"
+  export API_URL="http://${SCHEMA_REGISTRY_HOST}:8080/apis/registry/v3"
+  export UI_ORIGIN="http://${SCHEMA_REGISTRY_UI_HOST}:8080"
+else
+  export INGRESS_CLASS=""
+  export SCHEMA_REGISTRY_HOST=""
+  export SCHEMA_REGISTRY_UI_HOST=""
+  # Port-forward defaults: app on 8080, ui on 8888 (see "Apicurio Registry"
+  # block in the final summary below).
+  export API_URL="http://localhost:8080/apis/registry/v3"
+  export UI_ORIGIN="http://localhost:8888"
+fi
+templateConfigFile "registry/apicurio-registry-template.yaml" "registry/apicurio-registry.yaml"
 kubectl apply -f registry/apicurio-registry.yaml
 
 kubectl wait apicurioregistry3/apicurio-registry \
   -n kafka --for=condition=Ready --timeout=300s
-
-# Expose the Registry API via Ingress (service created by the operator)
-if [ "${INGRESS_MODE}" != "none" ]; then
-  kubectl apply -f - <<EOF
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: apicurio-registry
-  namespace: kafka
-  annotations:
-    kubernetes.io/ingress.class: ${INGRESS_MODE}
-spec:
-  ingressClassName: ${INGRESS_MODE}
-  rules:
-    - host: schema-registry.127-0-0-1.nip.io
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: apicurio-registry-app-service
-                port:
-                  number: 8080
-EOF
-fi
 
 # ---------------------------------------------------------------------------
 # Deploy kafka-ui
@@ -173,14 +164,9 @@ echo "================================================================"
 echo "  Strimzi Kafka Cluster Setup Complete"
 echo "================================================================"
 echo ""
-KAFKA_NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 echo "  Kafka cluster:       kafka-cluster (namespace: kafka)"
 echo "  Bootstrap (plain):   kafka-cluster-kafka-bootstrap.kafka:9092  (in-cluster)"
 echo "  Bootstrap (TLS):     kafka-cluster-kafka-bootstrap.kafka:9093  (in-cluster)"
-echo "  Bootstrap (external): ${KAFKA_NODE_IP}:32100  (NodePort)"
-echo "    Broker 0: ${KAFKA_NODE_IP}:32000"
-echo "    Broker 1: ${KAFKA_NODE_IP}:32001"
-echo "    Broker 2: ${KAFKA_NODE_IP}:32002"
 echo ""
 echo "  HTTP Bridge:"
 if [ "${INGRESS_MODE}" != "none" ]; then
@@ -192,11 +178,14 @@ fi
 echo ""
 echo "  Apicurio Registry:"
 if [ "${INGRESS_MODE}" != "none" ]; then
-  echo "    UI:   http://schema-registry.127-0-0-1.nip.io:8080/ui"
+  echo "    UI:   http://schema-registry-ui.127-0-0-1.nip.io:8080"
   echo "    API:  http://schema-registry.127-0-0-1.nip.io:8080/apis/ccompat/v7"
 else
-  echo "    kubectl port-forward svc/apicurio-registry -n kafka 8080:8080"
-  echo "    UI:   http://localhost:8080/ui"
+  # Local ports must match the REGISTRY_API_URL / QUARKUS_HTTP_CORS_ORIGINS
+  # baked into the CR for INGRESS_MODE=none (app:8080, ui:8888).
+  echo "    kubectl port-forward svc/apicurio-registry-app-service -n kafka 8080:8080"
+  echo "    kubectl port-forward svc/apicurio-registry-ui-service  -n kafka 8888:8080"
+  echo "    UI:   http://localhost:8888"
   echo "    API:  http://localhost:8080/apis/ccompat/v7"
 fi
 echo ""

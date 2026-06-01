@@ -2,7 +2,7 @@
 
 [Strimzi](https://strimzi.io) is a CNCF project that provides a Kubernetes operator for running Apache Kafka. It manages the full Kafka lifecycle — cluster provisioning, rolling upgrades, configuration management, topic and user creation — through Kubernetes custom resources.
 
-This showcase deploys a production-sized, KRaft-based Kafka cluster (no ZooKeeper) with Apicurio Registry for schema management, Kafka HTTP Bridge, and [kafka-ui](https://github.com/provectus/kafka-ui) as a web management console. All cluster resources (topics, users) are managed exclusively via Strimzi CRDs, keeping cluster state fully declarative and reproducible from Git.
+This showcase deploys a production-sized, KRaft-based Kafka cluster (no ZooKeeper) with Apicurio Registry for schema management, Kafka HTTP Bridge, and [kafka-ui](https://github.com/kafbat/kafka-ui) (the community-maintained fork of the archived Provectus project) as a web management console. All cluster resources (topics, users) are managed exclusively via Strimzi CRDs, keeping cluster state fully declarative and reproducible from Git.
 
 ### Preconditions
 
@@ -30,7 +30,7 @@ The following components are installed by `setup.sh`:
   - 3 brokers in KRaft combined mode (each pod is both controller and broker)
   - Required pod anti-affinity — one broker per worker node
   - Production CPU/RAM sizing; 2 Gi storage per broker (reduced for local demo)
-  - JVM heap: `-Xms1g -Xmx1g`
+  - JVM heap: `-Xms512m -Xmx512m`
   - 7-day log retention, replication factor 3, min ISR 2, 6 default partitions
 - **Kafka HTTP Bridge** — `KafkaBridge` CR (2 replicas), exposed via Ingress
   - Producer: `acks=all`, `linger.ms=5`, snappy compression
@@ -38,7 +38,7 @@ The following components are installed by `setup.sh`:
 - **Apicurio Registry** — `ApicurioRegistry3` CR (2 replicas), Kafka SQL storage
   - Schemas stored in the `kafkasql-journal` topic (RF=3, unlimited retention)
   - Confluent Schema Registry API compatibility exposed at `/apis/ccompat/v7`
-- **kafka-ui** — Helm chart (1 replica), pre-wired to broker, Schema Registry, and Bridge
+- **kafka-ui** — Helm chart from [kafbat](https://github.com/kafbat/helm-charts) (1 replica), pre-wired to the broker and Apicurio Schema Registry
 
 ### Access kafka-ui
 
@@ -47,8 +47,7 @@ Open the management console at http://kafka-ui.127-0-0-1.nip.io:8080.
 kafka-ui provides:
 - Topic browser and message inspector
 - Consumer group lag monitoring
-- Schema Registry browser
-- Kafka Connect / Bridge endpoint overview
+- Schema Registry browser (Apicurio via the Confluent-compatible API)
 
 > **Note:** Write operations (produce, delete topic, reset offsets) are enabled by default in this demo. Restrict them via kafka-ui RBAC configuration for production workloads.
 
@@ -62,21 +61,33 @@ Then open: http://localhost:8888
 
 ### Kafka HTTP Bridge
 
-The Bridge exposes a REST API for producing and consuming Kafka messages over HTTP.
+The Bridge exposes a REST API for producing and consuming Kafka messages over HTTP. See the [Strimzi HTTP Bridge docs](https://strimzi.io/docs/bridge/latest/) for the full API.
 
 ```bash
+# Bridge version and health
+curl http://kafka-bridge.127-0-0-1.nip.io:8080/
+curl http://kafka-bridge.127-0-0-1.nip.io:8080/healthy
+
+# List topics
+curl http://kafka-bridge.127-0-0-1.nip.io:8080/topics
+
+# List partitions of a topic
+curl http://kafka-bridge.127-0-0-1.nip.io:8080/topics/sample-topic/partitions
+
 # Produce a message
 curl -X POST http://kafka-bridge.127-0-0-1.nip.io:8080/topics/sample-topic \
   -H "Content-Type: application/vnd.kafka.json.v2+json" \
   -d '{"records":[{"key":"hello","value":{"msg":"world"}}]}'
-
-# List consumer groups
-curl http://kafka-bridge.127-0-0-1.nip.io:8080/
 ```
+
+> The Bridge API does not provide an endpoint to list consumer groups — use kafka-ui or the Kafka Admin API for that. The Bridge only manages consumer *instances* within a named group via `POST /consumers/{groupid}`.
 
 ### Apicurio Registry
 
-Open the Apicurio Registry UI at http://schema-registry.127-0-0-1.nip.io:8080/ui.
+Apicurio Registry v3 ships the REST API and the web UI as **separate Deployments and Services**. The setup script exposes both via Ingress:
+
+- API: http://schema-registry.127-0-0-1.nip.io:8080
+- UI:  http://schema-registry-ui.127-0-0-1.nip.io:8080
 
 Browse registered schemas via the Confluent-compatible REST API:
 
@@ -139,7 +150,8 @@ bash run-loadtests.sh
 |----------|---------|
 | Plain — in-cluster | `kafka-cluster-kafka-bootstrap.kafka:9092` |
 | TLS — in-cluster | `kafka-cluster-kafka-bootstrap.kafka:9093` |
-| Apicurio Registry (compat API) | `http://apicurio-registry-app-service.kafka:8080/apis/ccompat/v7` |
+| Apicurio Registry API (compat) | `http://apicurio-registry-app-service.kafka:8080/apis/ccompat/v7` |
+| Apicurio Registry UI | `http://apicurio-registry-ui-service.kafka:8080` |
 | HTTP Bridge | `http://kafka-bridge-bridge-service.kafka:8080` |
 
 ### Cleanup

@@ -11,10 +11,12 @@ spec:
       kafkasql:
         bootstrapServers: kafka-cluster-kafka-bootstrap.kafka:9092
     replicas: 2
-    # resources:
-    #   requests:
-    #     cpu: 250m
-    #     memory: 384Mi
-    #   limits:
-    #     cpu: 1000m
-    #     memory: 768Mi
+    # An empty host makes the operator skip Ingress creation; setup.sh passes
+    # empty values when no ingress controller is selected.
+    ingress:
+      host: schema-registry.127-0-0-1.nip.io
+      ingressClassName: kong
+  ui:
+    ingress:
+      host: schema-registry-ui.127-0-0-1.nip.io
+      ingressClassName: kong
