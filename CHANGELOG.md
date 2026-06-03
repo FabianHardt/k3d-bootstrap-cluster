@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## [1.4.0] - 2026-06-03
+
+### Added
+
 * CloudNativePG showcase (`examples/cloudnative-pg/`) demonstrating the CloudNativePG operator for managing PostgreSQL clusters on Kubernetes. Deploys a sample `Cluster` CR with a pre-configured database, and pgAdmin 4 as a web UI client — pre-registered with the sample cluster. Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/cloudnative-pg.md`).
 * Strimzi Kafka cluster showcase (`examples/kafka-cluster/`) deploying a production-sized, KRaft-based Kafka cluster (no ZooKeeper) using the Strimzi operator 1.0.0. Includes 3 brokers in combined controller/broker mode via `KafkaNodePool`, Apicurio Registry (operator-managed, Kafka SQL storage), Kafka HTTP Bridge, and kafbat-ui as a web management console. Comes with k6 load tests for plain, JSON, and Avro message patterns (`examples/kafka-cluster/loadtest/`). Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/kafka-cluster.md`).
 * SeaweedFS showcase (`examples/seaweedfs/`) providing a self-contained, S3-compatible object store as a license-friendly (Apache-2.0) alternative to MinIO. Deploys a single-pod `weed server -filer -s3` `StatefulSet` with a 10 GiB PVC, a default `demo` bucket, and static Lab credentials. Intended as a reusable backup target / artifact store for other showcases. Includes documentation (`docs/showcases/seaweedfs.md`).
