@@ -110,6 +110,10 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/cloudnative-pg.md)
 - Calico NetworkPolicies - https://github.com/projectcalico/calico
   - Manal steps and demo are documented here [README](https://github.com/projectcalico/calico)
+- SeaweedFS (S3-compatible object store) - https://seaweedfs.com
+  - Installation is documented here [README](docs/showcases/seaweedfs.md)
+- Velero (Backup & Restore) - https://velero.io
+  - Installation is documented here [README](docs/showcases/velero.md)
 
 
 
