@@ -70,7 +70,9 @@ export default {
                     { text: "CloudNativePG", link: "/showcases/cloudnative-pg.html" },
                     { text: "Headlamp (Dashboard)", link: "/showcases/headlamp.html" },
                     { text: "Grafana Observability Stack", link: "/showcases/grafana-stack.html" },
-                    { text: "Kafka Cluster", link: "/showcases/kafka-cluster.html" }
+                    { text: "Kafka Cluster", link: "/showcases/kafka-cluster.html" },
+                    { text: "SeaweedFS (S3 Object Store)", link: "/showcases/seaweedfs.html" },
+                    { text: "Velero Backup & Restore", link: "/showcases/velero.html" }
                 ]
             },
             {

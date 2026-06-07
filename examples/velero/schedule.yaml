@@ -1,0 +1,14 @@
+# Optional: daily backup of the demo-velero namespace, retained for 7 days.
+# Apply with:  kubectl apply -f schedule.yaml
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: demo-velero-daily
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"
+  template:
+    includedNamespaces:
+      - demo-velero
+    ttl: 168h0m0s
+    defaultVolumesToFsBackup: true

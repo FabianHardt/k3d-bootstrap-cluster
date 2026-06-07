@@ -1,0 +1,41 @@
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.10.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - name: plugins
+        mountPath: /target
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: velero
+      default: true
+      config:
+        region: us-east-1
+        s3ForcePathStyle: "true"
+        s3Url: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
+  volumeSnapshotLocation:
+    - name: default
+      provider: aws
+      config:
+        region: us-east-1
+  # Use Kopia-based file-system backup for PVCs (works without CSI snapshots,
+  # which k3d's local-path provisioner does not support).
+  defaultVolumesToFsBackup: true
+  uploaderType: kopia
+
+credentials:
+  useSecret: true
+  existingSecret: ""
+  secretContents:
+    cloud: |
+      [default]
+      aws_access_key_id=seaweedadmin
+      aws_secret_access_key=seaweedadminsecret
+
+# Deploy the node-agent DaemonSet (required for file-system backups).
+deployNodeAgent: true
+
+snapshotsEnabled: false
