@@ -31,10 +31,10 @@ The setup script:
   - `BackupStorageLocation` pointing to SeaweedFS
   - `defaultVolumesToFsBackup: true` and the `node-agent` DaemonSet
 - Deploys the sample workload in namespace `demo-velero`
-- Exposes the demo nginx via an `Ingress` (HAProxy) or `HTTPRoute` (Kong), auto-detecting the active ingress mode — so the restored page becomes visible in the browser at:
+- Exposes the demo nginx via a Kong Gateway `HTTPRoute` — so the restored page becomes visible in the browser at:
 
   <http://nginx-velero.127-0-0-1.nip.io:8080/>
-- Deletes the default `httpbin` `Ingress`/`HTTPRoute` in namespace `demo`. That route has no host filter and would otherwise act as a wildcard, serving httpbin's content under the nginx-velero hostname during the "disaster" step and hiding the failure. If you want httpbin back later, re-apply it from `httpbin/sample-ingress-haproxy.yaml` or `httpbin/sample-httproute-kong.yaml`.
+- Deletes the default `httpbin` `HTTPRoute` in namespace `demo`. That route has no host filter and would otherwise act as a wildcard, serving httpbin's content under the nginx-velero hostname during the "disaster" step and hiding the failure. If you want httpbin back later, re-apply it from `httpbin/sample-httproute-kong.yaml`.
 
 ### Run the demo
 
@@ -53,7 +53,7 @@ kubectl -n demo-velero exec deploy/nginx -- \
 curl http://nginx-velero.127-0-0-1.nip.io:8080/
 ```
 
-The nginx pod mounts a `PersistentVolumeClaim` (`nginx-data`) at `/usr/share/nginx/html`. The script writes a timestamped HTML file into that volume and then verifies it through the **Ingress/HTTPRoute** (`HTTP 200`, page body contains the timestamp). The current timestamp is what we will later check for after the restore — if the restored page matches, the **volume contents** (not just the manifest) survived the round-trip.
+The nginx pod mounts a `PersistentVolumeClaim` (`nginx-data`) at `/usr/share/nginx/html`. The script writes a timestamped HTML file into that volume and then verifies it through the **HTTPRoute** (`HTTP 200`, page body contains the timestamp). The current timestamp is what we will later check for after the restore — if the restored page matches, the **volume contents** (not just the manifest) survived the round-trip.
 
 Open <http://nginx-velero.127-0-0-1.nip.io:8080/> in a browser to follow along visually.
 
@@ -93,7 +93,7 @@ kubectl -n velero logs deploy/velero -f
 kubectl delete namespace demo-velero --wait=true
 ```
 
-Deleting the namespace removes **all** objects in it: the Deployment, the ReplicaSet, the Pod, the Service, the `Ingress`/`HTTPRoute`, **and** the `PersistentVolumeClaim`. With k3d's default `local-path` storage class, deleting the PVC also reclaims the underlying volume — so the data on disk is genuinely gone. This is the equivalent of an accidental `kubectl delete ns` in production or a wiped node.
+Deleting the namespace removes **all** objects in it: the Deployment, the ReplicaSet, the Pod, the Service, the `HTTPRoute`, **and** the `PersistentVolumeClaim`. With k3d's default `local-path` storage class, deleting the PVC also reclaims the underlying volume — so the data on disk is genuinely gone. This is the equivalent of an accidental `kubectl delete ns` in production or a wiped node.
 
 If you reload <http://nginx-velero.127-0-0-1.nip.io:8080/> in the browser now, you will get a connection error or a 404 from the ingress controller — the route no longer exists. The script reflects this with `(request failed — expected during the disaster step)` in its output.
 
@@ -125,11 +125,11 @@ kubectl -n demo-velero exec deploy/nginx -- cat /usr/share/nginx/html/index.html
 curl http://nginx-velero.127-0-0-1.nip.io:8080/
 ```
 
-The script waits for the nginx Deployment to roll out, then polls the URL until it returns HTTP 200 (the ingress controller needs a few seconds to pick up the restored `Ingress`/`HTTPRoute`). The final `cat` and `curl` must both print the same `<h1>backed up at …</h1>` line written in step 1 — same timestamp, same wording. Reloading the browser tab at <http://nginx-velero.127-0-0-1.nip.io:8080/> now shows the page again.
+The script waits for the nginx Deployment to roll out, then polls the URL until it returns HTTP 200 (the ingress controller needs a few seconds to pick up the restored `HTTPRoute`). The final `cat` and `curl` must both print the same `<h1>backed up at …</h1>` line written in step 1 — same timestamp, same wording. Reloading the browser tab at <http://nginx-velero.127-0-0-1.nip.io:8080/> now shows the page again.
 
 If it does, you have verified:
 
-- Kubernetes manifests were correctly captured and restored (including `Ingress`/`HTTPRoute`)
+- Kubernetes manifests were correctly captured and restored (including `HTTPRoute`)
 - PVC contents were captured and restored byte-for-byte via Kopia
 - The pod re-attached to the restored volume
 - The ingress controller picked the restored route back up and is serving traffic again

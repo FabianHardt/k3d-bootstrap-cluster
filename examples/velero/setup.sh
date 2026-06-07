@@ -41,49 +41,23 @@ kubectl apply -f demo-app.yaml
 kubectl -n demo-velero rollout status deployment/nginx --timeout=120s
 
 # ---------------------------------------------------------------------------
-# Expose the demo nginx via Ingress (HAProxy) or HTTPRoute (Kong) so that the
-# restored page can be visited from the host browser, making the recovery
-# visually obvious. Auto-detect the ingress mode the same way the Kyverno
-# showcase does.
+# Expose the demo nginx via a Kong Gateway HTTPRoute so that the restored page
+# can be visited from the host browser, making the recovery visually obvious.
 # ---------------------------------------------------------------------------
-if [ "${HAPROXY_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="haproxy"
-elif [ "${KONG_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="kong"
-elif kubectl get ingressclass haproxy &>/dev/null; then
-  echo "Auto-detected HAProxy ingress controller"
-  INGRESS_MODE="haproxy"
-elif kubectl get namespace kong &>/dev/null || kubectl get gatewayclass kong &>/dev/null; then
-  echo "Auto-detected Kong Gateway"
-  INGRESS_MODE="kong"
-else
-  echo "No ingress controller detected — skipping ingress/route creation."
-  INGRESS_MODE="none"
-fi
+kubectl apply -f nginx-httproute-kong.yaml
+NGINX_URL="http://nginx-velero.127-0-0-1.nip.io:8080/"
 
-NGINX_URL=""
-if [ "${INGRESS_MODE}" == "haproxy" ]; then
-  kubectl apply -f nginx-ingress-haproxy.yaml
-  NGINX_URL="http://nginx-velero.127-0-0-1.nip.io:8080/"
-elif [ "${INGRESS_MODE}" == "kong" ]; then
-  kubectl apply -f nginx-httproute-kong.yaml
-  NGINX_URL="http://nginx-velero.127-0-0-1.nip.io:8080/"
-fi
-
-# The default httpbin sample route in namespace `demo` has no host filter and
-# therefore catches any request — including requests to nginx-velero.* once the
-# demo-velero namespace is gone. That would hide the "disaster" step in
-# `demo.sh`, where we expect the URL to fail. Remove the wildcard routes so the
-# recovery story is unambiguous.
-echo "Removing wildcard httpbin routes (would mask the disaster step)…"
+# The default httpbin sample HTTPRoute in namespace `demo` has no host filter
+# and therefore catches any request — including requests to nginx-velero.*
+# once the demo-velero namespace is gone. That would hide the "disaster" step
+# in `demo.sh`, where we expect the URL to fail. Remove the wildcard route so
+# the recovery story is unambiguous.
+echo "Removing wildcard httpbin route (would mask the disaster step)…"
 kubectl delete httproute httpbin -n demo --ignore-not-found
-kubectl delete ingress  httpbin -n demo --ignore-not-found
 
 echo ""
 echo "Velero is ready."
-if [ -n "${NGINX_URL}" ]; then
-  echo "Demo nginx is exposed at:  ${NGINX_URL}"
-fi
+echo "Demo nginx is exposed at:  ${NGINX_URL}"
 echo ""
 echo "Next step: run the end-to-end demo:"
 echo "    bash demo.sh"

@@ -27,13 +27,12 @@ bash create-sample.sh
 # you will be asked for your users password
 ```
 
-You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. For traffic routing, you can choose between:
+You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. Traefik is disabled and **Kong Gateway (Gateway API)** is installed unconditionally as the cluster's sole ingress controller — it installs Gateway API CRDs, a `GatewayClass`, a `Gateway`, and Kong Ingress Controller via Helm.
 
-- **HAProxy Ingress Controller** — replaces Traefik, exposes services via standard Kubernetes `Ingress` resources
-- **Kong Gateway (Gateway API)** — replaces Traefik, exposes services via the Kubernetes Gateway API (`HTTPRoute`). Installs Gateway API CRDs, a `GatewayClass` and `Gateway`, and Kong Ingress Controller via Helm. Kong and HAProxy are mutually exclusive.
+If you want classic Ingress alongside Kong, the [HAProxy showcase](docs/showcases/haproxy.md) installs HAProxy Ingress Controller as a secondary `IngressClass`.
 
 At least you have the option to deploy **httpbin sample deployment**, which is deployed to the namespace *demo*.
-The container from https://kennethreitz.org/ is used here. The sample uses an `Ingress` (HAProxy/Traefik) or an `HTTPRoute` (Kong), and a *NodePort* is also exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
+The container from https://kennethreitz.org/ is used here. The sample is exposed via an `HTTPRoute` on the Kong `Gateway`, and a *NodePort* is also exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
 The httpbin demo is deployed from the **local running container registry**, just for demo purpose, to show the usage of a user defined registry with k3d.
 
 *Optional (K8s > 1.24 needed):* Headlamp Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/). The necessary login token you can get with the following command: `kubectl create token headlamp --namespace kube-system`
@@ -114,6 +113,8 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/seaweedfs.md)
 - Velero (Backup & Restore) - https://velero.io
   - Installation is documented here [README](docs/showcases/velero.md)
+- HAProxy Ingress Controller - https://haproxy-ingress.github.io
+  - Installation is documented here [README](docs/showcases/haproxy.md)
 
 
 

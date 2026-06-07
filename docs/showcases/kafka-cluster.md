@@ -13,15 +13,10 @@ This showcase deploys a production-sized, KRaft-based Kafka cluster (no ZooKeepe
 
 ```bash
 cd examples/kafka-cluster
-
-# With HAProxy Ingress Controller
-HAPROXY_FLAG=Yes bash setup.sh
-
-# With Kong Gateway
-KONG_FLAG=Yes bash setup.sh
+bash setup.sh
 ```
 
-If neither flag is set, the ingress controller is auto-detected from the cluster. If none is found, all UIs are accessible via port-forward only.
+All UIs (kafka-ui, Apicurio Registry, HTTP Bridge) are exposed via Kong Gateway — the sole ingress controller in this cluster.
 
 The following components are installed by `setup.sh`:
 
@@ -32,7 +27,7 @@ The following components are installed by `setup.sh`:
   - Production CPU/RAM sizing; 2 Gi storage per broker (reduced for local demo)
   - JVM heap: `-Xms512m -Xmx512m`
   - 7-day log retention, replication factor 3, min ISR 2, 6 default partitions
-- **Kafka HTTP Bridge** — `KafkaBridge` CR (2 replicas), exposed via Ingress
+- **Kafka HTTP Bridge** — `KafkaBridge` CR (2 replicas), exposed via Kong Gateway
   - Producer: `acks=all`, `linger.ms=5`, snappy compression
 - **Apicurio Registry Operator** — installed from the official GitHub release manifest (namespace: `apicurio-system`)
 - **Apicurio Registry** — `ApicurioRegistry3` CR (2 replicas), Kafka SQL storage
@@ -50,14 +45,6 @@ kafka-ui provides:
 - Schema Registry browser (Apicurio via the Confluent-compatible API)
 
 > **Note:** Write operations (produce, delete topic, reset offsets) are enabled by default in this demo. Restrict them via kafka-ui RBAC configuration for production workloads.
-
-### Access kafka-ui without Ingress
-
-```bash
-kubectl port-forward svc/kafka-ui -n kafka 8888:80
-```
-
-Then open: http://localhost:8888
 
 ### Kafka HTTP Bridge
 
@@ -84,7 +71,7 @@ curl -X POST http://kafka-bridge.127-0-0-1.nip.io:8080/topics/sample-topic \
 
 ### Apicurio Registry
 
-Apicurio Registry v3 ships the REST API and the web UI as **separate Deployments and Services**. The setup script exposes both via Ingress:
+Apicurio Registry v3 ships the REST API and the web UI as **separate Deployments and Services**. The setup script exposes both via Kong Gateway:
 
 - API: http://schema-registry.127-0-0-1.nip.io:8080
 - UI:  http://schema-registry-ui.127-0-0-1.nip.io:8080

@@ -20,9 +20,9 @@ bottom
 
 top "Cleaning up workload routing resources"
 
-# The capi-demo namespace contains an Ingress that catches all traffic (host: *, path: /).
-# It must be removed before re-deploying httpbin, otherwise HAProxy will keep routing to the
-# now-deleted workload cluster Endpoints and return 503.
+# The capi-demo namespace contains an HTTPRoute that catches all traffic (host: *, path: /).
+# It must be removed before re-deploying httpbin, otherwise Kong Gateway will keep routing
+# to the now-deleted workload cluster Endpoints and return 503.
 kubectl --context "${MGMT_CONTEXT}" delete namespace capi-demo --ignore-not-found 2>/dev/null || true
 echo "Removed capi-demo namespace."
 
@@ -65,7 +65,7 @@ spec:
     targetPort: 80
 EOF
 kubectl --context "${MGMT_CONTEXT}" apply -n demo \
-  -f ../../httpbin/sample-ingress-haproxy.yaml || true
+  -f ../../httpbin/sample-httproute-kong.yaml || true
 
 bottom
 

@@ -17,7 +17,7 @@ Die Kernidee: Nicht jeder Entwickler soll Kubernetes im Detail kennen müssen.
 │                            • Namespace (app-meine-app)          │
 │                            • Deployment                         │
 │                            • Service                            │
-│                            • Ingress / HTTPRoute                │
+│                            • HTTPRoute (Kong Gateway)           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -31,21 +31,14 @@ Die Kernidee: Nicht jeder Entwickler soll Kubernetes im Detail kennen müssen.
 
 ### Precondition
 
-Cluster muss mit httpbin-Sample und HAProxy oder Kong Ingress-Controller deployed sein.
+Cluster muss mit dem httpbin-Sample deployed sein. Kong Gateway ist der einzige Ingress-Controller im Cluster.
 
 ### Installation
 
 ```bash
 cd examples/crossplane
-
-# Mit HAProxy Ingress Controller (Standard)
-HAPROXY_FLAG=Yes bash setup.sh
-
-# Mit Kong Gateway (Gateway API / HTTPRoute)
-KONG_FLAG=Yes bash setup.sh
+bash setup.sh
 ```
-
-Ohne Flag wird der Ingress-Controller automatisch erkannt.
 
 ### Installierte Komponenten
 
@@ -54,7 +47,7 @@ Ohne Flag wird der Ingress-Controller automatisch erkannt.
 | Crossplane | `crossplane-system` | Core-Controller + RBAC-Manager |
 | provider-kubernetes | `crossplane-system` | Kubernetes-Provider für In-Cluster-Ressourcen |
 | XRD `xappenvironments` | cluster-scoped | Das API-Schema des Platform-Teams |
-| Composition `appenvironment-haproxy` oder `-kong` | cluster-scoped | Die Implementierung |
+| Composition `appenvironment-kong` | cluster-scoped | Die Implementierung (Kong Gateway HTTPRoute) |
 | AppEnvironment Claim `meine-app` | `default` | Demo-Bestellung des Entwickler-Teams |
 | App-Namespace `app-meine-app` | — | Erstellt durch Crossplane |
 
@@ -67,7 +60,6 @@ examples/crossplane/
 │   ├── 01-provider.yaml               # Kubernetes-Provider + RBAC
 │   ├── 02-providerconfig.yaml         # In-Cluster Auth (InjectedIdentity)
 │   ├── 03-xrd.yaml                    # API-Schema: AppEnvironment
-│   ├── 04-composition-haproxy.yaml    # Implementierung für HAProxy
 │   └── 04-composition-kong.yaml       # Implementierung für Kong Gateway API
 └── developer/                         ← Entwickler schreiben nur diese Datei
     └── claim.yaml                     # "Ich möchte eine App-Umgebung"
@@ -96,7 +88,7 @@ spec:
     replicas: 1                     # Optional
 ```
 
-**Composition** (`04-composition-*.yaml`): Die Implementierung. Beschreibt, welche Kubernetes-Ressourcen für jeden Claim erstellt werden und wie die Parameter darauf abgebildet werden (Patches).
+**Composition** (`04-composition-kong.yaml`): Die Implementierung. Beschreibt, welche Kubernetes-Ressourcen (Namespace, Deployment, Service und Kong Gateway HTTPRoute) für jeden Claim erstellt werden und wie die Parameter darauf abgebildet werden (Patches).
 
 #### Schritt 3: Der Entwickler bestellt eine Umgebung
 
@@ -131,7 +123,7 @@ kubectl get appenvironment -n default
 kubectl get all -n app-meine-app
 ```
 
-App-Zugriff (HAProxy oder Kong):
+App-Zugriff (Kong Gateway):
 ```
 http://meine-app.127-0-0-1.nip.io:8080
 ```
@@ -152,6 +144,7 @@ kubectl apply -f developer/zweite-app.yaml
 ```bash
 # Claim löschen → entfernt alle erstellen Ressourcen automatisch
 kubectl delete appenvironment meine-app -n default
+# (entfernt Namespace, Deployment, Service und HTTPRoute automatisch)
 
 # Crossplane komplett entfernen
 helm uninstall crossplane -n crossplane-system
