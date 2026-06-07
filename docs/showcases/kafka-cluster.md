@@ -124,7 +124,7 @@ spec:
 
 The `loadtest/` subdirectory contains k6 load tests covering plain string, JSON, and Avro (via Schema Registry) message patterns. Tests run as Kubernetes Jobs inside the cluster.
 
-See [`loadtest/README.md`](../../examples/kafka-cluster/loadtest/README.md) for details.
+See [`loadtest/README.md`](https://github.com/FabianHardt/k3d-bootstrap-cluster/blob/main/examples/kafka-cluster/loadtest/README.md) for details.
 
 ```bash
 cd examples/kafka-cluster/loadtest
