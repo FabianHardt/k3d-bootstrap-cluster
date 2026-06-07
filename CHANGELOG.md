@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* HAProxy Ingress Controller as a standalone, opt-in showcase (`examples/haproxy/setup.sh`, `docs/showcases/haproxy.md`). Installs HAProxy as a secondary, non-default `IngressClass` (`haproxy`) alongside the cluster's default Kong Gateway for users who want to experiment with classic `Ingress` resources.
+
 ### Changed
 
+* **Kong Gateway (Gateway API) is now the sole ingress controller** for the cluster bootstrap and every showcase (#55). Traefik is unconditionally disabled, Kong is installed unconditionally by `create-sample.sh`, and all showcase scripts/docs (`openbao`, `cloudnative-pg`, `kafka-cluster`, `velero`, `external-dns`, `crossplane`, `kuma-mesh`, `kyverno`, `kong-gateway`, `kong-gateway-operator`, `cluster-api`) have been simplified to a single Kong + `HTTPRoute` path. No more `HAPROXY_FLAG` / `KONG_FLAG` branching or ingress auto-detection.
+
 ### Removed
+
+* `HAPROXY_FLAG` and the HAProxy bootstrap prompt from `create-sample.sh` / `helpers.sh`.
+* `manifests/haproxy-helm.yaml`, `httpbin/sample-ingress-haproxy.yaml`, `httpbin/sample-ingress.yaml` (Traefik fallback) — superseded by the Kong-only `httpbin/sample-httproute-kong.yaml`.
+* HAProxy-specific variants from showcases: `examples/openbao/{cert-ingress.yaml,openbao-values.yaml}`, `examples/cloudnative-pg/pgadmin-values.yaml`, `examples/kafka-cluster/kafka-ui/kafka-ui-values.yaml`, `examples/external-dns/update-httpbin-ingress.yaml`, `examples/velero/nginx-ingress-haproxy.yaml`, `examples/crossplane/platform/04-composition-haproxy.yaml`, `examples/kyverno/policy-reporter-ingress.yml`.
 
 ### Fixed
 
