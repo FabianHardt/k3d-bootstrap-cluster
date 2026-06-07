@@ -1,6 +1,6 @@
 
 const ref = "v1.0.0";
-const base =  "/k3d-bootstrap-cluster/"
+const base = process.env.DOCS_BASE ?? "/k3d-bootstrap-cluster/"
 
 export default {
     // site-level options
