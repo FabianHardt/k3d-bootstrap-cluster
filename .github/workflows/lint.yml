@@ -66,6 +66,8 @@ jobs:
               -not -name '*values*.yml' \
               -not -name 'haproxy-helm.yaml' \
               -not -name '*-template.yaml' \
+              -not -name 'clusterctl.yaml' \
+              -not -name 'confluent-for-kubernetes.yaml' \
               | sort
           )
           # Also drop any remaining file that contains an unresolved ${VAR} placeholder
@@ -83,9 +85,12 @@ jobs:
 
       - name: Run kubeconform
         run: |
+          # Skip Crossplane Composition: the CRDs-catalog schema lags behind
+          # the actual CRD (rejects spec.resources, which is still supported).
           xargs -a /tmp/k8s-files.txt kubeconform \
             -strict \
             -ignore-missing-schemas \
+            -skip Composition \
             -kubernetes-version 1.30.0 \
             -schema-location default \
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \

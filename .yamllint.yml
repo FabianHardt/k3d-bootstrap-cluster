@@ -11,7 +11,7 @@ rules:
     check-keys: false
   indentation:
     spaces: 2
-    indent-sequences: consistent
+    indent-sequences: false
   braces:
     max-spaces-inside: 1
   brackets:
@@ -22,3 +22,7 @@ ignore: |
   docs/.vitepress/cache/
   docs/.vitepress/dist/
   k3dvol/
+  # Vendored upstream Calico install bundle — not our code to format
+  manifests/calico.yaml
+  # Shell-templated (contains $(...) command substitution); not valid YAML
+  k3d-cluster-template.yaml
