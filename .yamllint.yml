@@ -10,8 +10,8 @@ rules:
   truthy:
     check-keys: false
   indentation:
-    spaces: 2
-    indent-sequences: false
+    spaces: consistent
+    indent-sequences: consistent
   braces:
     max-spaces-inside: 1
   brackets:
