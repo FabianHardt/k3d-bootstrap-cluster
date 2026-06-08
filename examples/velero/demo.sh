@@ -82,7 +82,7 @@ spec:
 EOF
 
 echo "    Waiting for restore to complete…"
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   PHASE=$(kubectl -n velero get restore "${RESTORE_NAME}" -o jsonpath='{.status.phase}' 2>/dev/null || true)
   echo "    phase=${PHASE}"
   [ "${PHASE}" = "Completed" ] && break
