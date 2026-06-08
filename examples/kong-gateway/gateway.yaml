@@ -19,7 +19,7 @@ spec:
       namespaces:
         from: All
       kinds:
-        - kind: TLSRoute
+      - kind: TLSRoute
   - name: kong-https
     hostname: "*.example.com"
     port: 443
@@ -30,4 +30,4 @@ spec:
     tls:
       mode: Terminate
       certificateRefs:
-        - name: example-com-tls
+      - name: example-com-tls

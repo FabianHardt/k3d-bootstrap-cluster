@@ -28,7 +28,8 @@ fi
 uninstallCluster
 
 # Get actual directory
-export ACT_DIR=$(pwd)
+ACT_DIR=$(pwd)
+export ACT_DIR
 top "Actual directory"
 echo "$ACT_DIR"
 bottom

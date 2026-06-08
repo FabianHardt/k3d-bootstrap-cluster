@@ -16,6 +16,11 @@ rules:
     max-spaces-inside: 1
   brackets:
     max-spaces-inside: 1
+  # Allow tabular alignment in inline-flow YAML (used in seaweedfs ports list)
+  commas:
+    max-spaces-after: -1
+  colons:
+    max-spaces-after: -1
 
 ignore: |
   node_modules/
@@ -26,3 +31,5 @@ ignore: |
   manifests/calico.yaml
   # Shell-templated (contains $(...) command substitution); not valid YAML
   k3d-cluster-template.yaml
+  # Upstream Kuma helm values structure mixes indent-sequences styles
+  examples/kuma-mesh/standalone-cp-values.yaml

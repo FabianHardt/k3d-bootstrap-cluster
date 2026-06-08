@@ -99,7 +99,7 @@ kubectl -n demo-velero exec deploy/nginx -- cat /usr/share/nginx/html/index.html
 # Give the ingress controller a moment to pick up the restored Ingress/HTTPRoute.
 if [ "${EXPOSED}" = "yes" ]; then
   echo "    Waiting up to 30s for ingress route to be served again…"
-  for i in $(seq 1 15); do
+  for _ in $(seq 1 15); do
     STATUS=$(curl -sS --max-time 3 -o /dev/null -w "%{http_code}" "${NGINX_URL}" || echo "000")
     [ "${STATUS}" = "200" ] && break
     sleep 2

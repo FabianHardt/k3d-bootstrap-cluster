@@ -38,25 +38,25 @@ spec:
           persistentVolumeClaim:
             claimName: demo-pvc
       containers:
-      - image: ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
-        name: httpbin
-        securityContext:
-          allowPrivilegeEscalation: false
-          seccompProfile:
-            type: RuntimeDefault
-          capabilities:
-            drop:
-              - "ALL"
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
-        volumeMounts:
-          - mountPath: "/data"
-            name: demo-pv-storage
+        - image: ${REGISTRY_NAME}-${CLUSTER_NAME}.${DEMO_DOMAIN}:${REGISTRY_PORT}/kennethreitz/httpbin
+          name: httpbin
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - "ALL"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          volumeMounts:
+            - mountPath: "/data"
+              name: demo-pv-storage
 ---
 apiVersion: v1
 kind: Service
@@ -67,11 +67,11 @@ metadata:
   namespace: demo
 spec:
   ports:
-  - name: 80-80
-    nodePort: 30001
-    port: 80
-    protocol: TCP
-    targetPort: 80
+    - name: 80-80
+      nodePort: 30001
+      port: 80
+      protocol: TCP
+      targetPort: 80
   selector:
     app: httpbin
   type: NodePort

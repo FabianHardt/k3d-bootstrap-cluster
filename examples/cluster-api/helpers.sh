@@ -64,8 +64,8 @@ checkPrerequisites() {
       }
     }' &>/dev/null
 
-  local PHASE i
-  for i in $(seq 1 30); do
+  local PHASE
+  for _ in $(seq 1 30); do
     PHASE=$(kubectl --context "${MGMT_CONTEXT}" get pod docker-sock-test \
       -o jsonpath='{.status.phase}' 2>/dev/null || true)
     [ "${PHASE}" = "Succeeded" ] || [ "${PHASE}" = "Failed" ] && break
