@@ -91,8 +91,8 @@ helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manag
 kubectl -n cert-manager delete serviceaccount issuer || true
 kubectl -n cert-manager create serviceaccount issuer
 
-K8S_VERSION=$(kubectl get nodes k3d-${CLUSTER_NAME}-agent-0 -o json | jq .status.nodeInfo.kubeletVersion | cut -c 3-6)
-if [ $K8S_VERSION \> 1.23 ]
+K8S_MINOR=$(kubectl get nodes "k3d-${CLUSTER_NAME}-agent-0" -o json | jq -r .status.nodeInfo.kubeletVersion | sed -E 's/^v[0-9]+\.([0-9]+).*/\1/')
+if [ "$K8S_MINOR" -gt 23 ]
 then
 kubectl -n cert-manager delete secret issuer-token-secret || true
 echo "K8s version is greater than 1.24!"

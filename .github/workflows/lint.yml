@@ -1,0 +1,98 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        env:
+          SHELLCHECK_OPTS: -e SC1091
+        with:
+          severity: warning
+          scandir: '.'
+
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pip install yamllint==1.35.1
+      - name: Run yamllint
+        run: yamllint -c .yamllint.yml .
+
+  kubeconform:
+    name: kubeconform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -fsSL -o /tmp/kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Collect K8s manifests
+        id: collect
+        run: |
+          # Find YAML files, then drop anything that isn't a K8s manifest:
+          #  - Helm values files (anything with "values" in the name)
+          #  - k3d cluster config (k3d schema, not K8s)
+          #  - template files containing ${VAR} placeholders
+          #  - GitHub Actions workflows
+          #  - yamllint config
+          #  - docs/ (VitePress site)
+          mapfile -t files < <(
+            find . -type f \( -name '*.yaml' -o -name '*.yml' \) \
+              -not -path './node_modules/*' \
+              -not -path './.git/*' \
+              -not -path './docs/*' \
+              -not -path './.github/*' \
+              -not -path './k3dvol/*' \
+              -not -name '.yamllint.yml' \
+              -not -name 'k3d-cluster*.yaml' \
+              -not -name '*values*.yaml' \
+              -not -name '*values*.yml' \
+              -not -name 'haproxy-helm.yaml' \
+              -not -name '*-template.yaml' \
+              -not -name 'clusterctl.yaml' \
+              -not -name 'confluent-for-kubernetes.yaml' \
+              | sort
+          )
+          # Also drop any remaining file that contains an unresolved ${VAR} placeholder
+          keep=()
+          for f in "${files[@]}"; do
+            if grep -qE '\$\{[A-Z_][A-Z0-9_]*\}' "$f"; then
+              echo "skip (has \${VAR}): $f"
+              continue
+            fi
+            keep+=("$f")
+          done
+          printf '%s\n' "${keep[@]}" > /tmp/k8s-files.txt
+          echo "Validating $(wc -l < /tmp/k8s-files.txt) files:"
+          cat /tmp/k8s-files.txt
+
+      - name: Run kubeconform
+        run: |
+          # Skip Crossplane Composition: the CRDs-catalog schema lags behind
+          # the actual CRD (rejects spec.resources, which is still supported).
+          xargs -a /tmp/k8s-files.txt kubeconform \
+            -strict \
+            -ignore-missing-schemas \
+            -skip Composition \
+            -kubernetes-version 1.30.0 \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -summary \
+            -output text

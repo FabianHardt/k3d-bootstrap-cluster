@@ -107,6 +107,7 @@ echo "  kubectl run -it --rm psql-test \\"
 echo "    --image=postgres:17-alpine \\"
 echo "    --restart=Never \\"
 echo "    -- sh -c 'psql \"hostaddr=\$(getent hosts kong-gateway-proxy.kong.svc.cluster.local \\"
+# shellcheck disable=SC1083  # the literal braces are part of an awk script embedded in instructional output
 echo "      | awk '"'"'{print \$1}'"'"' | head -1) \\"
 echo "      host=postgres.example.com port=9443 \\"
 echo "      sslmode=require sslnegotiation=direct \\"

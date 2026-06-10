@@ -1,4 +1,7 @@
 #!/bin/bash
+# Word splitting on `$(kubectl get pods ...)` is intentional: we pass each pod
+# name as a separate argument to `kubectl wait`.
+# shellcheck disable=SC2046
 
 installConfluentOperator() {
   helm upgrade --install confluent-operator \

@@ -29,8 +29,8 @@ spec:
           - Namespace
     mutate:
       targets:
-        - apiVersion: v1
-          kind: Namespace
+      - apiVersion: v1
+        kind: Namespace
       patchStrategicMerge:
         metadata:
           labels:

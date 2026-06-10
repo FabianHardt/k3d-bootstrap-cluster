@@ -28,6 +28,7 @@ configValues ()
 {
   DEMO_DOMAIN=127-0-0-1.nip.io
   REGISTRY_NAME=registry
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
   REGISTRY_FLAG=$(isYes "Yes")
   read_value "Cluster Name" "${CLUSTER_NAME}"
   CLUSTER_NAME=${INPUT_VALUE}
@@ -41,8 +42,10 @@ configValues ()
   HTTPS_PORT=${INPUT_VALUE}
   read_value "Registry Port" "${REGISTRY_PORT}"
   REGISTRY_PORT=${INPUT_VALUE}
-  HTTPBIN_NODEPORT=$((30000 + $RANDOM % 40000))
-  EXTDNS_NODEPORT=$((30000 + $RANDOM % 40000))
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+  HTTPBIN_NODEPORT=$((30000 + RANDOM % 40000))
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+  EXTDNS_NODEPORT=$((30000 + RANDOM % 40000))
   read_value "Install Kong Gateway (Gateway API)? ${yes_no}" "${KONG_FLAG}"
   KONG_FLAG=$(isYes ${INPUT_VALUE})
   if (($KONG_FLAG == 1)); then
