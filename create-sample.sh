@@ -1,9 +1,7 @@
 #!/bin/bash
 set -o errexit
 
-# Defaults — each can be overridden via environment variable, e.g.
-#   CLUSTER_NAME=ci KONG_FLAG=Yes HAPROXY_FLAG=No bash create-sample.sh
-# Set NON_INTERACTIVE=1 to skip all prompts and use these values as-is (CI).
+# Defaults; overridable via env vars, NON_INTERACTIVE=1 skips all prompts (see README)
 CLUSTER_NAME=${CLUSTER_NAME:-demo}
 SERVERS=${SERVERS:-1}
 AGENTS=${AGENTS:-1}
