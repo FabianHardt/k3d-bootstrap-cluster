@@ -80,8 +80,24 @@ jobs:
         if: failure()
         run: |
           kubectl get pods -A -o wide || true
-          kubectl get svc,ingress,httproute -A || true
+          kubectl get svc,ingress -A || true
           kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          # describe + logs of every pod that is not healthy or has restarted
+          kubectl get pods -A -o json 2>/dev/null | jq -r '
+            .items[]
+            | select(
+                (.status.phase != "Running" and .status.phase != "Succeeded")
+                or ([.status.containerStatuses[]?.restartCount] | add // 0) > 0
+                or ([.status.containerStatuses[]?.ready] | all | not)
+              )
+            | "\(.metadata.namespace) \(.metadata.name)"' \
+          | while read -r ns pod; do
+              echo "::group::describe+logs ${ns}/${pod}"
+              kubectl -n "$ns" describe pod "$pod" | tail -n 30 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 --previous || true
+              echo "::endgroup::"
+            done
           docker ps -a || true
 
   showcase:
@@ -126,8 +142,9 @@ jobs:
               kubectl -n velero wait backupstoragelocation --all \
                 --for=jsonpath='{.status.phase}'=Available --timeout=300s
 
+          # Needs the httpbin sample: cert-ingress.yaml lives in ns demo
           - showcase: openbao
-            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            flags: CALICO_FLAG=No
             verify: kubectl -n openbao exec openbao-0 -- bao status
 
           # Chains into openbao, then syncs two ExternalSecrets into ns demo
@@ -159,8 +176,9 @@ jobs:
               kubectl wait appenvironment/meine-app \
                 --for=condition=Ready --timeout=600s
 
+          # Expects a cluster bootstrapped with Kong (ns kong + Gateway exist)
           - showcase: kong-gateway
-            flags: HAPROXY_FLAG=No CALICO_FLAG=No
+            flags: KONG_FLAG=Yes HAPROXY_FLAG=No CALICO_FLAG=No
             experimental: true
             verify: |
               kubectl -n kong wait deployment --all \
@@ -196,4 +214,20 @@ jobs:
         run: |
           kubectl get pods -A -o wide || true
           kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          # describe + logs of every pod that is not healthy or has restarted
+          kubectl get pods -A -o json 2>/dev/null | jq -r '
+            .items[]
+            | select(
+                (.status.phase != "Running" and .status.phase != "Succeeded")
+                or ([.status.containerStatuses[]?.restartCount] | add // 0) > 0
+                or ([.status.containerStatuses[]?.ready] | all | not)
+              )
+            | "\(.metadata.namespace) \(.metadata.name)"' \
+          | while read -r ns pod; do
+              echo "::group::describe+logs ${ns}/${pod}"
+              kubectl -n "$ns" describe pod "$pod" | tail -n 30 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 --previous || true
+              echo "::endgroup::"
+            done
           docker ps -a || true
