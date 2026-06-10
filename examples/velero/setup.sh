@@ -76,7 +76,11 @@ fi
 # `demo.sh`, where we expect the URL to fail. Remove the wildcard routes so the
 # recovery story is unambiguous.
 echo "Removing wildcard httpbin routes (would mask the disaster step)…"
-kubectl delete httproute httpbin -n demo --ignore-not-found
+# Without Gateway API CRDs the resource type "httproute" does not exist and
+# even --ignore-not-found fails, so guard on the CRD first.
+if kubectl get crd httproutes.gateway.networking.k8s.io &>/dev/null; then
+  kubectl delete httproute httpbin -n demo --ignore-not-found
+fi
 kubectl delete ingress  httpbin -n demo --ignore-not-found
 
 echo ""
