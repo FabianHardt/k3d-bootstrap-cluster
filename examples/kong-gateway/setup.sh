@@ -12,6 +12,11 @@ helm repo update
 # block the CRDs that follow it in the manifest.
 kubectl delete validatingadmissionpolicy safe-upgrades.gateway.networking.k8s.io --ignore-not-found
 kubectl delete validatingadmissionpolicybinding safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+# The API server enforces deleted admission policies until its informer cache
+# catches up - without this wait the CRD apply below races the deletion and
+# fails with "is forbidden: ValidatingAdmissionPolicy 'safe-upgrades...'".
+kubectl wait --for=delete validatingadmissionpolicy/safe-upgrades.gateway.networking.k8s.io --timeout=60s || true
+sleep 5
 curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml | \
   python3 -c "
 import sys

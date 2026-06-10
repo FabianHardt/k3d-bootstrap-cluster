@@ -76,7 +76,11 @@ echo "----------------------------------------------------------"
 kubectl delete deployment httpbin -n demo --ignore-not-found
 kubectl delete service httpbin -n demo --ignore-not-found
 kubectl delete ingress httpbin -n demo --ignore-not-found
-kubectl delete httproute httpbin -n demo --ignore-not-found
+# Ohne Gateway-API-CRDs existiert der Ressourcen-Typ "httproute" nicht und
+# selbst --ignore-not-found schlägt fehl, daher zuerst auf die CRD prüfen.
+if kubectl get crd httproutes.gateway.networking.k8s.io &>/dev/null; then
+  kubectl delete httproute httpbin -n demo --ignore-not-found
+fi
 echo "✓ Namespace demo bereinigt"
 echo ""
 

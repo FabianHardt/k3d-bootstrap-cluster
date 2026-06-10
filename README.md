@@ -40,6 +40,16 @@ The httpbin demo is deployed from the **local running container registry**, just
 
 After running this script you can visit the Demo HTTPBin Application by typing `127-0-0-1.nip.io:<Load-Balancer-Port>` in your Browser. If you are using an other `DEMO_DOMAIN` you can use `<Cluster-Name>.<DEMO_DOMAIN>:<Load-Balancer-Port>` (e.q. `demo.example.com:8080`).
 
+#### Non-interactive mode (CI / automation)
+
+All prompts can be skipped with `NON_INTERACTIVE=1`. Every default can be overridden via environment variable:
+
+```bash
+NON_INTERACTIVE=1 CLUSTER_NAME=ci KONG_FLAG=Yes HAPROXY_FLAG=No bash create-sample.sh
+```
+
+Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `KONG_FLAG` (No), `HAPROXY_FLAG` (Yes), `CALICO_FLAG` (Yes), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
+
 ### More details
 
 The default parameters look like this:
