@@ -12,15 +12,10 @@ A running k3d cluster. The httpbin sample is not required for this showcase.
 
 ```bash
 cd examples/cloudnative-pg
-
-# With HAProxy Ingress Controller
-HAPROXY_FLAG=Yes bash setup.sh
-
-# With Kong Gateway (Gateway API)
-KONG_FLAG=Yes bash setup.sh
+bash setup.sh
 ```
 
-If neither flag is set, the ingress controller is auto-detected from the cluster. If none is found, pgAdmin is accessible via port-forward only.
+pgAdmin is exposed via Kong Gateway — the sole ingress controller in this cluster.
 
 The following components are installed by `setup.sh`:
 
@@ -31,7 +26,7 @@ The following components are installed by `setup.sh`:
   - Exposes `sample-pg-rw` (read-write) and `sample-pg-ro` (read-only) services
 - **pgAdmin 4** — Helm Chart (namespace: `pgadmin`)
   - Pre-configured server connection to `sample-pg`
-  - Ingress configured via Helm values, matching the detected ingress controller
+  - Exposed via a Kong Gateway `HTTPRoute`
 
 ### Access pgAdmin UI
 
@@ -45,16 +40,6 @@ Login credentials:
 | Password | admin               |
 
 The server `sample-pg (primary)` is pre-registered under the group `CloudNativePG`. Use the password `apppassword` when prompted for the database connection.
-
-### Access pgAdmin without Ingress
-
-If no ingress controller was detected, use port-forward:
-
-```bash
-kubectl port-forward svc/pgadmin4 -n pgadmin 8888:80
-```
-
-Then open: http://localhost:8888
 
 ### Connect to PostgreSQL directly
 

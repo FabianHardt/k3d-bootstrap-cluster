@@ -3,27 +3,8 @@ set -o errexit
 
 source ../../helpers.sh
 
-# ---------------------------------------------------------------------------
-# Ingress-Modus ermitteln.
-# Explizite Flags haben Vorrang; sonst wird der Cluster automatisch erkannt.
-#   HAPROXY_FLAG=Yes  → HAProxy IngressClass + Ingress-Ressourcen
-#   KONG_FLAG=Yes     → Kong GatewayClass + Gateway API HTTPRoute-Ressourcen
-# ---------------------------------------------------------------------------
-if [ "${HAPROXY_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="haproxy"
-elif [ "${KONG_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="kong"
-elif kubectl get ingressclass haproxy &>/dev/null 2>&1; then
-  echo "Auto-detected HAProxy ingress controller"
-  INGRESS_MODE="haproxy"
-elif kubectl get namespace kong &>/dev/null 2>&1 || kubectl get gatewayclass kong &>/dev/null 2>&1; then
-  echo "Auto-detected Kong Gateway"
-  INGRESS_MODE="kong"
-else
-  echo "Fehler: Kein unterstützter Ingress-Modus erkannt."
-  echo "Bitte HAProxy oder Kong installieren oder HAPROXY_FLAG/KONG_FLAG explizit setzen."
-  exit 1
-fi
+# Kong Gateway ist der einzige Ingress-Controller im Cluster — die Composition
+# erstellt eine Gateway API HTTPRoute pro AppEnvironment.
 
 echo ""
 echo "=========================================================="
@@ -124,13 +105,8 @@ kubectl wait xrd/xappenvironments.platform.example.com \
   --for=condition=Established=true \
   --timeout=120s
 
-if [ "${INGRESS_MODE}" == "kong" ]; then
-  echo "→ Kong-Composition wird verwendet (HTTPRoute)"
-  kubectl apply -f platform/04-composition-kong.yaml
-else
-  echo "→ HAProxy-Composition wird verwendet (Ingress)"
-  kubectl apply -f platform/04-composition-haproxy.yaml
-fi
+echo "→ Kong-Composition wird verwendet (HTTPRoute)"
+kubectl apply -f platform/04-composition-kong.yaml
 
 echo "✓ Plattform-API bereit — Entwickler können jetzt AppEnvironments bestellen"
 echo ""
@@ -181,21 +157,14 @@ echo "  kubectl get appenvironment -n default"
 echo "  kubectl get all -n app-meine-app"
 echo ""
 
-if [ "${INGRESS_MODE}" == "haproxy" ] || [ "${INGRESS_MODE}" == "kong" ]; then
-  echo "--- App-Zugriff ---"
-  echo "  http://meine-app.127-0-0-1.nip.io:8080"
-  echo ""
-else
-  echo "--- App-Zugriff (kein Ingress) ---"
-  echo "  kubectl port-forward -n app-meine-app svc/app-meine-app 8080:80"
-  echo "  → http://localhost:8080"
-  echo ""
-fi
+echo "--- App-Zugriff ---"
+echo "  http://meine-app.127-0-0-1.nip.io:8080"
+echo ""
 
 echo "--- Weitere Apps anlegen ---"
 echo "  developer/claim.yaml kopieren, appName ändern, kubectl apply ausführen"
 echo ""
 echo "--- Aufräumen ---"
 echo "  kubectl delete appenvironment meine-app -n default"
-echo "  (entfernt Namespace, Deployment, Service und Ingress automatisch)"
+echo "  (entfernt Namespace, Deployment, Service und HTTPRoute automatisch)"
 echo "=========================================================="

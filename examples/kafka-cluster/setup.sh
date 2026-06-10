@@ -3,26 +3,10 @@ set -o errexit
 
 source ../../helpers.sh
 
-# ---------------------------------------------------------------------------
-# Determine ingress mode.
-# Explicit flags take precedence; otherwise auto-detect from the cluster.
-#   HAPROXY_FLAG=Yes  → HAProxy IngressClass
-#   KONG_FLAG=Yes     → Kong IngressClass
-# ---------------------------------------------------------------------------
-if [ "${HAPROXY_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="haproxy"
-elif [ "${KONG_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="kong"
-elif kubectl get ingressclass haproxy &>/dev/null 2>&1; then
-  echo "Auto-detected HAProxy ingress controller"
-  INGRESS_MODE="haproxy"
-elif kubectl get namespace kong &>/dev/null 2>&1 || kubectl get gatewayclass kong &>/dev/null 2>&1; then
-  echo "Auto-detected Kong Gateway"
-  INGRESS_MODE="kong"
-else
-  echo "No ingress controller detected — UIs will be accessible via port-forward only."
-  INGRESS_MODE="none"
-fi
+# Kong Gateway is the sole ingress controller in this cluster — Kafka UIs,
+# the HTTP Bridge, and Apicurio Registry are exposed via Gateway API
+# HTTPRoutes (or, for the Apicurio operator that only supports Ingress,
+# Ingresses bound to the Kong IngressClass).
 
 # ---------------------------------------------------------------------------
 # Install Strimzi operator
@@ -65,18 +49,17 @@ kubectl apply -f cluster/kafka-bridge.yaml
 kubectl wait kafkabridge/kafka-bridge \
   -n kafka --for=condition=Ready --timeout=180s
 
-# Expose the Bridge via Ingress
-if [ "${INGRESS_MODE}" != "none" ]; then
-  kubectl apply -f - <<EOF
+# Expose the Bridge via Kong Gateway (Ingress bound to the kong IngressClass)
+kubectl apply -f - <<EOF
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kafka-bridge
   namespace: kafka
   annotations:
-    kubernetes.io/ingress.class: ${INGRESS_MODE}
+    kubernetes.io/ingress.class: kong
 spec:
-  ingressClassName: ${INGRESS_MODE}
+  ingressClassName: kong
   rules:
     - host: kafka-bridge.127-0-0-1.nip.io
       http:
@@ -89,7 +72,6 @@ spec:
                 port:
                   number: 8080
 EOF
-fi
 
 # ---------------------------------------------------------------------------
 # Deploy Apicurio Registry Operator + Registry instance (Kafka SQL storage)
@@ -110,22 +92,13 @@ kubectl wait deployment/apicurio-registry-operator-v${APICURIO_VERSION} \
 kubectl apply -f registry/apicurio-journal-topic.yaml
 
 # Registry instance — operator reconciles the app/ui deployments, services, and
-# (when a host is set) the operator-managed Ingresses for each component.
-if [ "${INGRESS_MODE}" != "none" ]; then
-  export INGRESS_CLASS="${INGRESS_MODE}"
-  export SCHEMA_REGISTRY_HOST="schema-registry.127-0-0-1.nip.io"
-  export SCHEMA_REGISTRY_UI_HOST="schema-registry-ui.127-0-0-1.nip.io"
-  export API_URL="http://${SCHEMA_REGISTRY_HOST}:8080/apis/registry/v3"
-  export UI_ORIGIN="http://${SCHEMA_REGISTRY_UI_HOST}:8080"
-else
-  export INGRESS_CLASS=""
-  export SCHEMA_REGISTRY_HOST=""
-  export SCHEMA_REGISTRY_UI_HOST=""
-  # Port-forward defaults: app on 8080, ui on 8888 (see "Apicurio Registry"
-  # block in the final summary below).
-  export API_URL="http://localhost:8080/apis/registry/v3"
-  export UI_ORIGIN="http://localhost:8888"
-fi
+# the operator-managed Ingresses for each component (bound to the Kong
+# IngressClass).
+export INGRESS_CLASS="kong"
+export SCHEMA_REGISTRY_HOST="schema-registry.127-0-0-1.nip.io"
+export SCHEMA_REGISTRY_UI_HOST="schema-registry-ui.127-0-0-1.nip.io"
+export API_URL="http://${SCHEMA_REGISTRY_HOST}:8080/apis/registry/v3"
+export UI_ORIGIN="http://${SCHEMA_REGISTRY_UI_HOST}:8080"
 templateConfigFile "registry/apicurio-registry-template.yaml" "registry/apicurio-registry.yaml"
 kubectl apply -f registry/apicurio-registry.yaml
 
@@ -135,16 +108,9 @@ kubectl wait apicurioregistry3/apicurio-registry \
 # ---------------------------------------------------------------------------
 # Deploy kafka-ui
 # ---------------------------------------------------------------------------
-if [ "${INGRESS_MODE}" == "kong" ]; then
-  UI_VALUES="kafka-ui/kafka-ui-values-kong.yaml"
-else
-  UI_VALUES="kafka-ui/kafka-ui-values.yaml"
-fi
-
-
 helm upgrade --install kafka-ui kafbat-ui/kafka-ui \
   --namespace kafka \
-  --values "${UI_VALUES}" \
+  --values kafka-ui/kafka-ui-values-kong.yaml \
   --wait \
   --timeout 3m
 
@@ -169,33 +135,14 @@ echo "  Bootstrap (plain):   kafka-cluster-kafka-bootstrap.kafka:9092  (in-clust
 echo "  Bootstrap (TLS):     kafka-cluster-kafka-bootstrap.kafka:9093  (in-cluster)"
 echo ""
 echo "  HTTP Bridge:"
-if [ "${INGRESS_MODE}" != "none" ]; then
-  echo "    URL:  http://kafka-bridge.127-0-0-1.nip.io:8080"
-else
-  echo "    kubectl port-forward svc/kafka-bridge-bridge-service -n kafka 8080:8080"
-  echo "    URL:  http://localhost:8080"
-fi
+echo "    URL:  http://kafka-bridge.127-0-0-1.nip.io:8080"
 echo ""
 echo "  Apicurio Registry:"
-if [ "${INGRESS_MODE}" != "none" ]; then
-  echo "    UI:   http://schema-registry-ui.127-0-0-1.nip.io:8080"
-  echo "    API:  http://schema-registry.127-0-0-1.nip.io:8080/apis/ccompat/v7"
-else
-  # Local ports must match the REGISTRY_API_URL / QUARKUS_HTTP_CORS_ORIGINS
-  # baked into the CR for INGRESS_MODE=none (app:8080, ui:8888).
-  echo "    kubectl port-forward svc/apicurio-registry-app-service -n kafka 8080:8080"
-  echo "    kubectl port-forward svc/apicurio-registry-ui-service  -n kafka 8888:8080"
-  echo "    UI:   http://localhost:8888"
-  echo "    API:  http://localhost:8080/apis/ccompat/v7"
-fi
+echo "    UI:   http://schema-registry-ui.127-0-0-1.nip.io:8080"
+echo "    API:  http://schema-registry.127-0-0-1.nip.io:8080/apis/ccompat/v7"
 echo ""
 echo "  kafka-ui:"
-if [ "${INGRESS_MODE}" != "none" ]; then
-  echo "    URL:  http://kafka-ui.127-0-0-1.nip.io:8080"
-else
-  echo "    kubectl port-forward svc/kafka-ui -n kafka 8888:80"
-  echo "    URL:  http://localhost:8888"
-fi
+echo "    URL:  http://kafka-ui.127-0-0-1.nip.io:8080"
 echo ""
 echo "  Sample topic:        sample-topic (6 partitions, RF=3)"
 echo ""

@@ -8,7 +8,7 @@ name: smoke
 #   - cluster-api    (creates a nested k3d workload cluster via docker.sock)
 #   - kuma-mesh, kong-gateway-operator (long dependency chains)
 # The calico showcase is plain NetworkPolicy YAML and is covered by the
-# haproxy-calico bootstrap variant; kong-ai-gateway has no setup script.
+# calico bootstrap variant; kong-ai-gateway has no setup script.
 
 on:
   pull_request:
@@ -37,18 +37,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # k3s default ingress (Traefik), no CNI replacement
-          - variant: traefik
-            flags: HAPROXY_FLAG=No CILIUM_FLAG=No CALICO_FLAG=No
-          # repo defaults: HAProxy ingress + Cilium CNI
-          - variant: haproxy-cilium
+          # repo defaults: Kong Gateway (always installed) + Cilium CNI
+          - variant: cilium
             flags: ''
-          # HAProxy ingress + Calico CNI (opt-in alternative to Cilium)
-          - variant: haproxy-calico
+          # Calico CNI (opt-in alternative to Cilium)
+          - variant: calico
             flags: CILIUM_FLAG=No CALICO_FLAG=Yes
-          # Kong Gateway (Gateway API) instead of an ingress controller
-          - variant: kong
-            flags: KONG_FLAG=Yes HAPROXY_FLAG=No CILIUM_FLAG=No CALICO_FLAG=No
+          # k3s default Flannel CNI
+          - variant: flannel
+            flags: CILIUM_FLAG=No
     steps:
       - uses: actions/checkout@v4
 
@@ -75,9 +72,6 @@ jobs:
           kubectl -n kube-system rollout status daemonset/cilium --timeout=300s
           kubectl -n kube-system get pods -l k8s-app=cilium -o wide
 
-      - name: Stabilize HAProxy ingress on CI
-        run: bash .github/scripts/stabilize-haproxy.sh
-
       - name: Wait for httpbin rollout
         run: kubectl -n demo rollout status deployment/httpbin --timeout=300s
 
@@ -100,7 +94,6 @@ jobs:
           kubectl get pods -A -o wide || true
           kubectl get svc,ingress -A || true
           kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
-          kubectl -n ingress-haproxy get svc haproxy-ingress -o yaml || true
           kubectl get pods -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,RESTARTS:.status.containerStatuses[*].restartCount,LAST_REASON:.status.containerStatuses[*].lastState.terminated.reason,LAST_EXIT:.status.containerStatuses[*].lastState.terminated.exitCode' || true
           # describe + logs of every pod that is not healthy or has restarted
           kubectl get pods -A -o json 2>/dev/null | jq -r '
@@ -143,6 +136,13 @@ jobs:
               curl -fsS -o /dev/null --retry 12 --retry-delay 10 --retry-all-errors \
                 http://dashboard.127-0-0-1.nip.io:8080/
 
+          # HAProxy as secondary IngressClass alongside the default Kong
+          - showcase: haproxy
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n ingress-haproxy wait deployment haproxy-ingress \
+                --for=condition=Available --timeout=300s
+
           - showcase: kyverno
             flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
             verify: |
@@ -152,14 +152,14 @@ jobs:
                 --for=condition=Available --timeout=600s
 
           - showcase: seaweedfs
-            flags: HAPROXY_FLAG=No CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
             verify: |
               kubectl -n seaweedfs exec seaweedfs-0 -- \
                 sh -c "echo 's3.bucket.list' | weed shell -master localhost:9333 -filer localhost:8888" \
                 | grep -q demo
 
           - showcase: velero
-            flags: HAPROXY_FLAG=No CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
             verify: |
               kubectl -n velero wait deployment velero \
                 --for=condition=Available --timeout=300s
@@ -200,9 +200,8 @@ jobs:
               kubectl wait appenvironment/meine-app \
                 --for=condition=Ready --timeout=600s
 
-          # Expects a cluster bootstrapped with Kong (ns kong + Gateway exist)
           - showcase: kong-gateway
-            flags: KONG_FLAG=Yes HAPROXY_FLAG=No CALICO_FLAG=No
+            flags: CALICO_FLAG=No
             experimental: true
             verify: |
               kubectl -n kong wait deployment --all \
@@ -234,9 +233,6 @@ jobs:
       - name: Create cluster (non-interactive)
         run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
 
-      - name: Stabilize HAProxy ingress on CI
-        run: bash .github/scripts/stabilize-haproxy.sh
-
       - name: Run showcase setup
         working-directory: examples/${{ matrix.showcase }}
         run: bash setup.sh
@@ -249,7 +245,6 @@ jobs:
         run: |
           kubectl get pods -A -o wide || true
           kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
-          kubectl -n ingress-haproxy get svc haproxy-ingress -o yaml || true
           kubectl get pods -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,RESTARTS:.status.containerStatuses[*].restartCount,LAST_REASON:.status.containerStatuses[*].lastState.terminated.reason,LAST_EXIT:.status.containerStatuses[*].lastState.terminated.exitCode' || true
           # describe + logs of every pod that is not healthy or has restarted
           kubectl get pods -A -o json 2>/dev/null | jq -r '

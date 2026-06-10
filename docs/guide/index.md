@@ -6,12 +6,14 @@ This project creates an k3d demo cluster. It comes with an interactive setup, wh
 
 ## Optional components
 
+Every cluster ships with **Kong Gateway (Gateway API)** as the sole ingress controller (Traefik is disabled; Flannel is replaced by Cilium by default, or by Calico when selected). Kong installs Gateway API CRDs v1.5.1, Kong Ingress Controller (v3.5.6), a `GatewayClass`, and a `Gateway`. httpbin is exposed via `HTTPRoute`.
+
+If you want to experiment with classic Ingress alongside Kong, install the [HAProxy Ingress showcase](/showcases/haproxy.html) after the cluster is up.
+
 During interactive setup (`bash create-sample.sh`) you can choose the following optional components:
 
 | Component | Default | Description |
 |-----------|---------|-------------|
-| **Kong Gateway (Gateway API)** | No | Replaces Traefik. Installs Gateway API CRDs v1.5.1, Kong Ingress Controller (v3.5.6) and a `GatewayClass`/`Gateway`. httpbin is exposed via `HTTPRoute`. Mutually exclusive with HAProxy. |
-| **HAProxy Ingress Controller** | Yes | Replaces Traefik. httpbin is exposed via a standard `Ingress` resource. Mutually exclusive with Kong. |
 | **Cilium CNI** | Yes | Replaces Flannel. eBPF-based networking with Kubernetes NetworkPolicy support. Mutually exclusive with Calico. |
 | **Calico CNI** | No | Replaces Flannel. Enables Kubernetes NetworkPolicy support (needed for the Calico NetworkPolicies showcase). Mutually exclusive with Cilium. |
 | **Kubernetes Dashboard (Headlamp)** | No | Web UI for cluster inspection. |

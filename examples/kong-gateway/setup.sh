@@ -46,21 +46,9 @@ OPENBAO_EXISTS=$(kubectl get ns openbao || echo "false")
 if [[ "${OPENBAO_EXISTS}" == "false" ]]
 then
 cd ../openbao/
-KONG_FLAG=Yes bash setup.sh
+bash setup.sh
 else
 echo "Skipping OpenBao deployment. Already there."
-fi
-
-# Remove HAProxy Ingress - replace with Kong Ingress
-HAPROXY_EXISTS=$(kubectl get ns ingress-haproxy 2>/dev/null || echo "false")
-if [[ "${HAPROXY_EXISTS}" == "false" ]]
-then
-echo "Skipping deletion of HAProxy ingress..."
-else
-kubectl delete -f ../../manifests/haproxy-helm.yaml || true
-
-kubectl delete ingress -n demo httpbin || true
-kubectl delete ingress -n openbao openbao || true
 fi
 
 cd ../kong-gateway/

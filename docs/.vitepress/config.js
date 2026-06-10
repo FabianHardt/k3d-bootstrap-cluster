@@ -1,6 +1,6 @@
 
 const ref = "v1.0.0";
-const base =  "/k3d-bootstrap-cluster/"
+const base = process.env.DOCS_BASE ?? "/k3d-bootstrap-cluster/"
 
 export default {
     // site-level options
@@ -60,6 +60,7 @@ export default {
                     { text: "OpenBao", link: "/showcases/openbao.html" },
                     { text: "External Secrets Operator", link: "/showcases/external-secrets.html" },
                     { text: "Kong API Gateway", link: "/showcases/kong.html" },
+                    { text: "HAProxy Ingress", link: "/showcases/haproxy.html" },
                     { text: "Kuma Service Mesh", link: "/showcases/kuma.html" },
                     { text: "Kyverno", link: "/showcases/kyverno.html" },
                     { text: "Kong Gateway Operator", link: "/showcases/kong-gateway-operator.html" },

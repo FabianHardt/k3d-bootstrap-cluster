@@ -9,19 +9,12 @@ Cluster has to be deployed with the *httpbin* sample. Otherwise this demo wouldn
 ### Installation
 
 You can start the installation script of OpenBao and cert-manager with the included shell script.
-Set one of the following flags to control how the httpbin and OpenBao UI are exposed:
+httpbin and the OpenBao UI are exposed via Kong Gateway (Gateway API / `HTTPRoute`), which is the cluster's default ingress.
 
 ```bash
 cd examples/openbao
-
-# With HAProxy Ingress Controller
-HAPROXY_FLAG=Yes bash setup.sh
-
-# With Kong Gateway (Gateway API / HTTPRoute)
-KONG_FLAG=Yes bash setup.sh
+bash setup.sh
 ```
-
-If neither flag is set, OpenBao and cert-manager are installed without creating any Ingress or HTTPRoute resources.
 
 The following components are installed with the *setup.sh*:
 
@@ -36,11 +29,11 @@ The following components are installed with the *setup.sh*:
 - Create service account *issuer* in cert-manager namespace
 - Create `ClusterIssuer` named `openbao-issuer` (connection to OpenBao)
 - Create certificate for *www.example.com* — places K8s secret with key, ca and cert in demo namespace
-- Configure Ingress in demo namespace to secure httpbin Ingress with an OpenBao-signed certificate
+- Configure Kong Gateway TLS listener and `HTTPRoute`s in demo/kong namespace to secure httpbin and the OpenBao UI with an OpenBao-signed wildcard certificate
 
 ### Test Ingress
 
-The *httpbin* Ingress is updated by this sample deployment. You can test the Ingress by adding the following entries to your */etc/hosts* file:
+The *httpbin* `HTTPRoute` is added by this sample deployment. You can test the Ingress by adding the following entries to your */etc/hosts* file:
 
 ```bash
 # Append to /etc/hosts

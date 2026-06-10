@@ -11,16 +11,6 @@ else
 echo "Skipping OpenBao deployment. Already there."
 fi
 
-# Remove HAProxy Ingress - will be replaced with Kong Gateway resp. an Operator-based Gateway
-HAPROXY_EXISTS=$(kubectl get ns ingress-haproxy 2>/dev/null || echo "false")
-if [ "$HAPROXY_EXISTS" == "false" ]
-then
-echo "Skipping deletion of HAProxy ingress..."
-else
-kubectl delete -f ../../manifests/haproxy-helm.yaml || true
-kubectl delete ingress -n demo httpbin
-fi
-
 echo "\nInstall Gateway API extension"
 kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
 

@@ -26,13 +26,12 @@ bash create-sample.sh
 # you will be asked for your users password
 ```
 
-You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the CNI: **Cilium** (default) or **Calico** can be installed instead of the k3s default Flannel installation (Cilium and Calico are mutually exclusive). For traffic routing, you can choose between:
+You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the CNI: **Cilium** (default) or **Calico** can be installed instead of the k3s default Flannel installation (Cilium and Calico are mutually exclusive). Traefik is disabled and **Kong Gateway (Gateway API)** is installed unconditionally as the cluster's sole ingress controller — it installs Gateway API CRDs, a `GatewayClass`, a `Gateway`, and Kong Ingress Controller via Helm.
 
-- **HAProxy Ingress Controller** — replaces Traefik, exposes services via standard Kubernetes `Ingress` resources
-- **Kong Gateway (Gateway API)** — replaces Traefik, exposes services via the Kubernetes Gateway API (`HTTPRoute`). Installs Gateway API CRDs, a `GatewayClass` and `Gateway`, and Kong Ingress Controller via Helm. Kong and HAProxy are mutually exclusive.
+If you want classic Ingress alongside Kong, the [HAProxy showcase](docs/showcases/haproxy.md) installs HAProxy Ingress Controller as a secondary `IngressClass`.
 
 At least you have the option to deploy **httpbin sample deployment**, which is deployed to the namespace *demo*.
-The container from https://kennethreitz.org/ is used here. The sample uses an `Ingress` (HAProxy/Traefik) or an `HTTPRoute` (Kong), and a *NodePort* is also exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
+The container from https://kennethreitz.org/ is used here. The sample is exposed via an `HTTPRoute` on the Kong `Gateway`, and a *NodePort* is also exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.
 The httpbin demo is deployed from the **local running container registry**, just for demo purpose, to show the usage of a user defined registry with k3d.
 
 *Optional (K8s > 1.24 needed):* Headlamp Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/). The necessary login token you can get with the following command: `kubectl create token headlamp --namespace kube-system`
@@ -44,10 +43,10 @@ After running this script you can visit the Demo HTTPBin Application by typing `
 All prompts can be skipped with `NON_INTERACTIVE=1`. Every default can be overridden via environment variable:
 
 ```bash
-NON_INTERACTIVE=1 CLUSTER_NAME=ci KONG_FLAG=Yes HAPROXY_FLAG=No bash create-sample.sh
+NON_INTERACTIVE=1 CLUSTER_NAME=ci CALICO_FLAG=No bash create-sample.sh
 ```
 
-Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `KONG_FLAG` (No), `HAPROXY_FLAG` (Yes), `CILIUM_FLAG` (Yes), `CALICO_FLAG` (No), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
+Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CILIUM_FLAG` (Yes), `CALICO_FLAG` (No), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
 
 ### More details
 
@@ -121,6 +120,8 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/seaweedfs.md)
 - Velero (Backup & Restore) - https://velero.io
   - Installation is documented here [README](docs/showcases/velero.md)
+- HAProxy Ingress Controller - https://haproxy-ingress.github.io
+  - Installation is documented here [README](docs/showcases/haproxy.md)
 
 
 
