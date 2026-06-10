@@ -1,0 +1,199 @@
+name: smoke
+
+# Phase 2 of the CI test plan: boot a real k3d cluster on the runner,
+# run the bootstrap script / a showcase setup non-interactively, then
+# verify the result with kubectl waits and HTTP smoke checks.
+#
+# Not covered here (too heavy for standard runners / nested clusters):
+#   - confluent      (needs ~16 GB RAM for the Confluent Platform alone)
+#   - cluster-api    (creates a nested k3d workload cluster via docker.sock)
+#   - kuma-mesh, kong-gateway-operator (long dependency chains; candidates
+#     for a nightly workflow)
+# The calico showcase is plain NetworkPolicy YAML and is covered by the
+# haproxy-calico bootstrap variant; kong-ai-gateway has no setup script.
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  K3D_VERSION: v5.8.3
+
+jobs:
+  bootstrap:
+    name: bootstrap (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # k3s default ingress (Traefik), no CNI replacement
+          - variant: traefik
+            flags: HAPROXY_FLAG=No CALICO_FLAG=No
+          # repo defaults: HAProxy ingress + Calico CNI
+          - variant: haproxy-calico
+            flags: ''
+          # Kong Gateway (Gateway API) instead of an ingress controller
+          - variant: kong
+            flags: KONG_FLAG=Yes HAPROXY_FLAG=No CALICO_FLAG=No
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k3d
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh \
+            | TAG=${K3D_VERSION} bash
+          k3d version
+
+      - name: Create cluster (non-interactive)
+        run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
+
+      - name: Wait for httpbin rollout
+        run: kubectl -n demo rollout status deployment/httpbin --timeout=300s
+
+      - name: Smoke check httpbin via ingress
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null "http://demo.127-0-0-1.nip.io:8080/status/200"; then
+              echo "httpbin is reachable through the ingress"
+              exit 0
+            fi
+            echo "attempt ${i}/30 failed - retrying in 10s"
+            sleep 10
+          done
+          echo "ERROR: httpbin not reachable through the ingress" >&2
+          exit 1
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide || true
+          kubectl get svc,ingress,httproute -A || true
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          docker ps -a || true
+
+  showcase:
+    name: showcase (${{ matrix.showcase }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # Experimental showcases are heavy and may be flaky on shared runners;
+    # their failure must not block the PR.
+    continue-on-error: ${{ matrix.experimental == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - showcase: headlamp
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n kube-system wait deployment headlamp \
+                --for=condition=Available --timeout=300s
+              curl -fsS -o /dev/null --retry 12 --retry-delay 10 --retry-all-errors \
+                http://dashboard.127-0-0-1.nip.io:8080/
+
+          - showcase: kyverno
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n kyverno wait deployment --all \
+                --for=condition=Available --timeout=600s
+              kubectl -n policy-reporter wait deployment --all \
+                --for=condition=Available --timeout=600s
+
+          - showcase: seaweedfs
+            flags: HAPROXY_FLAG=No CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n seaweedfs exec seaweedfs-0 -- \
+                sh -c "echo 's3.bucket.list' | weed shell -master localhost:9333 -filer localhost:8888" \
+                | grep -q demo
+
+          - showcase: velero
+            flags: HAPROXY_FLAG=No CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n velero wait deployment velero \
+                --for=condition=Available --timeout=300s
+              kubectl -n velero wait backupstoragelocation --all \
+                --for=jsonpath='{.status.phase}'=Available --timeout=300s
+
+          - showcase: openbao
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: kubectl -n openbao exec openbao-0 -- bao status
+
+          # Chains into openbao, then syncs two ExternalSecrets into ns demo
+          - showcase: external-secrets
+            flags: CALICO_FLAG=No
+            verify: |
+              kubectl -n demo wait externalsecret --all \
+                --for=condition=Ready=True --timeout=300s
+
+          - showcase: cloudnative-pg
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n cloudnative-pg wait cluster/sample-pg \
+                --for=condition=Ready --timeout=600s
+              kubectl -n pgadmin wait deployment pgadmin4 \
+                --for=condition=Available --timeout=300s
+
+          - showcase: external-dns
+            flags: CALICO_FLAG=No
+            verify: |
+              kubectl -n dns-sample wait deployment --all \
+                --for=condition=Available --timeout=600s
+
+          # -------- experimental (heavy; failures do not block the PR) ----
+          - showcase: crossplane
+            flags: CALICO_FLAG=No
+            experimental: true
+            verify: |
+              kubectl wait appenvironment/meine-app \
+                --for=condition=Ready --timeout=600s
+
+          - showcase: kong-gateway
+            flags: HAPROXY_FLAG=No CALICO_FLAG=No
+            experimental: true
+            verify: |
+              kubectl -n kong wait deployment --all \
+                --for=condition=Available --timeout=600s
+
+          - showcase: kafka-cluster
+            flags: AGENTS=3 CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            experimental: true
+            verify: |
+              kubectl -n kafka wait kafka --all \
+                --for=condition=Ready --timeout=900s
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k3d
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh \
+            | TAG=${K3D_VERSION} bash
+          k3d version
+
+      - name: Create cluster (non-interactive)
+        run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
+
+      - name: Run showcase setup
+        working-directory: examples/${{ matrix.showcase }}
+        run: bash setup.sh
+
+      - name: Verify showcase
+        run: ${{ matrix.verify }}
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide || true
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          docker ps -a || true
