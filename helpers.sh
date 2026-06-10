@@ -1,12 +1,19 @@
 #!/bin/bash
 
-# bold text
-bold=$(tput bold)
-normal=$(tput sgr0)
+# bold text (fall back to plain text when no terminal is attached, e.g. in CI)
+bold=$(tput bold 2>/dev/null || true)
+normal=$(tput sgr0 2>/dev/null || true)
 yes_no="(${bold}Y${normal}es/${bold}N${normal}o)"
 
 read_value ()
 {
+  # NON_INTERACTIVE=1 skips the prompt and accepts the default (CI usage)
+  if [ "${NON_INTERACTIVE:-0}" = "1" ]
+  then
+      INPUT_VALUE=$2
+      echo "${1} [${2}]: ${2} (non-interactive)"
+      return
+  fi
   read -p "${1} [${bold}${2}${normal}]: " INPUT_VALUE
   if [ "${INPUT_VALUE}" = "" ]
   then
