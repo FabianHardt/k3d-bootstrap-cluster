@@ -1,0 +1,4 @@
+# Allow sourcing files without a shebang or with dynamic paths
+external-sources=true
+# Show all severities
+severity=style

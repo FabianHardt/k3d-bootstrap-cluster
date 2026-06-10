@@ -22,4 +22,4 @@ spec:
     tls:
       mode: Terminate
       certificateRefs:
-        - name: example-com-tls
+      - name: example-com-tls

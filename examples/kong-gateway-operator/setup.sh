@@ -5,7 +5,7 @@ OPENBAO_EXISTS=$(kubectl get ns openbao || echo "false")
 
 if [ "$OPENBAO_EXISTS" == "false" ]
 then
-cd ../openbao/
+cd ../openbao/ || exit 1
 bash setup.sh
 else
 echo "Skipping OpenBao deployment. Already there."
@@ -25,7 +25,7 @@ kubectl rollout restart deployment cert-manager -n cert-manager
 
 kubectl -n cert-manager wait --for=condition=Available=true --timeout=120s deployment/cert-manager
 
-cd ../kong-gateway-operator/
+cd ../kong-gateway-operator/ || exit 1
 
 echo "\nInstall Kong Gateway Operator"
 helm repo add kong https://charts.konghq.com

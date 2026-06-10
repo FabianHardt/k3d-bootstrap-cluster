@@ -13,7 +13,6 @@ The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k
 
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
-- For Confluent (Kafka/Schema-Registry) it'S necessary to assign 16GB RAM to Docker, otherwise it won't deploy successfully
 
 ### Sample Cluster incl. demo deployments
 
@@ -38,6 +37,16 @@ The httpbin demo is deployed from the **local running container registry**, just
 *Optional (K8s > 1.24 needed):* Headlamp Kubernetes Dashboard can be deployed on your sample cluster. After successful deployment you can browse the [dashboard](https://dashboard.127-0-0-1.nip.io:8081/). The necessary login token you can get with the following command: `kubectl create token headlamp --namespace kube-system`
 
 After running this script you can visit the Demo HTTPBin Application by typing `127-0-0-1.nip.io:<Load-Balancer-Port>` in your Browser. If you are using an other `DEMO_DOMAIN` you can use `<Cluster-Name>.<DEMO_DOMAIN>:<Load-Balancer-Port>` (e.q. `demo.example.com:8080`).
+
+#### Non-interactive mode (CI / automation)
+
+All prompts can be skipped with `NON_INTERACTIVE=1`. Every default can be overridden via environment variable:
+
+```bash
+NON_INTERACTIVE=1 CLUSTER_NAME=ci CALICO_FLAG=No bash create-sample.sh
+```
+
+Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CALICO_FLAG` (Yes), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
 
 ### More details
 
@@ -101,8 +110,6 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/kong-gateway-operator.md)
 - Kuma Service Mesh - https://github.com/kumahq/kuma
   - Installation is documented here [README](docs/showcases/kuma.md)
-- Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
-  - Installation is documented here [README](docs/showcases/confluent.md)
 - Kyverno - https://github.com/kyverno/kyverno
   - Installation is documented here [README](docs/showcases/kyverno.md)
 - CloudNativePG - https://cloudnative-pg.io

@@ -1,12 +1,19 @@
 #!/bin/bash
 
-# bold text
-bold=$(tput bold)
-normal=$(tput sgr0)
+# bold text (fall back to plain text when no terminal is attached, e.g. in CI)
+bold=$(tput bold 2>/dev/null || true)
+normal=$(tput sgr0 2>/dev/null || true)
 yes_no="(${bold}Y${normal}es/${bold}N${normal}o)"
 
 read_value ()
 {
+  # NON_INTERACTIVE=1 skips the prompt and accepts the default (CI usage)
+  if [ "${NON_INTERACTIVE:-0}" = "1" ]
+  then
+      INPUT_VALUE=$2
+      echo "${1} [${2}]: ${2} (non-interactive)"
+      return
+  fi
   read -p "${1} [${bold}${2}${normal}]: " INPUT_VALUE
   if [ "${INPUT_VALUE}" = "" ]
   then
@@ -28,6 +35,7 @@ configValues ()
 {
   DEMO_DOMAIN=127-0-0-1.nip.io
   REGISTRY_NAME=registry
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
   REGISTRY_FLAG=$(isYes "Yes")
   read_value "Cluster Name" "${CLUSTER_NAME}"
   CLUSTER_NAME=${INPUT_VALUE}
@@ -41,8 +49,10 @@ configValues ()
   HTTPS_PORT=${INPUT_VALUE}
   read_value "Registry Port" "${REGISTRY_PORT}"
   REGISTRY_PORT=${INPUT_VALUE}
-  HTTPBIN_NODEPORT=$((30000 + $RANDOM % 40000))
-  EXTDNS_NODEPORT=$((30000 + $RANDOM % 40000))
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+  HTTPBIN_NODEPORT=$((30000 + RANDOM % 40000))
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+  EXTDNS_NODEPORT=$((30000 + RANDOM % 40000))
   read_value "Install Calico Network? ${yes_no}" "${CALICO_FLAG}"
   CALICO_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Install Headlamp Dashboard? ${yes_no}" "${DASHBOARD_FLAG}"
