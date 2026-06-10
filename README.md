@@ -13,7 +13,6 @@ The documentation is available on [GitHub Pages](https://fabianhardt.github.io/k
 
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
-- For Confluent (Kafka/Schema-Registry) it'S necessary to assign 16GB RAM to Docker, otherwise it won't deploy successfully
 
 ### Sample Cluster incl. demo deployments
 
@@ -112,8 +111,6 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/kong-gateway-operator.md)
 - Kuma Service Mesh - https://github.com/kumahq/kuma
   - Installation is documented here [README](docs/showcases/kuma.md)
-- Confluent for Kubernetes (Kafka + Schema Registry) - https://docs.confluent.io/operator/current/overview.html
-  - Installation is documented here [README](docs/showcases/confluent.md)
 - Kyverno - https://github.com/kyverno/kyverno
   - Installation is documented here [README](docs/showcases/kyverno.md)
 - CloudNativePG - https://cloudnative-pg.io

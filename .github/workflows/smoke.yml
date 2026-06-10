@@ -5,10 +5,8 @@ name: smoke
 # verify the result with kubectl waits and HTTP smoke checks.
 #
 # Not covered here (too heavy for standard runners / nested clusters):
-#   - confluent      (needs ~16 GB RAM for the Confluent Platform alone)
 #   - cluster-api    (creates a nested k3d workload cluster via docker.sock)
-#   - kuma-mesh, kong-gateway-operator (long dependency chains; candidates
-#     for a nightly workflow)
+#   - kuma-mesh, kong-gateway-operator (long dependency chains)
 # The calico showcase is plain NetworkPolicy YAML and is covered by the
 # haproxy-calico bootstrap variant; kong-ai-gateway has no setup script.
 

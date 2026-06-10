@@ -67,7 +67,6 @@ jobs:
               -not -name 'haproxy-helm.yaml' \
               -not -name '*-template.yaml' \
               -not -name 'clusterctl.yaml' \
-              -not -name 'confluent-for-kubernetes.yaml' \
               | sort
           )
           # Also drop any remaining file that contains an unresolved ${VAR} placeholder
