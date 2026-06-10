@@ -8,7 +8,8 @@ AGENTS=${AGENTS:-1}
 HTTP_PORT=${HTTP_PORT:-8080}
 HTTPS_PORT=${HTTPS_PORT:-8081}
 REGISTRY_PORT=${REGISTRY_PORT:-5002}
-CALICO_FLAG=${CALICO_FLAG:-Yes}
+CILIUM_FLAG=${CILIUM_FLAG:-Yes}
+CALICO_FLAG=${CALICO_FLAG:-No}
 DASHBOARD_FLAG=${DASHBOARD_FLAG:-No}
 HTTPBIN_SAMPLE_FLAG=${HTTPBIN_SAMPLE_FLAG:-Yes}
 CAPI_FLAG=${CAPI_FLAG:-No}
@@ -58,6 +59,10 @@ for (( i=0; i<$AGENTS; i++ ))
 do
     kubectl label nodes k3d-${CLUSTER_NAME}-agent-${i} node-role.kubernetes.io/worker=true node-role.kubernetes.io/data-plane=true
 done
+
+if (($CILIUM_FLAG == 1)); then
+  deployCilium
+fi
 
 deployKong
 

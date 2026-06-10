@@ -30,7 +30,7 @@ bash create-sample.sh
 # you will be asked for your users password
 ```
 
-You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. **Kong Gateway (Gateway API)** is always installed as the sole ingress controller — Traefik is disabled by the bootstrap.
+You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the CNI: **Cilium** (default) or **Calico** can be installed instead of the k3s default Flannel installation (Cilium and Calico are mutually exclusive). **Kong Gateway (Gateway API)** is always installed as the sole ingress controller — Traefik is disabled by the bootstrap.
 
 At least you have the option to deploy **httpbin sample deployment**, which is deployed to the namespace *demo*.
 The container from https://kennethreitz.org/ is used here. The sample uses the Ingress, also a *NodePort* is exposed, to demonstrate this in k3d. A PVC is created and mounted to the httpbin container.

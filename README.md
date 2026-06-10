@@ -26,7 +26,7 @@ bash create-sample.sh
 # you will be asked for your users password
 ```
 
-You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the deployment of **Calico CNI** instead of default Flannel installation. Traefik is disabled and **Kong Gateway (Gateway API)** is installed unconditionally as the cluster's sole ingress controller — it installs Gateway API CRDs, a `GatewayClass`, a `Gateway`, and Kong Ingress Controller via Helm.
+You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the CNI: **Cilium** (default) or **Calico** can be installed instead of the k3s default Flannel installation (Cilium and Calico are mutually exclusive). Traefik is disabled and **Kong Gateway (Gateway API)** is installed unconditionally as the cluster's sole ingress controller — it installs Gateway API CRDs, a `GatewayClass`, a `Gateway`, and Kong Ingress Controller via Helm.
 
 If you want classic Ingress alongside Kong, the [HAProxy showcase](docs/showcases/haproxy.md) installs HAProxy Ingress Controller as a secondary `IngressClass`.
 
@@ -46,7 +46,7 @@ All prompts can be skipped with `NON_INTERACTIVE=1`. Every default can be overri
 NON_INTERACTIVE=1 CLUSTER_NAME=ci CALICO_FLAG=No bash create-sample.sh
 ```
 
-Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CALICO_FLAG` (Yes), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
+Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CILIUM_FLAG` (Yes), `CALICO_FLAG` (No), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
 
 ### More details
 
@@ -114,7 +114,7 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/kyverno.md)
 - CloudNativePG - https://cloudnative-pg.io
   - Installation is documented here [README](docs/showcases/cloudnative-pg.md)
-- Calico NetworkPolicies - https://github.com/projectcalico/calico
+- Calico NetworkPolicies - https://github.com/projectcalico/calico (requires a cluster created with `CALICO_FLAG=Yes`)
   - Manal steps and demo are documented here [README](https://github.com/projectcalico/calico)
 - SeaweedFS (S3-compatible object store) - https://seaweedfs.com
   - Installation is documented here [README](docs/showcases/seaweedfs.md)
