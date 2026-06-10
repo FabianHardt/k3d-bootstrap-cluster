@@ -55,6 +55,14 @@ jobs:
             | TAG=${K3D_VERSION} bash
           k3d version
 
+      # nip.io resolution is flaky on runners; without it docker does not
+      # detect the loopback registry and refuses the plain-HTTP push
+      # ("server gave HTTP response to HTTPS client")
+      - name: Pin nip.io hostnames to loopback
+        run: |
+          echo "127.0.0.1 registry-demo.127-0-0-1.nip.io demo.127-0-0-1.nip.io dashboard.127-0-0-1.nip.io" \
+            | sudo tee -a /etc/hosts
+
       - name: Create cluster (non-interactive)
         run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
 
@@ -201,6 +209,14 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh \
             | TAG=${K3D_VERSION} bash
           k3d version
+
+      # nip.io resolution is flaky on runners; without it docker does not
+      # detect the loopback registry and refuses the plain-HTTP push
+      # ("server gave HTTP response to HTTPS client")
+      - name: Pin nip.io hostnames to loopback
+        run: |
+          echo "127.0.0.1 registry-demo.127-0-0-1.nip.io demo.127-0-0-1.nip.io dashboard.127-0-0-1.nip.io" \
+            | sudo tee -a /etc/hosts
 
       - name: Create cluster (non-interactive)
         run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
