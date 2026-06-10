@@ -1,0 +1,19 @@
+# tags instead of digests, so the images preloaded via 'k3d image import'
+# in deployCilium() are actually used by the kubelet
+image:
+  useDigest: false
+operator:
+  replicas: 1
+  image:
+    useDigest: false
+ipam:
+  mode: kubernetes
+# embedded Envoy in the agent: one image less to preload
+envoy:
+  enabled: false
+# bpffs/cgroup2 are pre-mounted by manifests/k3d-entrypoint-cilium.sh;
+# Cilium's auto-mount init container cannot run in the bash-less k3s image
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /run/cilium/cgroupv2
