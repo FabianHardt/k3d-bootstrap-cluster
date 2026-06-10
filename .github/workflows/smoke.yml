@@ -60,6 +60,9 @@ jobs:
       - name: Create cluster (non-interactive)
         run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
 
+      - name: Stabilize HAProxy ingress on CI
+        run: bash .github/scripts/stabilize-haproxy.sh
+
       - name: Wait for httpbin rollout
         run: kubectl -n demo rollout status deployment/httpbin --timeout=300s
 
@@ -82,6 +85,8 @@ jobs:
           kubectl get pods -A -o wide || true
           kubectl get svc,ingress -A || true
           kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          kubectl -n ingress-haproxy get svc haproxy-ingress -o yaml || true
+          kubectl get pods -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,RESTARTS:.status.containerStatuses[*].restartCount,LAST_REASON:.status.containerStatuses[*].lastState.terminated.reason,LAST_EXIT:.status.containerStatuses[*].lastState.terminated.exitCode' || true
           # describe + logs of every pod that is not healthy or has restarted
           kubectl get pods -A -o json 2>/dev/null | jq -r '
             .items[]
@@ -202,6 +207,9 @@ jobs:
       - name: Create cluster (non-interactive)
         run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
 
+      - name: Stabilize HAProxy ingress on CI
+        run: bash .github/scripts/stabilize-haproxy.sh
+
       - name: Run showcase setup
         working-directory: examples/${{ matrix.showcase }}
         run: bash setup.sh
@@ -214,6 +222,8 @@ jobs:
         run: |
           kubectl get pods -A -o wide || true
           kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          kubectl -n ingress-haproxy get svc haproxy-ingress -o yaml || true
+          kubectl get pods -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,RESTARTS:.status.containerStatuses[*].restartCount,LAST_REASON:.status.containerStatuses[*].lastState.terminated.reason,LAST_EXIT:.status.containerStatuses[*].lastState.terminated.exitCode' || true
           # describe + logs of every pod that is not healthy or has restarted
           kubectl get pods -A -o json 2>/dev/null | jq -r '
             .items[]
