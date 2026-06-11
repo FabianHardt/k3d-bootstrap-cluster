@@ -144,7 +144,7 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
 " | kubectl apply -f -
 
   echo "License applied. Waiting for Kong to recognize Enterprise license..."
-  for i in $(seq 1 30); do
+  for _ in $(seq 1 30); do
     PLUGIN_COUNT=$(curl -sk https://kong-admin.example.com:8081/ 2>/dev/null | jq '.plugins.available_on_server | length' 2>/dev/null)
     if [[ "${PLUGIN_COUNT}" -gt 50 ]]; then
       echo "Enterprise license active (${PLUGIN_COUNT} plugins available)."
@@ -380,7 +380,6 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
 fi
 
 # --- Keycloak (Enterprise: OIDC for OpenWebUI) ---
-OIDC_HELM_ARGS=""
 if [[ -f ${LICENSE_FILE} ]]; then
   echo ""
   echo "Enterprise license detected — deploying Keycloak for OpenID Connect..."
