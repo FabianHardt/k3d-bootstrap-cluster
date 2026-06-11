@@ -21,7 +21,7 @@ spec:
     kind: AppEnvironment
     plural: appenvironments
   defaultCompositionRef:
-    name: appenvironment-haproxy
+    name: appenvironment-kong
   versions:
     - name: v1alpha1
       served: true
