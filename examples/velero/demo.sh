@@ -55,7 +55,7 @@ spec:
 EOF
 
 echo "    Waiting for backup to complete…"
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   PHASE=$(kubectl -n velero get backup "${BACKUP_NAME}" -o jsonpath='{.status.phase}' 2>/dev/null || true)
   echo "    phase=${PHASE}"
   [ "${PHASE}" = "Completed" ] && break
@@ -82,7 +82,7 @@ spec:
 EOF
 
 echo "    Waiting for restore to complete…"
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   PHASE=$(kubectl -n velero get restore "${RESTORE_NAME}" -o jsonpath='{.status.phase}' 2>/dev/null || true)
   echo "    phase=${PHASE}"
   [ "${PHASE}" = "Completed" ] && break
@@ -99,7 +99,7 @@ kubectl -n demo-velero exec deploy/nginx -- cat /usr/share/nginx/html/index.html
 # Give the ingress controller a moment to pick up the restored Ingress/HTTPRoute.
 if [ "${EXPOSED}" = "yes" ]; then
   echo "    Waiting up to 30s for ingress route to be served again…"
-  for i in $(seq 1 15); do
+  for _ in $(seq 1 15); do
     STATUS=$(curl -sS --max-time 3 -o /dev/null -w "%{http_code}" "${NGINX_URL}" || echo "000")
     [ "${STATUS}" = "200" ] && break
     sleep 2

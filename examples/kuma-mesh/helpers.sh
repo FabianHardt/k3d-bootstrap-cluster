@@ -10,53 +10,9 @@ kubectl wait --for=condition=Ready pod -l app=kuma-control-plane -n kuma-cp --ti
 }
 
 configureMeshIngress() {
-# ---------------------------------------------------------------------------
-# Determine ingress mode.
-# Explicit flags take precedence; otherwise auto-detect from the cluster.
-#   HAPROXY_FLAG=Yes  → HAProxy IngressClass + Ingress resources
-#   KONG_FLAG=Yes     → Kong GatewayClass + Gateway API HTTPRoute resources
-# ---------------------------------------------------------------------------
-if [ "${HAPROXY_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="haproxy"
-elif [ "${KONG_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="kong"
-elif kubectl get ingressclass haproxy &>/dev/null 2>&1; then
-  echo "Auto-detected HAProxy ingress controller"
-  INGRESS_MODE="haproxy"
-elif kubectl get namespace kong &>/dev/null 2>&1 || kubectl get gatewayclass kong &>/dev/null 2>&1; then
-  echo "Auto-detected Kong Gateway"
-  INGRESS_MODE="kong"
-else
-  echo "No ingress controller detected — skipping ingress/route creation."
-  INGRESS_MODE="none"
-fi
-
-if [ "${INGRESS_MODE}" == "haproxy" ]; then
-  kubectl apply -f - <<EOF
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: kuma-gui
-  namespace: kuma-cp
-  annotations:
-    haproxy-ingress.github.io/app-root: '/gui'
-    ingress.kubernetes.io/ssl-redirect: 'false'
-spec:
-  ingressClassName: haproxy
-  rules:
-  - host: kuma-gui.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: kuma-control-plane
-            port:
-              number: 5681
-EOF
-elif [ "${INGRESS_MODE}" == "kong" ]; then
-  kubectl apply -f - <<EOF
+# Kong Gateway is the sole ingress controller in this cluster — expose the
+# Kuma GUI via a Gateway API HTTPRoute.
+kubectl apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -78,5 +34,4 @@ spec:
     - name: kuma-control-plane
       port: 5681
 EOF
-fi
 }

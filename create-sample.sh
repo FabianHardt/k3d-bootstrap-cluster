@@ -1,18 +1,18 @@
 #!/bin/bash
 set -o errexit
 
-CLUSTER_NAME=demo
-SERVERS=1
-AGENTS=1
-HTTP_PORT=8080
-HTTPS_PORT=8081
-REGISTRY_PORT=5002
-KONG_FLAG=No
-HAPROXY_FLAG=Yes
-CALICO_FLAG=Yes
-DASHBOARD_FLAG=No
-HTTPBIN_SAMPLE_FLAG=Yes
-CAPI_FLAG=No
+# Defaults; overridable via env vars, NON_INTERACTIVE=1 skips all prompts (see README)
+CLUSTER_NAME=${CLUSTER_NAME:-demo}
+SERVERS=${SERVERS:-1}
+AGENTS=${AGENTS:-1}
+HTTP_PORT=${HTTP_PORT:-8080}
+HTTPS_PORT=${HTTPS_PORT:-8081}
+REGISTRY_PORT=${REGISTRY_PORT:-5002}
+CILIUM_FLAG=${CILIUM_FLAG:-Yes}
+CALICO_FLAG=${CALICO_FLAG:-No}
+DASHBOARD_FLAG=${DASHBOARD_FLAG:-No}
+HTTPBIN_SAMPLE_FLAG=${HTTPBIN_SAMPLE_FLAG:-Yes}
+CAPI_FLAG=${CAPI_FLAG:-No}
 
 source helpers.sh
 
@@ -28,7 +28,8 @@ fi
 uninstallCluster
 
 # Get actual directory
-export ACT_DIR=$(pwd)
+ACT_DIR=$(pwd)
+export ACT_DIR
 top "Actual directory"
 echo "$ACT_DIR"
 bottom
@@ -59,9 +60,11 @@ do
     kubectl label nodes k3d-${CLUSTER_NAME}-agent-${i} node-role.kubernetes.io/worker=true node-role.kubernetes.io/data-plane=true
 done
 
-if (($KONG_FLAG == 1)); then
-  deployKong
+if (($CILIUM_FLAG == 1)); then
+  deployCilium
 fi
+
+deployKong
 
 if (($DASHBOARD_FLAG == 1)); then
   bash "${ACT_DIR}/examples/headlamp/setup.sh"

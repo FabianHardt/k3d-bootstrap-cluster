@@ -1,5 +1,9 @@
 # Calico NetworkPolicy example
 
+::: warning Prerequisite
+This showcase needs a cluster created with Calico as CNI. Since Cilium is the default, answer the Cilium prompt with `No` and the Calico prompt with `Yes` (or run `NON_INTERACTIVE=1 CILIUM_FLAG=No CALICO_FLAG=Yes bash create-sample.sh`).
+:::
+
 This is an example of Calicos NetworkPolicies. It shows the typical use case of wanting to separate namespaces from each other.
 
 This means that pods from namespace A cannot call pods from namespace B. However, communication within a namespace is not restricted.

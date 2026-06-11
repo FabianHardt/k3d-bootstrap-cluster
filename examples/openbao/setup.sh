@@ -5,38 +5,11 @@ source ../../helpers.sh
 
 CLUSTER_NAME=$(kubectl config current-context | cut -c 5-)
 
-# ---------------------------------------------------------------------------
-# Determine ingress mode.
-# Explicit flags take precedence; otherwise auto-detect from the cluster.
-#   HAPROXY_FLAG=Yes  → HAProxy IngressClass + cert-manager Ingress resources
-#   KONG_FLAG=Yes     → Kong GatewayClass + Gateway API HTTPRoute resources
-# ---------------------------------------------------------------------------
-if [ "${HAPROXY_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="haproxy"
-elif [ "${KONG_FLAG}" == "Yes" ]; then
-  INGRESS_MODE="kong"
-elif kubectl get ingressclass haproxy &>/dev/null 2>&1; then
-  echo "Auto-detected HAProxy ingress controller"
-  INGRESS_MODE="haproxy"
-elif kubectl get namespace kong &>/dev/null 2>&1 || kubectl get gatewayclass kong &>/dev/null 2>&1; then
-  echo "Auto-detected Kong Gateway"
-  INGRESS_MODE="kong"
-else
-  echo "No ingress controller detected — skipping ingress/route creation."
-  INGRESS_MODE="none"
-fi
-
-if [ "${INGRESS_MODE}" == "kong" ]; then
-  OPENBAO_VALUES="openbao-values-kong.yaml"
-else
-  OPENBAO_VALUES="openbao-values.yaml"
-fi
-
 helm repo add openbao https://openbao.github.io/openbao-helm
 helm repo add jetstack https://charts.jetstack.io
 helm repo update || true
 
-helm upgrade --install openbao openbao/openbao --values "${OPENBAO_VALUES}" --namespace openbao --create-namespace
+helm upgrade --install openbao openbao/openbao --values openbao-values-kong.yaml --namespace openbao --create-namespace
 
 kubectl wait --for=jsonpath='{.status.phase}'=Running pod openbao-0 -n openbao --timeout=300s || exit 1
 
@@ -91,8 +64,8 @@ helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manag
 kubectl -n cert-manager delete serviceaccount issuer || true
 kubectl -n cert-manager create serviceaccount issuer
 
-K8S_VERSION=$(kubectl get nodes k3d-${CLUSTER_NAME}-agent-0 -o json | jq .status.nodeInfo.kubeletVersion | cut -c 3-6)
-if [ $K8S_VERSION \> 1.23 ]
+K8S_MINOR=$(kubectl get nodes "k3d-${CLUSTER_NAME}-agent-0" -o json | jq -r .status.nodeInfo.kubeletVersion | sed -E 's/^v[0-9]+\.([0-9]+).*/\1/')
+if [ "$K8S_MINOR" -gt 23 ]
 then
 kubectl -n cert-manager delete secret issuer-token-secret || true
 echo "K8s version is greater than 1.24!"
@@ -126,11 +99,8 @@ spec:
           name: ${ISSUER_SECRET_REF}
           key: token" | kubectl apply -f -
 
-if [ "${INGRESS_MODE}" == "haproxy" ]; then
-  kubectl -n demo apply -f cert-ingress.yaml
-elif [ "${INGRESS_MODE}" == "kong" ]; then
-  # Wildcard certificate in kong namespace — used by the Gateway for TLS termination
-  echo "
+# Wildcard certificate in kong namespace — used by the Gateway for TLS termination
+echo "
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -146,23 +116,7 @@ spec:
   commonName: '*.example.com'
   dnsNames:
   - '*.example.com'" | kubectl apply -f -
-  # Update the Kong Gateway to add the HTTPS listener with the wildcard certificate
-  kubectl apply -f gateway-kong.yaml
-  kubectl apply -f httproute-httpbin.yaml
-  kubectl apply -f httproute-openbao.yaml
-else
-  echo '
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: example-com
-  namespace: demo
-spec:
-  secretName: example-com-tls
-  issuerRef:
-    kind: ClusterIssuer
-    name: openbao-issuer
-  commonName: www.example.com
-  dnsNames:
-  - www.example.com' | kubectl apply -f -
-fi
+# Update the Kong Gateway to add the HTTPS listener with the wildcard certificate
+kubectl apply -f gateway-kong.yaml
+kubectl apply -f httproute-httpbin.yaml
+kubectl apply -f httproute-openbao.yaml

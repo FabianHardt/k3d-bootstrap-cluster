@@ -1,0 +1,266 @@
+name: smoke
+
+# Phase 2 of the CI test plan: boot a real k3d cluster on the runner,
+# run the bootstrap script / a showcase setup non-interactively, then
+# verify the result with kubectl waits and HTTP smoke checks.
+#
+# Not covered here (too heavy for standard runners / nested clusters):
+#   - cluster-api    (creates a nested k3d workload cluster via docker.sock)
+#   - kuma-mesh, kong-gateway-operator (long dependency chains)
+# The calico showcase is plain NetworkPolicy YAML and is covered by the
+# calico bootstrap variant; kong-ai-gateway is interactive and runs a
+# local LLM (Ollama) — far too heavy for hosted runners.
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  K3D_VERSION: v5.8.3
+
+jobs:
+  bootstrap:
+    name: bootstrap (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # repo defaults: Kong Gateway (always installed) + Cilium CNI
+          - variant: cilium
+            flags: ''
+          # Calico CNI (opt-in alternative to Cilium)
+          - variant: calico
+            flags: CILIUM_FLAG=No CALICO_FLAG=Yes
+          # k3s default Flannel CNI
+          - variant: flannel
+            flags: CILIUM_FLAG=No
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k3d
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh \
+            | TAG=${K3D_VERSION} bash
+          k3d version
+
+      # nip.io resolution is flaky on runners; without it docker does not
+      # detect the loopback registry and refuses the plain-HTTP push
+      # ("server gave HTTP response to HTTPS client")
+      - name: Pin nip.io hostnames to loopback
+        run: |
+          echo "127.0.0.1 registry-demo.127-0-0-1.nip.io demo.127-0-0-1.nip.io dashboard.127-0-0-1.nip.io" \
+            | sudo tee -a /etc/hosts
+
+      - name: Create cluster (non-interactive)
+        run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
+
+      - name: Verify Cilium is healthy
+        if: contains(matrix.variant, 'cilium')
+        run: |
+          kubectl -n kube-system rollout status daemonset/cilium --timeout=300s
+          kubectl -n kube-system get pods -l k8s-app=cilium -o wide
+
+      - name: Wait for httpbin rollout
+        run: kubectl -n demo rollout status deployment/httpbin --timeout=300s
+
+      - name: Smoke check httpbin via ingress
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null "http://demo.127-0-0-1.nip.io:8080/status/200"; then
+              echo "httpbin is reachable through the ingress"
+              exit 0
+            fi
+            echo "attempt ${i}/30 failed - retrying in 10s"
+            sleep 10
+          done
+          echo "ERROR: httpbin not reachable through the ingress" >&2
+          exit 1
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide || true
+          kubectl get svc,ingress -A || true
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          kubectl get pods -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,RESTARTS:.status.containerStatuses[*].restartCount,LAST_REASON:.status.containerStatuses[*].lastState.terminated.reason,LAST_EXIT:.status.containerStatuses[*].lastState.terminated.exitCode' || true
+          # describe + logs of every pod that is not healthy or has restarted
+          kubectl get pods -A -o json 2>/dev/null | jq -r '
+            .items[]
+            | select(
+                (.status.phase != "Running" and .status.phase != "Succeeded")
+                or ([.status.containerStatuses[]?.restartCount] | add // 0) > 0
+                or ([.status.containerStatuses[]?.ready] | all | not)
+              )
+            | "\(.metadata.namespace) \(.metadata.name)"' \
+          | while read -r ns pod; do
+              echo "::group::describe+logs ${ns}/${pod}"
+              kubectl -n "$ns" describe pod "$pod" | tail -n 30 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 --previous || true
+              echo "::endgroup::"
+            done
+          docker ps -a || true
+
+  showcase:
+    name: showcase (${{ matrix.showcase }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # Showcases verify the showcase, not the CNI; keep them on the k3s
+    # default network (flannel) to save runner resources.
+    env:
+      CILIUM_FLAG: "No"
+    # Experimental showcases are heavy and may be flaky on shared runners;
+    # their failure must not block the PR.
+    continue-on-error: ${{ matrix.experimental == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - showcase: headlamp
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n kube-system wait deployment headlamp \
+                --for=condition=Available --timeout=300s
+              curl -fsS -o /dev/null --retry 12 --retry-delay 10 --retry-all-errors \
+                http://dashboard.127-0-0-1.nip.io:8080/
+
+          # HAProxy as secondary IngressClass alongside the default Kong
+          - showcase: haproxy
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n ingress-haproxy wait deployment haproxy-ingress \
+                --for=condition=Available --timeout=300s
+
+          - showcase: kyverno
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n kyverno wait deployment --all \
+                --for=condition=Available --timeout=600s
+              kubectl -n policy-reporter wait deployment --all \
+                --for=condition=Available --timeout=600s
+
+          - showcase: seaweedfs
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n seaweedfs exec seaweedfs-0 -- \
+                sh -c "echo 's3.bucket.list' | weed shell -master localhost:9333 -filer localhost:8888" \
+                | grep -q demo
+
+          - showcase: velero
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n velero wait deployment velero \
+                --for=condition=Available --timeout=300s
+              kubectl -n velero wait backupstoragelocation --all \
+                --for=jsonpath='{.status.phase}'=Available --timeout=300s
+
+          # Needs the httpbin sample: cert-ingress.yaml lives in ns demo
+          - showcase: openbao
+            flags: CALICO_FLAG=No
+            verify: kubectl -n openbao exec openbao-0 -- bao status
+
+          # Chains into openbao, then syncs two ExternalSecrets into ns demo
+          - showcase: external-secrets
+            flags: CALICO_FLAG=No
+            verify: |
+              kubectl -n demo wait externalsecret --all \
+                --for=condition=Ready=True --timeout=300s
+
+          - showcase: cloudnative-pg
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            verify: |
+              kubectl -n cloudnative-pg wait cluster/sample-pg \
+                --for=condition=Ready --timeout=600s
+              kubectl -n pgadmin wait deployment pgadmin4 \
+                --for=condition=Available --timeout=300s
+
+          - showcase: external-dns
+            flags: CALICO_FLAG=No
+            verify: |
+              kubectl -n dns-sample wait deployment --all \
+                --for=condition=Available --timeout=600s
+
+          # -------- experimental (heavy; failures do not block the PR) ----
+          - showcase: crossplane
+            flags: CALICO_FLAG=No
+            experimental: true
+            verify: |
+              kubectl wait appenvironment/meine-app \
+                --for=condition=Ready --timeout=600s
+
+          - showcase: kong-gateway
+            flags: CALICO_FLAG=No
+            experimental: true
+            verify: |
+              kubectl -n kong wait deployment --all \
+                --for=condition=Available --timeout=600s
+
+          - showcase: kafka-cluster
+            flags: AGENTS=3 CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            experimental: true
+            verify: |
+              kubectl -n kafka wait kafka --all \
+                --for=condition=Ready --timeout=900s
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k3d
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh \
+            | TAG=${K3D_VERSION} bash
+          k3d version
+
+      # nip.io resolution is flaky on runners; without it docker does not
+      # detect the loopback registry and refuses the plain-HTTP push
+      # ("server gave HTTP response to HTTPS client")
+      - name: Pin nip.io hostnames to loopback
+        run: |
+          echo "127.0.0.1 registry-demo.127-0-0-1.nip.io demo.127-0-0-1.nip.io dashboard.127-0-0-1.nip.io" \
+            | sudo tee -a /etc/hosts
+
+      - name: Create cluster (non-interactive)
+        run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
+
+      - name: Run showcase setup
+        working-directory: examples/${{ matrix.showcase }}
+        run: bash setup.sh
+
+      - name: Verify showcase
+        run: ${{ matrix.verify }}
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide || true
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
+          kubectl get pods -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,RESTARTS:.status.containerStatuses[*].restartCount,LAST_REASON:.status.containerStatuses[*].lastState.terminated.reason,LAST_EXIT:.status.containerStatuses[*].lastState.terminated.exitCode' || true
+          # describe + logs of every pod that is not healthy or has restarted
+          kubectl get pods -A -o json 2>/dev/null | jq -r '
+            .items[]
+            | select(
+                (.status.phase != "Running" and .status.phase != "Succeeded")
+                or ([.status.containerStatuses[]?.restartCount] | add // 0) > 0
+                or ([.status.containerStatuses[]?.ready] | all | not)
+              )
+            | "\(.metadata.namespace) \(.metadata.name)"' \
+          | while read -r ns pod; do
+              echo "::group::describe+logs ${ns}/${pod}"
+              kubectl -n "$ns" describe pod "$pod" | tail -n 30 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 || true
+              kubectl -n "$ns" logs "$pod" --all-containers --tail=80 --previous || true
+              echo "::endgroup::"
+            done
+          docker ps -a || true

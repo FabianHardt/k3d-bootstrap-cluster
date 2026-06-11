@@ -16,24 +16,16 @@ Cluster has to be deployed with the *httpbin* sample. Otherwise this demo wouldn
 
 ```bash
 cd examples/external-dns
-
-# With HAProxy Ingress Controller (auto-detected if not set)
-HAPROXY_FLAG=Yes bash setup.sh
-
-# With Kong Gateway (Gateway API / HTTPRoute)
-KONG_FLAG=Yes bash setup.sh
+bash setup.sh
 ```
 
-If neither flag is set, the ingress mode is auto-detected from the cluster.
-
-ExternalDNS is configured with the CoreDNS provider. It watches Ingress resources (HAProxy mode) or HTTPRoutes (Kong mode) and writes DNS records into etcd, which CoreDNS serves.
+ExternalDNS is configured with the CoreDNS provider. It watches Gateway API `HTTPRoute` resources (Kong Gateway is the sole ingress controller in this cluster) and writes DNS records into etcd, which CoreDNS serves.
 
 ### How it works
 
 1. **etcd** is deployed as a single-pod Deployment — CoreDNS and ExternalDNS use it as the DNS record store.
 2. **CoreDNS** is configured with the `etcd` plugin for the `example.com` zone and exposed via NodePort `30053`.
-3. **ExternalDNS** watches Ingress/HTTPRoute resources and registers A records in etcd using the Ingress controller's LoadBalancer IP.
-4. **HAProxy Ingress Controller** must have `publishService.enabled: true` (already set in `manifests/haproxy-helm.yaml`) so that the Ingress `.status.loadBalancer` is populated — ExternalDNS reads that IP as the DNS target.
+3. **ExternalDNS** watches `HTTPRoute` resources and registers A records in etcd using the Kong Gateway's LoadBalancer IP as the DNS target.
 
 ### CoreDNS configuration
 
@@ -83,7 +75,7 @@ Expected answer:
 httpbin.example.com.  30  IN  A  172.25.0.4
 ```
 
-The IP is the ClusterIP of the HAProxy LoadBalancer service (or Kong Gateway service in Kong mode).
+The IP is the LoadBalancer address of the Kong Gateway service.
 
 You can also run an in-cluster test:
 

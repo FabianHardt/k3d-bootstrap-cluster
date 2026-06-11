@@ -36,7 +36,7 @@ if [[ "${DEPLOY_OPENBAO}" =~ ^[Yy]$ ]]; then
   if [[ "${OPENBAO_EXISTS}" == "false" ]]; then
     echo "Deploying OpenBao..."
     cd ../openbao/
-    KONG_FLAG=Yes bash setup.sh
+    bash setup.sh
     cd ../kong-ai-gateway/
   else
     echo "OpenBao already deployed. Skipping."

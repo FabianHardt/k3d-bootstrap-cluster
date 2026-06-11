@@ -1,0 +1,62 @@
+name: Deploy PR preview to Pages
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pages-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: ./docs
+
+jobs:
+  build-and-deploy-preview:
+    # Skip PRs from forks: they cannot get write access to gh-pages safely.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ github.event.number }}
+      DOCS_BASE: /k3d-bootstrap-cluster/pr-${{ github.event.number }}/
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build with VitePress (base=${{ env.DOCS_BASE }})
+        run: npm run docs:build
+      - name: Deploy preview to gh-pages/pr-${{ env.PR_NUMBER }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/.vitepress/dist
+          publish_branch: gh-pages
+          destination_dir: pr-${{ env.PR_NUMBER }}
+          keep_files: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: "docs: deploy preview for PR #${{ env.PR_NUMBER }} (${{ github.event.pull_request.head.sha }})"
+      - name: Comment preview URL on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: docs-preview
+          message: |
+            Docs preview for this PR is live:
+            **https://${{ github.repository_owner }}.github.io/k3d-bootstrap-cluster/pr-${{ env.PR_NUMBER }}/**
+
+            Updated for commit `${{ github.event.pull_request.head.sha }}`.
+            The preview is removed automatically when the PR is closed.

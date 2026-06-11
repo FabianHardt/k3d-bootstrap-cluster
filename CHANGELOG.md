@@ -9,9 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* HAProxy Ingress Controller as a standalone, opt-in showcase (`examples/haproxy/setup.sh`, `docs/showcases/haproxy.md`). Installs HAProxy as a secondary, non-default `IngressClass` (`haproxy`) alongside the cluster's default Kong Gateway for users who want to experiment with classic `Ingress` resources.
+* Cilium CNI (1.19.4) as the new default CNI in the interactive cluster setup (`CILIUM_FLAG`, default Yes), replacing Flannel. Installed from the host via Helm right after cluster creation, since a k3s `HelmChart` manifest cannot bootstrap a CNI (its install job is never scheduled on the CNI-less nodes). The Cilium images are pulled on the host and loaded into the nodes with `k3d image import` so the bootstrap also works on slow or NATed networks. A k3d node entrypoint script (`manifests/k3d-entrypoint-cilium.sh`) prepares the bpffs and cgroup2 mounts that the Cilium agent requires inside the k3s node containers. The CI smoke tests cover the new default with a dedicated `cilium` bootstrap variant.
+
 ### Changed
 
+* **Kong Gateway (Gateway API) is now the sole ingress controller** for the cluster bootstrap and every showcase (#55). Traefik is unconditionally disabled, Kong is installed unconditionally by `create-sample.sh`, and all showcase scripts/docs (`openbao`, `cloudnative-pg`, `kafka-cluster`, `velero`, `external-dns`, `crossplane`, `kuma-mesh`, `kyverno`, `kong-gateway`, `kong-gateway-operator`, `cluster-api`) have been simplified to a single Kong + `HTTPRoute` path. No more `HAPROXY_FLAG` / `KONG_FLAG` branching or ingress auto-detection.
+* Calico CNI is no longer the default: the prompt default flips to No (`CALICO_FLAG=No`). It remains available as an opt-in alternative to Cilium (the two are mutually exclusive). The Calico NetworkPolicies showcase requires a cluster created with `CALICO_FLAG=Yes`.
+
 ### Removed
+
+* `HAPROXY_FLAG` and the HAProxy bootstrap prompt from `create-sample.sh` / `helpers.sh`.
+* `manifests/haproxy-helm.yaml`, `httpbin/sample-ingress-haproxy.yaml`, `httpbin/sample-ingress.yaml` (Traefik fallback) — superseded by the Kong-only `httpbin/sample-httproute-kong.yaml`.
+* HAProxy-specific variants from showcases: `examples/openbao/{cert-ingress.yaml,openbao-values.yaml}`, `examples/cloudnative-pg/pgadmin-values.yaml`, `examples/kafka-cluster/kafka-ui/kafka-ui-values.yaml`, `examples/external-dns/update-httpbin-ingress.yaml`, `examples/velero/nginx-ingress-haproxy.yaml`, `examples/crossplane/platform/04-composition-haproxy.yaml`, `examples/kyverno/policy-reporter-ingress.yml`.
 
 ### Fixed
 

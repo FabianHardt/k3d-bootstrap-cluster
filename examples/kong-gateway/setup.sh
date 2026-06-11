@@ -12,6 +12,11 @@ helm repo update
 # block the CRDs that follow it in the manifest.
 kubectl delete validatingadmissionpolicy safe-upgrades.gateway.networking.k8s.io --ignore-not-found
 kubectl delete validatingadmissionpolicybinding safe-upgrades.gateway.networking.k8s.io --ignore-not-found
+# The API server enforces deleted admission policies until its informer cache
+# catches up - without this wait the CRD apply below races the deletion and
+# fails with "is forbidden: ValidatingAdmissionPolicy 'safe-upgrades...'".
+kubectl wait --for=delete validatingadmissionpolicy/safe-upgrades.gateway.networking.k8s.io --timeout=60s || true
+sleep 5
 curl -sL https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml | \
   python3 -c "
 import sys
@@ -41,21 +46,9 @@ OPENBAO_EXISTS=$(kubectl get ns openbao || echo "false")
 if [[ "${OPENBAO_EXISTS}" == "false" ]]
 then
 cd ../openbao/
-KONG_FLAG=Yes bash setup.sh
+bash setup.sh
 else
 echo "Skipping OpenBao deployment. Already there."
-fi
-
-# Remove HAProxy Ingress - replace with Kong Ingress
-HAPROXY_EXISTS=$(kubectl get ns ingress-haproxy 2>/dev/null || echo "false")
-if [[ "${HAPROXY_EXISTS}" == "false" ]]
-then
-echo "Skipping deletion of HAProxy ingress..."
-else
-kubectl delete -f ../../manifests/haproxy-helm.yaml || true
-
-kubectl delete ingress -n demo httpbin || true
-kubectl delete ingress -n openbao openbao || true
 fi
 
 cd ../kong-gateway/
@@ -107,6 +100,7 @@ echo "  kubectl run -it --rm psql-test \\"
 echo "    --image=postgres:17-alpine \\"
 echo "    --restart=Never \\"
 echo "    -- sh -c 'psql \"hostaddr=\$(getent hosts kong-gateway-proxy.kong.svc.cluster.local \\"
+# shellcheck disable=SC1083  # the literal braces are part of an awk script embedded in instructional output
 echo "      | awk '"'"'{print \$1}'"'"' | head -1) \\"
 echo "      host=postgres.example.com port=9443 \\"
 echo "      sslmode=require sslnegotiation=direct \\"
