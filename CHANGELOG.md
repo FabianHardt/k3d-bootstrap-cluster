@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* CI smoke test for the Kong AI Gateway showcase (`examples/kong-ai-gateway/`). Runs as an experimental `showcase (kong-ai-gateway)` matrix job that boots the minimal stack (Ollama + `llama3.2:1b`, OpenWebUI, SearXNG MCP tool server) non-interactively and asserts the core workloads roll out and Ollama serves the local model. To support it, `setup.sh` now honours `NON_INTERACTIVE=1` (skips all prompts, safe defaults) and the smoke workflow runs every showcase setup non-interactively. The Enterprise-gated external AI routes remain covered by the Playwright browser-tests.
 * HAProxy Ingress Controller as a standalone, opt-in showcase (`examples/haproxy/setup.sh`, `docs/showcases/haproxy.md`). Installs HAProxy as a secondary, non-default `IngressClass` (`haproxy`) alongside the cluster's default Kong Gateway for users who want to experiment with classic `Ingress` resources.
 * Cilium CNI (1.19.4) as the new default CNI in the interactive cluster setup (`CILIUM_FLAG`, default Yes), replacing Flannel. Installed from the host via Helm right after cluster creation, since a k3s `HelmChart` manifest cannot bootstrap a CNI (its install job is never scheduled on the CNI-less nodes). The Cilium images are pulled on the host and loaded into the nodes with `k3d image import` so the bootstrap also works on slow or NATed networks. A k3d node entrypoint script (`manifests/k3d-entrypoint-cilium.sh`) prepares the bpffs and cgroup2 mounts that the Cilium agent requires inside the k3s node containers. The CI smoke tests cover the new default with a dedicated `cilium` bootstrap variant. (#62, #65)
 * Non-interactive mode for `create-sample.sh`: `NON_INTERACTIVE=1` skips all prompts, and every default can be overridden via environment variable (`CLUSTER_NAME`, `SERVERS`, `AGENTS`, ports, component flags). Documented in the README. (#61)
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* `examples/kong-ai-gateway/mcp-searxng.yaml`: the SearXNG MCP server now binds on `0.0.0.0` (`MCP_HTTP_HOST`). Newer `isokoliuk/mcp-searxng:latest` images default the HTTP transport to `127.0.0.1`, so the readiness probe (and Kong/OpenWebUI) hit "connection refused" on the pod IP and the deployment never became Available — `setup.sh` failed at the `mcp-searxng` wait. Surfaced by the new Kong AI Gateway smoke test.
 * `examples/kong-gateway/setup.sh`: applying the experimental Gateway API CRDs no longer races the just-deleted `safe-upgrades` ValidatingAdmissionPolicy — the script now waits for the deletion to propagate through the API server's admission cache. Found by the CI smoke tests. (#61)
 
 ## [1.4.0] - 2026-06-03
@@ -37,14 +39,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * CloudNativePG showcase (`examples/cloudnative-pg/`) demonstrating the CloudNativePG operator for managing PostgreSQL clusters on Kubernetes. Deploys a sample `Cluster` CR with a pre-configured database, and pgAdmin 4 as a web UI client — pre-registered with the sample cluster. Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/cloudnative-pg.md`).
+* Grafana Observability Stack showcase (`examples/grafana-stack/`) with Grafana, Prometheus, and Tempo deployed via Helm charts. Demonstrates OpenTelemetry instrumentation of the Kong AI Gateway plugins with span export to Tempo, and metrics collection by Prometheus. Includes a pre-configured Grafana dashboard for visualising AI plugin performance and costs, and documentation (`docs/showcases/grafana-stack.md`).
 * Strimzi Kafka cluster showcase (`examples/kafka-cluster/`) deploying a production-sized, KRaft-based Kafka cluster (no ZooKeeper) using the Strimzi operator 1.0.0. Includes 3 brokers in combined controller/broker mode via `KafkaNodePool`, Apicurio Registry (operator-managed, Kafka SQL storage), Kafka HTTP Bridge, and kafbat-ui as a web management console. Comes with k6 load tests for plain, JSON, and Avro message patterns (`examples/kafka-cluster/loadtest/`). Supports both HAProxy and Kong Gateway API ingress modes. Includes documentation (`docs/showcases/kafka-cluster.md`).
 * SeaweedFS showcase (`examples/seaweedfs/`) providing a self-contained, S3-compatible object store as a license-friendly (Apache-2.0) alternative to MinIO. Deploys a single-pod `weed server -filer -s3` `StatefulSet` with a 10 GiB PVC, a default `demo` bucket, and static Lab credentials. Intended as a reusable backup target / artifact store for other showcases. Includes documentation (`docs/showcases/seaweedfs.md`).
 * Velero Backup & Restore showcase (`examples/velero/`) demonstrating a full backup/restore lifecycle on the local cluster: nginx + PVC sample workload, Velero installed via the official Helm chart with the AWS plugin against the in-cluster SeaweedFS S3 endpoint, `node-agent` DaemonSet with Kopia-based file-system backup (no CSI snapshots required for k3d's local-path storage). Includes an end-to-end `demo.sh` (write data → backup → delete namespace → restore → verify) and an optional daily `Schedule`. Reuses the SeaweedFS showcase as a dependency (same pattern as External Secrets → OpenBao). Includes documentation (`docs/showcases/velero.md`).
 
 ### Changed
 
+* **Kong AI Gateway plugin consolidation**: reduced from 24 to 14 plugins and from 15 to 9 routes. Removed per-model routes and plugins (`ai-proxy-coder`, `ai-proxy-gemma`, `ai-proxy-ollama`, `ai-models-response-coder`, `ai-models-response-gemma`, `ai-models-response-enterprise`). All models are now routed through `ai-proxy-advanced-multimodel` on the unified `/ollama/*` route. Authentication unified to `ai-key-auth-or-oidc` everywhere (removed separate `ai-key-auth`). Removed unused plugins: `ai-block-anonymous`, `ai-model-acl`, `acl-anthropic`.
+* All AI route YAML files now contain the final plugin annotations directly (OIDC, semantic cache, nostream, tracing) instead of being patched at the end of `setup.sh`. The Enterprise route-patching block in `setup.sh` was removed.
+* `kong-ai-plugins.yaml` now contains only the `ai-force-nostream` pre-function plugin (was: `ai-proxy-ollama` + `ai-key-auth`).
+* `kong-ai-oidc-plugin.yaml` simplified: removed `ai-block-anonymous` request-termination plugin. The anonymous consumer remains for the OIDC fallback chain.
+* Kong Gateway Helm values (`examples/kong-gateway/values.yaml`): added `tracing_instrumentations: all` to enable OpenTelemetry span export.
+* Grafana values (`grafana-values.yaml`): added Tempo datasource (port 3200) with Service Map and Node Graph enabled. Added Kuma dashboard provider and ConfigMap.
+* Prometheus values (`prometheus-values.yaml`): added `kuma-dataplanes` scrape job using `kubernetes_sd_configs` with `kuma.io/sidecar-injected` annotation filter on port 5670. Added `web.enable-remote-write-receiver` flag for Tempo metrics generator.
+* Grafana AI dashboard (`grafana-dashboard-ai.json`): cost panels now use the pre-calculated `ai_llm_estimated_cost_usd` metric from the AI Metrics Exporter instead of inline token-price multiplication. Pricing reference table updated to show the inflated demo pricing.
+* `ai-proxy-advanced-multimodel` plugin: added `read_timeout: 300000` in balancer config to handle Ollama model swap delays. Removed `model_alias` field (requires Enterprise license to be loaded first).
+* `setup.sh`: Enterprise license wait loop now actively polls the Kong Admin API for plugin count (>50 = Enterprise) instead of a fixed `sleep 5`. Monitoring namespace is added to the Kuma mesh with sidecar injection when both monitoring and Kuma are enabled.
+* Kuma standalone values (`examples/kuma-mesh/standalone-cp-values.yaml`): changed `extraSecrets` from `[]` (array) to `{}` (map) to fix Helm template error with newer Kuma chart versions.
+
 ### Removed
 
+* Separate per-model routes and plugins: `kong-ai-route-coder.yaml`, `kong-ai-route-coder-internal.yaml`, `kong-ai-route-gemma.yaml`, `kong-ai-route-gemma-internal.yaml`, `kong-ai-route-models-extra.yaml` are no longer applied by `setup.sh`. Files remain on disk for reference.
+* `ai-proxy-ollama`, `ai-proxy-coder`, `ai-proxy-gemma` plugins (replaced by `ai-proxy-advanced-multimodel`).
+* `ai-key-auth` plugin (replaced by `ai-key-auth-or-oidc` on all routes).
+* `ai-block-anonymous`, `ai-model-acl`, `acl-anthropic` plugins (unused after consolidation).
+* `ai-models-response`, `ai-models-response-coder`, `ai-models-response-gemma`, `ai-models-response-enterprise` plugins (replaced by `ai-models-filtered` post-function).
+* Enterprise route-patching block at the end of `setup.sh` (routes now have correct annotations in their YAML files).
 * Confluent for Kubernetes showcase (`examples/confluent/`) — replaced by the Strimzi Kafka cluster showcase. Strimzi is CNCF-hosted, fully open-source, and supports the current KRaft-based Kafka deployment model without ZooKeeper.
 
 ### Fixed

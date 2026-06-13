@@ -1,0 +1,27 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-rate-limit
+  namespace: kong
+plugin: ai-rate-limiting-advanced
+config:
+  llm_providers:
+    - name: anthropic
+      limit:
+        - 10000
+      window_size:
+        - 60
+  strategy: local
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-prompt-guard
+  namespace: kong
+plugin: ai-prompt-guard
+config:
+  allow_patterns:
+    - ".*"
+  deny_patterns:
+    - "(?i)ignore (previous|all) instructions"
+    - "(?i)system prompt"

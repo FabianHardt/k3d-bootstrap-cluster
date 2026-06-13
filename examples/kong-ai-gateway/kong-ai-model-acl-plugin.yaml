@@ -1,0 +1,82 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-model-acl
+  namespace: kong
+plugin: pre-function
+config:
+  access:
+    - |
+      -- Model-level ACL enforcement based on OpenWebUI user role headers.
+      -- Maps Keycloak roles (forwarded by OpenWebUI) to allowed model prefixes.
+      local role_models = {
+        ["ai-dev"]   = { "llama", "qwen", "gemma" },
+        ["ai-lead"]  = { "llama", "qwen", "gemma", "gemini" },
+        ["ai-admin"] = { "llama", "qwen", "gemma", "gemini", "claude" },
+      }
+
+      -- Only enforce on chat completion requests (POST with JSON body)
+      if kong.request.get_method() ~= "POST" then
+        return
+      end
+
+      -- Skip ACL for embedding requests (RAG uses nomic-embed-text internally)
+      local path = kong.request.get_path()
+      if path and path:find("/embeddings", 1, true) then
+        return
+      end
+
+      local user_email = kong.request.get_header("X-OpenWebUI-User-Email")
+      if not user_email then
+        return  -- not from OpenWebUI, skip (API key ACL handles external requests)
+      end
+
+      local body, err = kong.request.get_body("application/json")
+      if not body or not body.model then
+        return
+      end
+
+      local model = body.model:lower()
+
+      -- Look up Keycloak role from Kong consumer (mapped via OIDC plugin)
+      -- Fallback: use X-OpenWebUI-User-Role if no consumer mapping
+      local role = nil
+      local consumer = kong.client.get_consumer()
+      if consumer then
+        -- Check consumer group memberships
+        local groups = kong.client.get_consumer_groups()
+        if groups then
+          for _, g in ipairs(groups) do
+            local gname = g.name or ""
+            if role_models[gname] then
+              role = gname
+              break
+            end
+          end
+        end
+      end
+
+      -- Fallback: map OpenWebUI email to role (matches Keycloak users)
+      if not role then
+        local email_role_map = {
+          ["dev@example.com"]   = "ai-dev",
+          ["lead@example.com"]  = "ai-lead",
+          ["admin@example.com"] = "ai-admin",
+        }
+        role = email_role_map[user_email] or "ai-dev"
+      end
+
+      local allowed = role_models[role] or role_models["ai-dev"]
+      local permitted = false
+      for _, prefix in ipairs(allowed) do
+        if model:find(prefix, 1, true) then
+          permitted = true
+          break
+        end
+      end
+
+      if not permitted then
+        return kong.response.exit(403, {
+          message = "Model '" .. body.model .. "' is not available for your role. Contact your admin for access."
+        })
+      end

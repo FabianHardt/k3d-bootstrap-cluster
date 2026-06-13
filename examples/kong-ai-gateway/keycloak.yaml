@@ -1,0 +1,213 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: ai-platform
+data:
+  realm.json: |
+    {
+      "realm": "ai-platform",
+      "enabled": true,
+      "sslRequired": "none",
+      "registrationAllowed": false,
+      "clients": [
+        {
+          "clientId": "kong-ai-gateway",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "kong-ai-gateway-secret",
+          "redirectUris": ["https://chat.example.com:8081/*"],
+          "webOrigins": ["https://chat.example.com:8081"],
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "attributes": {
+            "post.logout.redirect.uris": "https://chat.example.com:8081/*"
+          }
+        }
+      ],
+      "roles": {
+        "realm": [
+          { "name": "ai-dev", "description": "Developer — Ollama only" },
+          { "name": "ai-lead", "description": "Team Lead — Ollama + Gemini" },
+          { "name": "ai-admin", "description": "Admin — All providers" }
+        ]
+      },
+      "users": [
+        {
+          "username": "dev",
+          "enabled": true,
+          "firstName": "Alex",
+          "lastName": "Developer",
+          "email": "dev@example.com",
+          "credentials": [
+            {
+              "type": "password",
+              "value": "dev",
+              "temporary": false
+            }
+          ],
+          "realmRoles": ["ai-dev"]
+        },
+        {
+          "username": "lead",
+          "enabled": true,
+          "firstName": "Jordan",
+          "lastName": "TeamLead",
+          "email": "lead@example.com",
+          "credentials": [
+            {
+              "type": "password",
+              "value": "lead",
+              "temporary": false
+            }
+          ],
+          "realmRoles": ["ai-lead"]
+        },
+        {
+          "username": "admin",
+          "enabled": true,
+          "firstName": "Sam",
+          "lastName": "Admin",
+          "email": "admin@example.com",
+          "credentials": [
+            {
+              "type": "password",
+              "value": "admin",
+              "temporary": false
+            }
+          ],
+          "realmRoles": ["ai-admin"]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: ai-platform
+  labels:
+    app: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+        kuma.io/sidecar-injection: enabled
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.2.4
+          args:
+            - start-dev
+            - --import-realm
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: "admin"
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              value: "admin"
+            - name: KC_PROXY_HEADERS
+              value: "xforwarded"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_HOSTNAME
+              value: "https://keycloak.example.com:8081"
+            - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+              value: "true"
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+          volumeMounts:
+            - name: realm-config
+              mountPath: /opt/keycloak/data/import
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: realm-config
+          configMap:
+            name: keycloak-realm-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: ai-platform
+  labels:
+    app: keycloak
+  annotations:
+    konghq.com/service-upstream: "true"
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+      appProtocol: http
+    - name: http-direct
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+      appProtocol: http
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: keycloak-cors
+  namespace: ai-platform
+plugin: cors
+config:
+  origins:
+    - "https://chat.example.com:8081"
+  methods:
+    - GET
+    - POST
+    - OPTIONS
+  headers:
+    - Accept
+    - Authorization
+    - Content-Type
+  credentials: true
+  max_age: 3600
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: keycloak
+  namespace: ai-platform
+  annotations:
+    konghq.com/strip-path: "false"
+    konghq.com/plugins: keycloak-cors
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  hostnames:
+    - "keycloak.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: keycloak
+          port: 80

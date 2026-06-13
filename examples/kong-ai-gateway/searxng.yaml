@@ -1,0 +1,91 @@
+# SearXNG settings override — enable JSON API and disable bot detection
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searxng-settings
+  namespace: ai-platform
+data:
+  settings.yml: |
+    use_default_settings: true
+    server:
+      secret_key: "k3d-searxng-secret"
+      limiter: false
+      public_instance: false
+    search:
+      formats:
+        - html
+        - json
+---
+# SearXNG — privacy-respecting meta search engine
+# Aggregates results from Google, Bing, DuckDuckGo, Wikipedia, etc.
+# Used as backend for the MCP search tool server.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: ai-platform
+  labels:
+    app: searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+        kuma.io/sidecar-injection: enabled
+    spec:
+      containers:
+        - name: searxng
+          image: searxng/searxng:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            # Override K8s-injected SEARXNG_PORT (tcp://ClusterIP:8080 → 8080)
+            - name: SEARXNG_PORT
+              value: "8080"
+            - name: SEARXNG_BIND_ADDRESS
+              value: "0.0.0.0"
+          volumeMounts:
+            - name: settings
+              mountPath: /etc/searxng/settings.yml
+              subPath: settings.yml
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: settings
+          configMap:
+            name: searxng-settings
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: searxng
+  namespace: ai-platform
+  labels:
+    app: searxng
+  annotations:
+    konghq.com/service-upstream: "true"
+spec:
+  selector:
+    app: searxng
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+      appProtocol: http

@@ -1,0 +1,69 @@
+# MCP Server for SearXNG — exposes web search as an MCP tool
+# Streamable HTTP transport on port 3000 (/mcp endpoint)
+# OpenWebUI connects to this via Kong for authenticated MCP tool access.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-searxng
+  namespace: ai-platform
+  labels:
+    app: mcp-searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-searxng
+  template:
+    metadata:
+      labels:
+        app: mcp-searxng
+        kuma.io/sidecar-injection: enabled
+    spec:
+      containers:
+        - name: mcp-searxng
+          image: isokoliuk/mcp-searxng:latest
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: SEARXNG_URL
+              value: "http://searxng.ai-platform.svc.cluster.local:8080"
+            - name: MCP_HTTP_PORT
+              value: "3000"
+            # Bind on all interfaces: the server defaults to 127.0.0.1, which
+            # makes the readiness probe (and Kong/OpenWebUI) get "connection
+            # refused" on the pod IP. 0.0.0.0 exposes it cluster-wide.
+            - name: MCP_HTTP_HOST
+              value: "0.0.0.0"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-searxng
+  namespace: ai-platform
+  labels:
+    app: mcp-searxng
+  annotations:
+    konghq.com/service-upstream: "true"
+spec:
+  selector:
+    app: mcp-searxng
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+      appProtocol: http

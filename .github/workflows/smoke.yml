@@ -8,7 +8,11 @@ name: smoke
 #   - cluster-api    (creates a nested k3d workload cluster via docker.sock)
 #   - kuma-mesh, kong-gateway-operator (long dependency chains)
 # The calico showcase is plain NetworkPolicy YAML and is covered by the
-# calico bootstrap variant; kong-ai-gateway has no setup script.
+# calico bootstrap variant. The kong-ai-gateway showcase runs as an
+# experimental smoke (heavy: pulls a local LLM via Ollama): without an
+# Enterprise license it boots the minimal stack non-interactively and we
+# only assert the core workloads roll out. The full external AI routes are
+# Enterprise-gated and exercised by the Playwright browser-tests instead.
 
 on:
   pull_request:
@@ -207,6 +211,22 @@ jobs:
               kubectl -n kong wait deployment --all \
                 --for=condition=Available --timeout=600s
 
+          # Minimal (no Enterprise license) path: boots Ollama + OpenWebUI +
+          # the SearXNG MCP tool server and pulls the llama3.2:1b model. The
+          # external Kong AI routes need Enterprise plugins (ai-proxy-advanced,
+          # ai-key-auth-or-oidc) and are covered by the Playwright browser-tests,
+          # so here we only assert the core workloads come up and Ollama serves
+          # the local model.
+          - showcase: kong-ai-gateway
+            flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
+            experimental: true
+            verify: |
+              kubectl -n ai-platform rollout status deployment/ollama --timeout=600s
+              kubectl -n ai-platform rollout status deployment/searxng --timeout=300s
+              kubectl -n ai-platform rollout status deployment/mcp-searxng --timeout=300s
+              kubectl -n ai-platform rollout status statefulset/open-webui --timeout=300s
+              kubectl -n ai-platform exec deployment/ollama -- ollama list | grep -q 'llama3.2:1b'
+
           - showcase: kafka-cluster
             flags: AGENTS=3 CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
             experimental: true
@@ -235,7 +255,7 @@ jobs:
 
       - name: Run showcase setup
         working-directory: examples/${{ matrix.showcase }}
-        run: bash setup.sh
+        run: env NON_INTERACTIVE=1 bash setup.sh
 
       - name: Verify showcase
         run: ${{ matrix.verify }}

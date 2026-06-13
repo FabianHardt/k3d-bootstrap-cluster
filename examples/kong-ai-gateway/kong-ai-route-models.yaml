@@ -1,0 +1,54 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-models-ollama
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-key-auth-or-oidc,ai-oidc,ai-models-filtered
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  hostnames:
+    - "ai.example.com"
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /ollama/v1/models
+      timeouts:
+        backendRequest: "300s"
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: /v1/models
+      backendRefs:
+        - name: ollama
+          namespace: ai-platform
+          port: 11434
+---
+# Internal model route (no hostname — matches OpenWebUI requests)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-models-ollama-internal
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-key-auth-or-oidc,ai-models-filtered
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /ollama/v1/models
+      timeouts:
+        backendRequest: "300s"
+      backendRefs:
+        - name: ollama
+          namespace: ai-platform
+          port: 11434

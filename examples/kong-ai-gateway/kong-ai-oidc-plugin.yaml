@@ -1,0 +1,33 @@
+# Anonymous consumer — fallback when neither key-auth nor OIDC succeeds
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: anonymous-consumer
+  namespace: kong
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: anonymous
+---
+# OIDC plugin for JWT validation and consumer mapping
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-oidc
+  namespace: kong
+plugin: openid-connect
+config:
+  issuer: "http://keycloak.ai-platform.svc.cluster.local:8080/realms/ai-platform"
+  auth_methods:
+    - bearer
+  bearer_token_param_type:
+    - header
+  consumer_by:
+    - custom_id
+  consumer_claim:
+    - preferred_username
+  consumer_optional: true
+  anonymous: anonymous
+  extra_jwks_uris:
+    - "http://keycloak.ai-platform.svc.cluster.local:8080/realms/ai-platform/protocol/openid-connect/certs"
+  verify_signature: true
+  cache_ttl: 300

@@ -1,0 +1,68 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-models-filtered
+  namespace: kong
+plugin: post-function
+config:
+  access:
+    - |
+      local cjson = require("cjson")
+
+      -- Models grouped by access level
+      local base_models = {
+        {id = "llama3.2:1b", object = "model", created = 1700000000, owned_by = "ollama"},
+        {id = "qwen2.5-coder:1.5b", object = "model", created = 1700000000, owned_by = "ollama"},
+        {id = "gemma3:1b", object = "model", created = 1700000000, owned_by = "ollama"},
+      }
+      local gemini_models = {
+        {id = "gemini-2.5-flash", object = "model", created = 1700000000, owned_by = "google"},
+      }
+      local anthropic_models = {
+        {id = "claude-haiku-3-5-20241022", object = "model", created = 1700000000, owned_by = "anthropic"},
+      }
+
+      -- Determine user role
+      local role = "ai-dev"
+
+      -- 1. OpenWebUI: forwarded user identity
+      local owui_email = kong.request.get_header("X-OpenWebUI-User-Email")
+      if owui_email then
+        local email_role_map = {
+          ["dev@example.com"]   = "ai-dev",
+          ["lead@example.com"]  = "ai-lead",
+          ["admin@example.com"] = "ai-admin",
+        }
+        role = email_role_map[owui_email] or "ai-dev"
+      else
+        -- 2. Direct API: consumer identity
+        local consumer = kong.client.get_consumer()
+        if consumer then
+          local cid = consumer.custom_id or ""
+          if cid == "admin" then role = "ai-admin"
+          elseif cid == "lead" then role = "ai-lead"
+          end
+        end
+      end
+
+      -- Build filtered model list
+      local models = {}
+      for _, m in ipairs(base_models) do
+        models[#models + 1] = m
+      end
+
+      if role == "ai-lead" or role == "ai-admin" then
+        for _, m in ipairs(gemini_models) do
+          models[#models + 1] = m
+        end
+      end
+
+      if role == "ai-admin" then
+        for _, m in ipairs(anthropic_models) do
+          models[#models + 1] = m
+        end
+      end
+
+      return kong.response.exit(200, cjson.encode({object = "list", data = models}), {
+        ["Content-Type"] = "application/json"
+      })

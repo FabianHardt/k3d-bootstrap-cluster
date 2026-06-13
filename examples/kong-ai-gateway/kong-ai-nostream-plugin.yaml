@@ -1,0 +1,20 @@
+# Force stream:false on requests to get full response body for token metrics
+# Requires KONG_UNTRUSTED_LUA=on
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-force-nostream
+  namespace: kong
+plugin: pre-function
+config:
+  access:
+    - |
+      local body = kong.request.get_raw_body()
+      if body then
+        local new_body = string.gsub(body, '"stream":true', '"stream":false')
+        new_body = string.gsub(new_body, '"stream": true', '"stream": false')
+        if new_body ~= body then
+          kong.service.request.set_raw_body(new_body)
+          kong.service.request.set_header("Content-Length", tostring(#new_body))
+        end
+      end

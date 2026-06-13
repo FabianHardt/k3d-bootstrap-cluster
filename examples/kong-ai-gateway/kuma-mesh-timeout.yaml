@@ -1,0 +1,40 @@
+# Override Kuma's default route timeouts and retries for LLM traffic.
+# Defaults: timeout=15s, idle_timeout=5s, per_try_timeout=16s, retries=5.
+# LLM inference can take 60s+ and has idle gaps during token generation.
+apiVersion: kuma.io/v1alpha1
+kind: MeshTimeout
+metadata:
+  name: kong-to-ollama-timeout
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  to:
+    - targetRef:
+        kind: MeshService
+        name: ollama_ai-platform_svc_11434
+      default:
+        http:
+          requestTimeout: 300s
+          streamIdleTimeout: 300s
+---
+# Disable retries for LLM traffic — retrying a 60s inference wastes resources.
+apiVersion: kuma.io/v1alpha1
+kind: MeshRetry
+metadata:
+  name: kong-to-ollama-retry
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  to:
+    - targetRef:
+        kind: MeshService
+        name: ollama_ai-platform_svc_11434
+      default:
+        http:
+          numRetries: 0

@@ -1,0 +1,20 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-proxy-gemini-internal
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-model-acl,ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc,ai-http-log
+    konghq.com/strip-path: "true"
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /gemini-internal
+      backendRefs:
+        - name: kong-gateway-admin
+          port: 8001

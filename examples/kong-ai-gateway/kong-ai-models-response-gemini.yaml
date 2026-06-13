@@ -1,0 +1,10 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-models-response-gemini
+  namespace: kong
+plugin: request-termination
+config:
+  status_code: 200
+  content_type: "application/json"
+  body: '{"object":"list","data":[{"id":"gemini-2.5-flash","object":"model","created":1700000000,"owned_by":"google"}]}'

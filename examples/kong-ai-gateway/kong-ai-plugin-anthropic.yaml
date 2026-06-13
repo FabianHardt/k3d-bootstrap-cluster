@@ -1,0 +1,17 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-anthropic
+  namespace: kong
+plugin: ai-proxy
+config:
+  route_type: "llm/v1/chat"
+  auth:
+    header_name: "x-api-key"
+    header_value: "{vault://my-env/ANTHROPIC_API_KEY}"
+  model:
+    provider: anthropic
+    name: claude-haiku-3-5-20241022
+    options:
+      max_tokens: 4096
+      anthropic_version: "2023-06-01"
