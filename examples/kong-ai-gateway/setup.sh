@@ -6,6 +6,17 @@ GEMINI_ENABLED=false
 ANTHROPIC_ENABLED=false
 MONITORING_ENABLED=false
 
+# NON_INTERACTIVE=1 skips every interactive prompt and falls back to safe
+# defaults (no OpenBao, no external provider keys, no monitoring, no Kuma).
+# Used by the CI smoke test. Individual choices can still be forced by
+# exporting the matching variable before running the script.
+NON_INTERACTIVE="${NON_INTERACTIVE:-}"
+DEPLOY_OPENBAO="${DEPLOY_OPENBAO:-}"
+DEPLOY_MONITORING="${DEPLOY_MONITORING:-}"
+DEPLOY_KUMA="${DEPLOY_KUMA:-}"
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+
 # --- Preconditions ---
 echo "Checking prerequisites..."
 
@@ -29,7 +40,9 @@ kubectl create namespace ai-platform || true
 
 # --- OpenBao + cert-manager (optional) ---
 echo ""
-read -r -p "Deploy OpenBao & cert-manager for TLS certificates? (y/N): " DEPLOY_OPENBAO
+if [[ -z "${NON_INTERACTIVE}" ]]; then
+  read -r -p "Deploy OpenBao & cert-manager for TLS certificates? (y/N): " DEPLOY_OPENBAO
+fi
 
 if [[ "${DEPLOY_OPENBAO}" =~ ^[Yy]$ ]]; then
   OPENBAO_EXISTS=$(kubectl get ns openbao 2>/dev/null || echo "false")
@@ -75,8 +88,10 @@ fi
 
 # --- Gemini API Key (optional) ---
 echo ""
-read -r -s -p "Enter your Google Gemini API Key (optional, press Enter to skip): " GEMINI_API_KEY
-echo ""
+if [[ -z "${NON_INTERACTIVE}" ]]; then
+  read -r -s -p "Enter your Google Gemini API Key (optional, press Enter to skip): " GEMINI_API_KEY
+  echo ""
+fi
 
 if [[ -n "${GEMINI_API_KEY}" ]]; then
   GEMINI_ENABLED=true
@@ -96,8 +111,10 @@ if [[ -n "${GEMINI_API_KEY}" ]]; then
 fi
 
 # --- Anthropic API Key (optional) ---
-read -r -s -p "Enter your Anthropic API Key (optional, press Enter to skip): " ANTHROPIC_API_KEY
-echo ""
+if [[ -z "${NON_INTERACTIVE}" ]]; then
+  read -r -s -p "Enter your Anthropic API Key (optional, press Enter to skip): " ANTHROPIC_API_KEY
+  echo ""
+fi
 
 if [[ -n "${ANTHROPIC_API_KEY}" ]]; then
   ANTHROPIC_ENABLED=true
@@ -344,7 +361,9 @@ echo "  Internal endpoint: http://kong-gateway-proxy.kong.svc.cluster.local:8000
 
 # --- Monitoring (optional) ---
 echo ""
-read -r -p "Deploy Monitoring (Prometheus + Grafana) for AI metrics? (y/N): " DEPLOY_MONITORING
+if [[ -z "${NON_INTERACTIVE}" ]]; then
+  read -r -p "Deploy Monitoring (Prometheus + Grafana) for AI metrics? (y/N): " DEPLOY_MONITORING
+fi
 
 if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
   MONITORING_ENABLED=true
@@ -400,7 +419,9 @@ fi
 
 # --- Kuma Service Mesh / mTLS (optional) ---
 echo ""
-read -r -p "Enable Kuma Service Mesh with mTLS for confidential computing? (y/N): " DEPLOY_KUMA
+if [[ -z "${NON_INTERACTIVE}" ]]; then
+  read -r -p "Enable Kuma Service Mesh with mTLS for confidential computing? (y/N): " DEPLOY_KUMA
+fi
 
 KUMA_ENABLED=false
 if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
