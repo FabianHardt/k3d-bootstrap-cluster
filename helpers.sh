@@ -121,8 +121,23 @@ deployCilium()
 
   # Pull on the host and import: in-node pulls can stall on NATed networks
   # (e.g. Docker Desktop), and the nodes have no CNI yet anyway.
-  docker pull quay.io/cilium/cilium:v${CILIUM_VERSION}
-  docker pull quay.io/cilium/operator-generic:v${CILIUM_VERSION}
+  #
+  # Pin --platform to the node architecture. With Docker Desktop's containerd
+  # image store a bare pull keeps the full multi-arch manifest, and
+  # "k3d image import" of such an image fails on every node with
+  # "ctr/tr: content digest sha256:...: not found" (the exported index
+  # references blobs for other platforms that aren't present). A
+  # single-platform image exports and imports cleanly. The classic image
+  # store already stores only the host platform, so this is a no-op there.
+  # Derive the arch from uname(1) so it does not depend on the container
+  # runtime being Docker (works the same under a podman/docker shim).
+  case "$(uname -m)" in
+    x86_64 | amd64) NODE_ARCH=amd64 ;;
+    aarch64 | arm64) NODE_ARCH=arm64 ;;
+    *) NODE_ARCH="$(uname -m)" ;;
+  esac
+  docker pull --platform "linux/${NODE_ARCH}" quay.io/cilium/cilium:v${CILIUM_VERSION}
+  docker pull --platform "linux/${NODE_ARCH}" quay.io/cilium/operator-generic:v${CILIUM_VERSION}
   k3d image import -c ${CLUSTER_NAME} \
     quay.io/cilium/cilium:v${CILIUM_VERSION} \
     quay.io/cilium/operator-generic:v${CILIUM_VERSION}
