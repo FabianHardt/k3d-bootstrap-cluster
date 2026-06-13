@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* `examples/kong-ai-gateway/mcp-searxng.yaml`: the SearXNG MCP server now binds on `0.0.0.0` (`MCP_HTTP_HOST`). Newer `isokoliuk/mcp-searxng:latest` images default the HTTP transport to `127.0.0.1`, so the readiness probe (and Kong/OpenWebUI) hit "connection refused" on the pod IP and the deployment never became Available — `setup.sh` failed at the `mcp-searxng` wait. Surfaced by the new Kong AI Gateway smoke test.
 * `examples/kong-gateway/setup.sh`: applying the experimental Gateway API CRDs no longer races the just-deleted `safe-upgrades` ValidatingAdmissionPolicy — the script now waits for the deletion to propagate through the API server's admission cache. Found by the CI smoke tests. (#61)
 
 ## [1.4.0] - 2026-06-03

@@ -30,6 +30,11 @@ spec:
               value: "http://searxng.ai-platform.svc.cluster.local:8080"
             - name: MCP_HTTP_PORT
               value: "3000"
+            # Bind on all interfaces: the server defaults to 127.0.0.1, which
+            # makes the readiness probe (and Kong/OpenWebUI) get "connection
+            # refused" on the pod IP. 0.0.0.0 exposes it cluster-wide.
+            - name: MCP_HTTP_HOST
+              value: "0.0.0.0"
           readinessProbe:
             httpGet:
               path: /health
