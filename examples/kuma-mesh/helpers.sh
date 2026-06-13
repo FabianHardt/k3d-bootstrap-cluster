@@ -1,8 +1,25 @@
 #!/bin/bash
 
 installKumaStandalone() {
+# Kuma CNI runs "chained": it appends itself to the primary CNI's conflist.
+# That conflist is named differently per CNI, and a wrong name makes the
+# kuma-cni-node DaemonSet crash-loop — which leaves Kuma's NodeReadiness
+# NoSchedule taint on every node, so any newly created pod stays Pending.
+# Detect the active CNI instead of assuming Calico (the cluster defaults to
+# Cilium since Cilium became the default CNI).
+local cni_conf
+if kubectl -n kube-system get daemonset cilium >/dev/null 2>&1; then
+  cni_conf=05-cilium.conflist
+elif kubectl -n kube-system get daemonset calico-node >/dev/null 2>&1; then
+  cni_conf=10-calico.conflist
+else
+  cni_conf=10-flannel.conflist
+fi
+echo "Kuma CNI will chain onto the primary CNI conflist: ${cni_conf}"
+
 helm upgrade --install kuma kuma/kuma \
     --values standalone-cp-values.yaml \
+    --set cni.confName="${cni_conf}" \
     --namespace kuma-cp --create-namespace
 kubectl wait deployment kuma-control-plane -n kuma-cp --for=condition=Available=true --timeout=300s
 # Wait for the mutating webhook to be ready before any sidecar injection can happen
