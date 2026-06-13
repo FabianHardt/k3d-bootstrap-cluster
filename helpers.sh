@@ -31,6 +31,40 @@ bottom()
   echo -e "-------------------------------------"
 }
 
+checkPrerequisites()
+{
+  top "Checking prerequisites"
+
+  # Required CLI tools. k3d drives the container engine through the Docker
+  # API, so a Docker-compatible CLI + engine is mandatory.
+  missing=""
+  for tool in docker k3d kubectl helm jq
+  do
+    command -v "${tool}" >/dev/null 2>&1 || missing="${missing} ${tool}"
+  done
+  if [ -n "${missing}" ]
+  then
+    echo "ERROR: missing required tool(s):${missing}"
+    echo "Install them and make sure they are on your PATH (see README.md)."
+    exit 1
+  fi
+
+  # A reachable Docker engine is required. This catches a stopped Docker
+  # Desktop / Colima, and Rancher Desktop configured with the containerd
+  # engine (no Docker socket, so k3d cannot run).
+  if ! docker info >/dev/null 2>&1
+  then
+    echo "ERROR: cannot reach a Docker engine ('docker info' failed)."
+    echo "  - Docker Desktop / Colima: make sure the VM is running."
+    echo "  - Rancher Desktop: choose the 'dockerd (moby)' container engine,"
+    echo "    not 'containerd' — k3d needs a Docker socket."
+    exit 1
+  fi
+
+  echo "All required tools found; Docker engine reachable."
+  bottom
+}
+
 configValues ()
 {
   DEMO_DOMAIN=127-0-0-1.nip.io
