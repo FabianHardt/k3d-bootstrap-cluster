@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * CI smoke test for the Kong AI Gateway showcase (`examples/kong-ai-gateway/`). Runs as an experimental `showcase (kong-ai-gateway)` matrix job that boots the minimal stack (Ollama + `llama3.2:1b`, OpenWebUI, SearXNG MCP tool server) non-interactively and asserts the core workloads roll out and Ollama serves the local model. To support it, `setup.sh` now honours `NON_INTERACTIVE=1` (skips all prompts, safe defaults) and the smoke workflow runs every showcase setup non-interactively. The Enterprise-gated external AI routes remain covered by the Playwright browser-tests.
 * HAProxy Ingress Controller as a standalone, opt-in showcase (`examples/haproxy/setup.sh`, `docs/showcases/haproxy.md`). Installs HAProxy as a secondary, non-default `IngressClass` (`haproxy`) alongside the cluster's default Kong Gateway for users who want to experiment with classic `Ingress` resources.
-* Cilium CNI (1.19.4) as the new default CNI in the interactive cluster setup (`CILIUM_FLAG`, default Yes), replacing Flannel. Installed from the host via Helm right after cluster creation, since a k3s `HelmChart` manifest cannot bootstrap a CNI (its install job is never scheduled on the CNI-less nodes). The Cilium images are pulled on the host and loaded into the nodes with `k3d image import` so the bootstrap also works on slow or NATed networks. A k3d node entrypoint script (`manifests/k3d-entrypoint-cilium.sh`) prepares the bpffs and cgroup2 mounts that the Cilium agent requires inside the k3s node containers. The CI smoke tests cover the new default with a dedicated `cilium` bootstrap variant.
+* Cilium CNI (1.19.4) as the new default CNI in the interactive cluster setup (`CILIUM_FLAG`, default Yes), replacing Flannel. Installed from the host via Helm right after cluster creation, since a k3s `HelmChart` manifest cannot bootstrap a CNI (its install job is never scheduled on the CNI-less nodes). The Cilium images are pulled on the host and loaded into the nodes with `k3d image import` so the bootstrap also works on slow or NATed networks. A k3d node entrypoint script (`manifests/k3d-entrypoint-cilium.sh`) prepares the bpffs and cgroup2 mounts that the Cilium agent requires inside the k3s node containers. The CI smoke tests cover the new default with a dedicated `cilium` bootstrap variant. (#62, #65)
+* Non-interactive mode for `create-sample.sh`: `NON_INTERACTIVE=1` skips all prompts, and every default can be overridden via environment variable (`CLUSTER_NAME`, `SERVERS`, `AGENTS`, ports, component flags). Documented in the README. (#61)
+* CI: static linting workflow (`.github/workflows/lint.yml`) running shellcheck, yamllint and kubeconform over all shell scripts and Kubernetes manifests. (#60)
+* CI: k3d cluster smoke tests (`.github/workflows/smoke.yml`) — bootstrap matrix plus one job per showcase boots a real cluster on every PR and verifies it end-to-end (`kubectl wait`, curl through the ingress). The runner pins the nip.io hostnames to loopback to avoid flaky external DNS resolution. (#61, #64)
+* CI: documentation previews for pull requests, deployed via the `gh-pages` branch. (#59)
 
 ### Changed
 
@@ -23,8 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `HAPROXY_FLAG` and the HAProxy bootstrap prompt from `create-sample.sh` / `helpers.sh`.
 * `manifests/haproxy-helm.yaml`, `httpbin/sample-ingress-haproxy.yaml`, `httpbin/sample-ingress.yaml` (Traefik fallback) — superseded by the Kong-only `httpbin/sample-httproute-kong.yaml`.
 * HAProxy-specific variants from showcases: `examples/openbao/{cert-ingress.yaml,openbao-values.yaml}`, `examples/cloudnative-pg/pgadmin-values.yaml`, `examples/kafka-cluster/kafka-ui/kafka-ui-values.yaml`, `examples/external-dns/update-httpbin-ingress.yaml`, `examples/velero/nginx-ingress-haproxy.yaml`, `examples/crossplane/platform/04-composition-haproxy.yaml`, `examples/kyverno/policy-reporter-ingress.yml`.
+* Leftover Confluent showcase (`examples/confluent/`) and its stale README/docs references — the Kafka showcase had already been migrated to Strimzi in 1.4.0. (#63)
 
 ### Fixed
+
+* `examples/kong-gateway/setup.sh`: applying the experimental Gateway API CRDs no longer races the just-deleted `safe-upgrades` ValidatingAdmissionPolicy — the script now waits for the deletion to propagate through the API server's admission cache. Found by the CI smoke tests. (#61)
 
 ## [1.4.0] - 2026-06-03
 
