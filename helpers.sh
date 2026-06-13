@@ -155,26 +155,37 @@ deployCilium()
 
   # Pull on the host and import: in-node pulls can stall on NATed networks
   # (e.g. Docker Desktop), and the nodes have no CNI yet anyway.
-  #
-  # Pin --platform to the node architecture. With Docker Desktop's containerd
-  # image store a bare pull keeps the full multi-arch manifest, and
-  # "k3d image import" of such an image fails on every node with
-  # "ctr/tr: content digest sha256:...: not found" (the exported index
-  # references blobs for other platforms that aren't present). A
-  # single-platform image exports and imports cleanly. The classic image
-  # store already stores only the host platform, so this is a no-op there.
-  # Derive the arch from uname(1) so it does not depend on the container
-  # runtime being Docker (works the same under a podman/docker shim).
+  docker pull quay.io/cilium/cilium:v${CILIUM_VERSION}
+  docker pull quay.io/cilium/operator-generic:v${CILIUM_VERSION}
+
+  # Import a single-platform tarball for the node architecture. Docker
+  # Desktop / Rancher Desktop with the containerd image store keep the full
+  # multi-arch index locally even after a "--platform" pull, so
+  # "k3d image import <image>" exports the index and the node-side ctr aborts
+  # on the absent other-platform blobs ("content digest sha256:...: not
+  # found"). "docker save --platform" exports only the node's platform, which
+  # imports cleanly. Daemons without that flag (older Docker, whose classic
+  # store is single-platform anyway) fall back to a plain import. The arch is
+  # derived from uname(1) so it does not depend on the runtime being Docker.
   case "$(uname -m)" in
     x86_64 | amd64) NODE_ARCH=amd64 ;;
     aarch64 | arm64) NODE_ARCH=arm64 ;;
     *) NODE_ARCH="$(uname -m)" ;;
   esac
-  docker pull --platform "linux/${NODE_ARCH}" quay.io/cilium/cilium:v${CILIUM_VERSION}
-  docker pull --platform "linux/${NODE_ARCH}" quay.io/cilium/operator-generic:v${CILIUM_VERSION}
-  k3d image import -c ${CLUSTER_NAME} \
-    quay.io/cilium/cilium:v${CILIUM_VERSION} \
-    quay.io/cilium/operator-generic:v${CILIUM_VERSION}
+  if docker save --help 2>&1 | grep -q -- '--platform'
+  then
+    CILIUM_IMG_TAR=$(mktemp -t cilium-images.XXXXXX)
+    docker save --platform "linux/${NODE_ARCH}" \
+      quay.io/cilium/cilium:v${CILIUM_VERSION} \
+      quay.io/cilium/operator-generic:v${CILIUM_VERSION} \
+      -o "${CILIUM_IMG_TAR}"
+    k3d image import -c ${CLUSTER_NAME} "${CILIUM_IMG_TAR}"
+    rm -f "${CILIUM_IMG_TAR}"
+  else
+    k3d image import -c ${CLUSTER_NAME} \
+      quay.io/cilium/cilium:v${CILIUM_VERSION} \
+      quay.io/cilium/operator-generic:v${CILIUM_VERSION}
+  fi
 
   helm repo add cilium https://helm.cilium.io || true
   helm repo update cilium
