@@ -17,3 +17,12 @@ cgroup:
   autoMount:
     enabled: false
   hostRoot: /run/cilium/cgroupv2
+# Let other CNI plugins chain onto Cilium's conflist. The Kuma service-mesh
+# CNI (kuma-mesh / kong-ai-gateway showcases) appends a kuma-cni plugin to
+# /etc/cni/net.d/05-cilium.conflist. With the default cni.exclusive=true
+# Cilium keeps rewriting that file and strips the chained entry, so
+# kuma-cni-node crash-loops, the NodeReadiness taint is never cleared and the
+# Kuma transparent proxy is never installed (meshed pods then fail their
+# kuma-validation init container).
+cni:
+  exclusive: false
