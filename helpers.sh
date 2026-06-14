@@ -164,13 +164,13 @@ deployCilium()
   esac
   if docker save --help 2>&1 | grep -q -- '--platform'
   then
-    CILIUM_IMG_TAR=$(mktemp -t cilium-images.XXXXXX)
+    CILIUM_IMG_TAR=$(mktemp)
+    trap 'rm -f "${CILIUM_IMG_TAR}"' RETURN
     docker save --platform "linux/${NODE_ARCH}" \
       quay.io/cilium/cilium:v${CILIUM_VERSION} \
       quay.io/cilium/operator-generic:v${CILIUM_VERSION} \
       -o "${CILIUM_IMG_TAR}"
     k3d image import -c ${CLUSTER_NAME} "${CILIUM_IMG_TAR}"
-    rm -f "${CILIUM_IMG_TAR}"
   else
     k3d image import -c ${CLUSTER_NAME} \
       quay.io/cilium/cilium:v${CILIUM_VERSION} \

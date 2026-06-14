@@ -17,6 +17,10 @@ for _ in $(seq 1 60); do
   kubectl -n openbao get pod openbao-0 >/dev/null 2>&1 && break
   sleep 2
 done
+if ! kubectl -n openbao get pod openbao-0 >/dev/null 2>&1; then
+  echo "ERROR: openbao-0 was not created within ~2min — check the StatefulSet/helm release." >&2
+  exit 1
+fi
 kubectl wait --for=jsonpath='{.status.phase}'=Running pod openbao-0 -n openbao --timeout=300s || exit 1
 
 kubectl -n openbao exec openbao-0 -- bao operator init -key-shares=1 -key-threshold=1 \
