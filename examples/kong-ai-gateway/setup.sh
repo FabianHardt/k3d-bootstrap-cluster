@@ -6,10 +6,8 @@ GEMINI_ENABLED=false
 ANTHROPIC_ENABLED=false
 MONITORING_ENABLED=false
 
-# NON_INTERACTIVE=1 skips every interactive prompt and falls back to safe
-# defaults (no OpenBao, no external provider keys, no monitoring, no Kuma).
-# Used by the CI smoke test. Individual choices can still be forced by
-# exporting the matching variable before running the script.
+# NON_INTERACTIVE=1 skips all prompts and uses safe defaults; per-choice env
+# vars still override (see complete-setup.sh and the docs).
 NON_INTERACTIVE="${NON_INTERACTIVE:-}"
 DEPLOY_OPENBAO="${DEPLOY_OPENBAO:-}"
 DEPLOY_MONITORING="${DEPLOY_MONITORING:-}"

@@ -16,6 +16,8 @@ CAPI_FLAG=${CAPI_FLAG:-No}
 
 source helpers.sh
 
+checkPrerequisites
+
 export K3D_FIX_DNS=1
 export K3D_FIX_MOUNTS=1
 

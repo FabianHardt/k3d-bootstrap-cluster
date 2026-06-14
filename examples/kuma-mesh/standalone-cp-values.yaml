@@ -141,7 +141,8 @@ cni:
   chained: true
   netDir: /etc/cni/net.d
   binDir: /opt/cni/bin
-  confName: 10-calico.conflist
+  # Overridden per detected CNI by installKumaStandalone (see CHANGELOG).
+  confName: 05-cilium.conflist
   logLevel: info
   nodeSelector:
     kubernetes.io/os: linux

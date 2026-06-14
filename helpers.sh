@@ -31,6 +31,37 @@ bottom()
   echo -e "-------------------------------------"
 }
 
+checkPrerequisites()
+{
+  top "Checking prerequisites"
+
+  # Required CLI tools.
+  missing=""
+  for tool in docker k3d kubectl helm jq
+  do
+    command -v "${tool}" >/dev/null 2>&1 || missing="${missing} ${tool}"
+  done
+  if [ -n "${missing}" ]
+  then
+    echo "ERROR: missing required tool(s):${missing}"
+    echo "Install them and make sure they are on your PATH (see README.md)."
+    exit 1
+  fi
+
+  # Reachable Docker engine (also catches Rancher Desktop's containerd engine).
+  if ! docker info >/dev/null 2>&1
+  then
+    echo "ERROR: cannot reach a Docker engine ('docker info' failed)."
+    echo "  - Docker Desktop / Colima: make sure the VM is running."
+    echo "  - Rancher Desktop: choose the 'dockerd (moby)' container engine,"
+    echo "    not 'containerd' — k3d needs a Docker socket."
+    exit 1
+  fi
+
+  echo "All required tools found; Docker engine reachable."
+  bottom
+}
+
 configValues ()
 {
   DEMO_DOMAIN=127-0-0-1.nip.io
@@ -123,9 +154,28 @@ deployCilium()
   # (e.g. Docker Desktop), and the nodes have no CNI yet anyway.
   docker pull quay.io/cilium/cilium:v${CILIUM_VERSION}
   docker pull quay.io/cilium/operator-generic:v${CILIUM_VERSION}
-  k3d image import -c ${CLUSTER_NAME} \
-    quay.io/cilium/cilium:v${CILIUM_VERSION} \
-    quay.io/cilium/operator-generic:v${CILIUM_VERSION}
+
+  # Fix: import a single-platform tar; the containerd image store keeps the
+  # multi-arch index, which breaks "k3d image import" (see CHANGELOG).
+  case "$(uname -m)" in
+    x86_64 | amd64) NODE_ARCH=amd64 ;;
+    aarch64 | arm64) NODE_ARCH=arm64 ;;
+    *) NODE_ARCH="$(uname -m)" ;;
+  esac
+  if docker save --help 2>&1 | grep -q -- '--platform'
+  then
+    CILIUM_IMG_TAR=$(mktemp -t cilium-images.XXXXXX)
+    docker save --platform "linux/${NODE_ARCH}" \
+      quay.io/cilium/cilium:v${CILIUM_VERSION} \
+      quay.io/cilium/operator-generic:v${CILIUM_VERSION} \
+      -o "${CILIUM_IMG_TAR}"
+    k3d image import -c ${CLUSTER_NAME} "${CILIUM_IMG_TAR}"
+    rm -f "${CILIUM_IMG_TAR}"
+  else
+    k3d image import -c ${CLUSTER_NAME} \
+      quay.io/cilium/cilium:v${CILIUM_VERSION} \
+      quay.io/cilium/operator-generic:v${CILIUM_VERSION}
+  fi
 
   helm repo add cilium https://helm.cilium.io || true
   helm repo update cilium
