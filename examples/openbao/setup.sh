@@ -11,11 +11,8 @@ helm repo update || true
 
 helm upgrade --install openbao openbao/openbao --values openbao-values-kong.yaml --namespace openbao --create-namespace
 
-# "helm install" returns before the StatefulSet controller has created the
-# pod, and "kubectl wait" errors out immediately ("pods openbao-0 not found")
-# if the object does not exist yet — which races on a busy cluster. Wait for
-# the pod to appear first, then for it to reach Running (it stays un-Ready
-# until "bao operator init/unseal" below, so we can't wait on Ready).
+# Fix: wait for the pod to exist before "kubectl wait" (helm install races
+# ahead of pod creation; see CHANGELOG). Ready only comes after unseal below.
 for _ in $(seq 1 60); do
   kubectl -n openbao get pod openbao-0 >/dev/null 2>&1 && break
   sleep 2

@@ -35,8 +35,7 @@ checkPrerequisites()
 {
   top "Checking prerequisites"
 
-  # Required CLI tools. k3d drives the container engine through the Docker
-  # API, so a Docker-compatible CLI + engine is mandatory.
+  # Required CLI tools.
   missing=""
   for tool in docker k3d kubectl helm jq
   do
@@ -49,9 +48,7 @@ checkPrerequisites()
     exit 1
   fi
 
-  # A reachable Docker engine is required. This catches a stopped Docker
-  # Desktop / Colima, and Rancher Desktop configured with the containerd
-  # engine (no Docker socket, so k3d cannot run).
+  # Reachable Docker engine (also catches Rancher Desktop's containerd engine).
   if ! docker info >/dev/null 2>&1
   then
     echo "ERROR: cannot reach a Docker engine ('docker info' failed)."
@@ -158,15 +155,8 @@ deployCilium()
   docker pull quay.io/cilium/cilium:v${CILIUM_VERSION}
   docker pull quay.io/cilium/operator-generic:v${CILIUM_VERSION}
 
-  # Import a single-platform tarball for the node architecture. Docker
-  # Desktop / Rancher Desktop with the containerd image store keep the full
-  # multi-arch index locally even after a "--platform" pull, so
-  # "k3d image import <image>" exports the index and the node-side ctr aborts
-  # on the absent other-platform blobs ("content digest sha256:...: not
-  # found"). "docker save --platform" exports only the node's platform, which
-  # imports cleanly. Daemons without that flag (older Docker, whose classic
-  # store is single-platform anyway) fall back to a plain import. The arch is
-  # derived from uname(1) so it does not depend on the runtime being Docker.
+  # Fix: import a single-platform tar; the containerd image store keeps the
+  # multi-arch index, which breaks "k3d image import" (see CHANGELOG).
   case "$(uname -m)" in
     x86_64 | amd64) NODE_ARCH=amd64 ;;
     aarch64 | arm64) NODE_ARCH=arm64 ;;

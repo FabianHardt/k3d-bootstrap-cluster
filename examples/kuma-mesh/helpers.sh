@@ -1,12 +1,7 @@
 #!/bin/bash
 
 installKumaStandalone() {
-# Kuma CNI runs "chained": it appends itself to the primary CNI's conflist.
-# That conflist is named differently per CNI, and a wrong name makes the
-# kuma-cni-node DaemonSet crash-loop — which leaves Kuma's NodeReadiness
-# NoSchedule taint on every node, so any newly created pod stays Pending.
-# Detect the active CNI instead of assuming Calico (the cluster defaults to
-# Cilium since Cilium became the default CNI).
+# Fix: detect the active CNI so Kuma chains onto the right conflist (see CHANGELOG).
 local cni_conf
 if kubectl -n kube-system get daemonset cilium >/dev/null 2>&1; then
   cni_conf=05-cilium.conflist

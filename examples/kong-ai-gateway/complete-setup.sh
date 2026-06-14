@@ -1,24 +1,6 @@
 #!/bin/bash
-# complete-setup.sh — non-interactive, full Kong AI Gateway showcase.
-#
-# Runs setup.sh with every optional component enabled, no prompts:
-#   - OpenBao + cert-manager   (TLS certificates)
-#   - Grafana / Prometheus / Tempo monitoring (AI metrics + distributed tracing)
-#   - Kuma service mesh        (mTLS between all components)
-# on top of the always-on base (Ollama + llama3.2:1b, OpenWebUI, SearXNG MCP).
-#
-# Enterprise features (Keycloak OIDC, AI semantic cache, provider failover,
-# extra local models) activate automatically when ./license.json is present.
-#
-# External providers stay opt-in — export the keys before running to wire
-# them in:
-#   GEMINI_API_KEY=... ANTHROPIC_API_KEY=... bash complete-setup.sh
-#
-# Each component can also be turned off individually, e.g.:
-#   DEPLOY_KUMA=n bash complete-setup.sh
-#
-# Prerequisite: a bootstrapped cluster with Kong already installed
-# (run ../../create-sample.sh first).
+# Non-interactive full Kong AI Gateway showcase (OpenBao + monitoring + Kuma).
+# Usage, env vars and prerequisites: docs/showcases/kong-ai-gateway.md
 set -o errexit
 
 cd "$(dirname "$0")" || exit 1
