@@ -13,6 +13,9 @@ This section shows the simplest scenario to start using k3d-bootstrap-cluster.
 - You should have installed *k3d* with it's dependencies on your system. See official installation guide: https://k3d.io/v5.5.1/#installation
   - Min k3d version: v5.5.1
 
+- A Docker-compatible container engine that exposes a Docker socket (Docker Desktop, Colima, or Rancher Desktop). k3d talks to the engine through the Docker API.
+  - **Rancher Desktop:** select the **`dockerd (moby)`** container engine, **not** `containerd` — the `containerd` engine provides no Docker socket and cannot run k3d.
+
 - For the [Manual examples](#Manual examples) you should have installed HELM > 3.0. See official installation guide: https://helm.sh/docs/intro/install/
 - jq needs to be installed on your system. See official installation guide:https://stedolan.github.io/jq/download/
 

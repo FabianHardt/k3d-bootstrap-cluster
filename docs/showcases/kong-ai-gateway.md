@@ -97,6 +97,26 @@ cd examples/kong-ai-gateway
 bash setup.sh
 ```
 
+### Non-interactive complete setup
+
+To deploy the whole showcase with every optional component (OpenBao,
+monitoring stack, Kuma mesh) and no prompts, use the wrapper:
+
+```bash
+cd examples/kong-ai-gateway
+bash complete-setup.sh
+```
+
+It runs `setup.sh` with `NON_INTERACTIVE=1` and `DEPLOY_OPENBAO`,
+`DEPLOY_MONITORING`, `DEPLOY_KUMA` all set to `y`. Enterprise features
+activate automatically when `license.json` is present. External providers
+stay opt-in — export the keys first to wire them in, or turn a component off:
+
+```bash
+GEMINI_API_KEY=... ANTHROPIC_API_KEY=... bash complete-setup.sh
+DEPLOY_KUMA=n bash complete-setup.sh
+```
+
 The script will:
 1. Verify that Kong Ingress Controller is running
 2. Optionally deploy **OpenBao** and **cert-manager** for TLS certificates

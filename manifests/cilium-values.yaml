@@ -17,3 +17,6 @@ cgroup:
   autoMount:
     enabled: false
   hostRoot: /run/cilium/cgroupv2
+# Fix: let the Kuma mesh CNI chain onto Cilium (see CHANGELOG).
+cni:
+  exclusive: false
