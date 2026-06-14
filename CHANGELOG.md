@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-06-14
+
 ### Added
 
 * `examples/kong-ai-gateway/complete-setup.sh`: a non-interactive wrapper that deploys the full Kong AI Gateway showcase in one shot — base stack plus OpenBao + cert-manager, the Grafana/Prometheus/Tempo monitoring stack, and the Kuma service mesh (runs `setup.sh` with `NON_INTERACTIVE=1` and all `DEPLOY_*` options enabled). Components can be toggled and provider keys supplied via environment variables. Documented in `docs/showcases/kong-ai-gateway.md`.
@@ -254,7 +256,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added external-dns sample. Demonstrates ExternalDNS, which configures an external CoreDNS server - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/2
 - Added Hashicorp Vault as CA server in combination with cert-manager do demonstrate auto generated certificates - by @FabianHardt in https://github.com/FabianHardt/k3d-sample-cluster/pull/6
 
-[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.3.0...HEAD
+[unreleased]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/FabianHardt/k3d-bootstrap-cluster/compare/v1.1.0...v1.1.1
