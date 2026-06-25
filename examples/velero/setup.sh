@@ -15,7 +15,10 @@ if [ -z "${SEAWEEDFS_EXISTS}" ]; then
   cd ../velero/
 else
   echo "SeaweedFS already present — ensuring 'velero' bucket exists."
-  kubectl -n seaweedfs exec seaweedfs-0 -- \
+  SEAWEEDFS_POD="$(kubectl -n seaweedfs get pod \
+    -l app.kubernetes.io/component=seaweedfs-all-in-one \
+    -o jsonpath='{.items[0].metadata.name}')"
+  kubectl -n seaweedfs exec "${SEAWEEDFS_POD}" -- \
     sh -c "echo 's3.bucket.create -name velero' | weed shell -master localhost:9333 -filer localhost:8888" \
     || true
 fi

@@ -1,0 +1,17 @@
+# Compatibility alias so the documented S3 endpoint keeps resolving after the
+# move to the Helm chart's all-in-one pod (chart service is seaweedfs-all-in-one).
+# The Velero showcase points at http://seaweedfs-s3.seaweedfs.svc...:8333.
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-s3
+  namespace: seaweedfs
+spec:
+  selector:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/instance: seaweedfs
+    app.kubernetes.io/component: seaweedfs-all-in-one
+  ports:
+    - name: s3
+      port: 8333
+      targetPort: 8333

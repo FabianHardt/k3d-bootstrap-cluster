@@ -1,0 +1,53 @@
+# SeaweedFS — All-in-One (S3 + SFTP) for the k3d lab.
+#
+# Chart:  seaweedfs/seaweedfs  (https://seaweedfs.github.io/seaweedfs/helm)
+#
+# SFTP runs in certificate-only mode: clients authenticate with CA-signed SSH
+# user certificates (upstream feature from seaweedfs/seaweedfs#9815). Plain
+# public keys and passwords are rejected on the SSH connection.
+#
+# The CA public key and the SSH host key are not committed — setup.sh generates
+# them and injects the CA via `--set-file sftp.trustedUserCAKeys=<ca_user.pub>`,
+# and mounts the host key through the `seaweedfs-sftp-host-key` Secret.
+
+global:
+  enableSecurity: false
+
+# Standalone components are off; everything runs in the single all-in-one pod.
+master: { enabled: false }
+volume: { enabled: false }
+filer:  { enabled: false }
+s3:     { enabled: false }
+
+sftp:
+  enabled: false
+  # all-in-one inherits unset sftp.* values from here.
+  # Empty so only the hostKeysFolder (mounted host key) is used, not a single
+  # sshPrivateKey path that we do not provide.
+  sshPrivateKey: ""
+
+allInOne:
+  enabled: true
+
+  data:
+    type: persistentVolumeClaim
+    size: 10Gi
+
+  # S3 gateway — kept so the Velero showcase keeps using SeaweedFS as its
+  # backup target. Static lab identity (seaweedadmin/seaweedadminsecret) lives
+  # in the seaweedfs-s3-auth Secret created by setup.sh.
+  s3:
+    enabled: true
+    enableAuth: true
+    existingConfigSecret: seaweedfs-s3-auth
+
+  # SFTP server — certificate-only authentication.
+  sftp:
+    enabled: true
+    # enableAuth mounts the user store; required so certificate principals
+    # resolve to a real user (the chart ships an "admin" user we sign certs for).
+    enableAuth: true
+    authMethods: certificate
+    # Host key generated and provided by setup.sh.
+    existingSshConfigSecret: seaweedfs-sftp-host-key
+    bannerMessage: "SeaweedFS SFTP (certificate auth) — k3d lab"
