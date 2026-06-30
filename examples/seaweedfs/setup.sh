@@ -87,6 +87,9 @@ kubectl -n seaweedfs rollout status deployment/seaweedfs-all-in-one --timeout=30
 # Compatibility alias so the documented S3 endpoint (seaweedfs-s3) keeps working.
 kubectl apply -f s3-alias-service.yaml
 
+# Add HTTP-Route for web ui
+kubectl apply -f httproute.yaml
+
 # ---------------------------------------------------------------------------
 # 4. Create buckets via the in-pod weed shell.
 # ---------------------------------------------------------------------------

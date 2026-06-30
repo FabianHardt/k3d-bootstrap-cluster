@@ -29,6 +29,19 @@ The setup script:
 - Adds a `seaweedfs-s3` compatibility Service so the documented S3 endpoint keeps resolving
 - Creates a default bucket called `demo`
 
+### Endpoints and credentials
+
+| Property | Value |
+|---|---|
+| In-cluster S3 endpoint | `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333` |
+| In-cluster SFTP | `seaweedfs-all-in-one.seaweedfs.svc.cluster.local:2022` |
+| S3 access key | `seaweedadmin` |
+| S3 secret key | `seaweedadminsecret` |
+| SFTP login | certificate only (principal `admin`) |
+| Admin-UI | ` https://seaweedfs-ui.example.com:8081/` |
+
+> The S3 credentials and all generated keys are intended for **local Lab use only** — never reuse them anywhere reachable beyond your machine. The CA private key (`.keys/ca_user`) can mint logins for the SFTP server; it stays on your machine and is git-ignored.
+
 ### SSH keys and CA signing
 
 Certificate authentication replaces "which public keys may log in?" with "which CA do I trust to vouch for users?". The server is told one thing — the **public key of a trusted user CA** — and then accepts any user certificate that CA has signed, without the server ever seeing the individual keys in advance. `setup.sh` sets up three independent key pairs:
@@ -100,18 +113,6 @@ ssh-keygen -t ed25519 -N "" -f id_readonly
 ssh-keygen -s ca_user -I readonly@k3d -n readonly_user -V +1w id_readonly.pub
 sftp -P 2022 -i id_readonly -o CertificateFile=id_readonly-cert.pub readonly_user@127.0.0.1
 ```
-
-### Endpoints and credentials
-
-| Property | Value |
-|---|---|
-| In-cluster S3 endpoint | `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333` |
-| In-cluster SFTP | `seaweedfs-all-in-one.seaweedfs.svc.cluster.local:2022` |
-| S3 access key | `seaweedadmin` |
-| S3 secret key | `seaweedadminsecret` |
-| SFTP login | certificate only (principal `admin`) |
-
-> The S3 credentials and all generated keys are intended for **local Lab use only** — never reuse them anywhere reachable beyond your machine. The CA private key (`.keys/ca_user`) can mint logins for the SFTP server; it stays on your machine and is git-ignored.
 
 ### Smoke test the S3 side with the AWS CLI
 

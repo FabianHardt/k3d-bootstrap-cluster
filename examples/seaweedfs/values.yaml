@@ -14,10 +14,14 @@ global:
   enableSecurity: false
 
 # Standalone components are off; everything runs in the single all-in-one pod.
-master: { enabled: false }
-volume: { enabled: false }
-filer:  { enabled: false }
-s3:     { enabled: false }
+master:
+  enabled: false
+volume:
+  enabled: false
+filer:
+  enabled: false
+s3:
+  enabled: false
 
 sftp:
   enabled: false
@@ -51,3 +55,11 @@ allInOne:
     # Host key generated and provided by setup.sh.
     existingSshConfigSecret: seaweedfs-sftp-host-key
     bannerMessage: "SeaweedFS SFTP (certificate auth) — k3d lab"
+
+admin:
+  enabled: true
+  replicas: 1
+  masters: "seaweedfs-all-in-one:9333"
+  secret:
+    adminUser: "seaweedadmin"
+    adminPassword: "seaweedadminsecret"
