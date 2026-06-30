@@ -142,7 +142,7 @@ A few things are worth checking if the verification fails:
 - `kubectl -n velero get podvolumebackups` — was the PVC actually picked up? If a row shows `Completed` for the `data` volume, the backup side worked.
 - `kubectl -n velero describe restore <name>` and `kubectl -n velero get podvolumerestores` — same on the restore side.
 - `kubectl -n velero logs ds/node-agent` — Kopia errors (e.g. network issues reaching SeaweedFS) show up here.
-- `kubectl -n seaweedfs exec seaweedfs-0 -- sh -c "echo 's3.bucket.list' | weed shell -master localhost:9333 -filer localhost:8888"` — confirm the `velero` bucket exists and has objects.
+- `kubectl -n seaweedfs exec "$(kubectl -n seaweedfs get pod -l app.kubernetes.io/component=seaweedfs-all-in-one -o jsonpath='{.items[0].metadata.name}')" -- sh -c "echo 's3.bucket.list' | weed shell -master localhost:9333 -filer localhost:8888"` — confirm the `velero` bucket exists and has objects.
 
 ### Inspect backups and restores
 

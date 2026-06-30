@@ -158,9 +158,15 @@ jobs:
           - showcase: seaweedfs
             flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No
             verify: |
-              kubectl -n seaweedfs exec seaweedfs-0 -- \
+              POD=$(kubectl -n seaweedfs get pod \
+                -l app.kubernetes.io/component=seaweedfs-all-in-one \
+                -o jsonpath='{.items[0].metadata.name}')
+              kubectl -n seaweedfs exec "$POD" -- \
                 sh -c "echo 's3.bucket.list' | weed shell -master localhost:9333 -filer localhost:8888" \
                 | grep -q demo
+              # SFTP certificate auth end-to-end: upload + download round-trip.
+              bash examples/seaweedfs/connect.sh \
+                | grep -q 'hello from the k3d SeaweedFS SFTP showcase'
 
           - showcase: velero
             flags: CALICO_FLAG=No HTTPBIN_SAMPLE_FLAG=No

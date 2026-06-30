@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* **SeaweedFS showcase reworked to demonstrate SFTP with certificate authentication.** `examples/seaweedfs` now deploys SeaweedFS via the official Helm chart (`seaweedfs/seaweedfs`, pinned to 4.35.0) in all-in-one mode (S3 + SFTP in one pod) instead of a hand-rolled S3-only `StatefulSet`. The SFTP server runs in certificate-only mode: `setup.sh` generates a local SSH user CA, a server host key and a signed user certificate, and the chart trusts the CA via the upstream `-sftp.trustedUserCAKeysFile` option ([seaweedfs/seaweedfs#9815](https://github.com/seaweedfs/seaweedfs/pull/9815)). A new `connect.sh` port-forwards the SFTP port and runs an upload/list/download demo with the issued certificate. The S3 gateway is kept (static `seaweedadmin/seaweedadminsecret` identity) plus a `seaweedfs-s3` compatibility Service, so the Velero showcase keeps working unchanged. `docs/showcases/seaweedfs.md` documents the SSH key roles and the CA signing flow.
+
+### Fixed
+
+* `examples/velero/setup.sh` and `docs/showcases/velero.md`: the SeaweedFS `weed shell` bucket commands no longer target the removed `seaweedfs-0` StatefulSet pod — they now select the all-in-one pod by label (`app.kubernetes.io/component=seaweedfs-all-in-one`).
+
 ## [1.5.0] - 2026-06-14
 
 ### Added
