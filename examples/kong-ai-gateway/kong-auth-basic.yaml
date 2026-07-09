@@ -1,8 +1,0 @@
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: webui-basic-auth
-  namespace: ai-platform
-plugin: basic-auth
-config:
-  hide_credentials: true
