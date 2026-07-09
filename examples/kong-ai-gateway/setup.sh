@@ -177,27 +177,28 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
   echo "Applying Kong Manager and Admin routes..."
   kubectl apply -f ../kong-gateway/httproute-kong-manager.yaml
 
-  # Add HTTP listener without hostname filter for internal cluster routes (OpenWebUI → Kong).
-  # Gateway API listeners with hostname: *.example.com reject internal requests.
-  # Uses port 8000 (Kong's native proxy port) to avoid conflicting with Keycloak's port 80
-  # in Kuma's exclude-outbound-ports annotation — port 80 must stay in-mesh for mTLS.
-  echo "Adding internal HTTP listener to Gateway..."
-  kubectl patch svc kong-gateway-proxy -n kong --type=json -p='[
-    {"op": "add", "path": "/spec/ports/-", "value": {
-      "name": "kong-proxy-internal", "port": 8000, "targetPort": 8000, "protocol": "TCP"
-    }}
-  ]' 2>/dev/null || true
-  kubectl patch gateway kong -n kong --type=json -p='[
-    {"op": "add", "path": "/spec/listeners/-", "value": {
-      "name": "kong-http-internal",
-      "port": 8000,
-      "protocol": "HTTP",
-      "allowedRoutes": {"namespaces": {"from": "All"}}
-    }}
-  ]' 2>/dev/null || true
-
   echo "Kong Enterprise ready with Manager UI and Admin API."
 fi
+
+# --- Internal HTTP listener ---
+# Add HTTP listener without hostname filter for internal cluster routes (OpenWebUI → Kong).
+# Gateway API listeners with hostname: *.example.com reject internal requests.
+# Uses port 8000 (Kong's native proxy port) to avoid conflicting with Keycloak's port 80
+# in Kuma's exclude-outbound-ports annotation — port 80 must stay in-mesh for mTLS.
+echo "Adding internal HTTP listener to Gateway..."
+kubectl patch svc kong-gateway-proxy -n kong --type=json -p='[
+  {"op": "add", "path": "/spec/ports/-", "value": {
+    "name": "kong-proxy-internal", "port": 8000, "targetPort": 8000, "protocol": "TCP"
+  }}
+]' 2>/dev/null || true
+kubectl patch gateway kong -n kong --type=json -p='[
+  {"op": "add", "path": "/spec/listeners/-", "value": {
+    "name": "kong-http-internal",
+    "port": 8000,
+    "protocol": "HTTP",
+    "allowedRoutes": {"namespaces": {"from": "All"}}
+  }}
+]' 2>/dev/null || true
 
 # --- Kong AI Plugins ---
 echo ""
@@ -256,7 +257,7 @@ if [[ -f ${LICENSE_FILE} ]]; then
         header_value: \"{vault://my-env/ANTHROPIC_API_KEY}\"
       model:
         provider: anthropic
-        name: claude-haiku-3-5-20241022
+        name: claude-haiku-4-5
         options:
           max_tokens: 4096
           anthropic_version: \"2023-06-01\""
@@ -317,18 +318,32 @@ echo "Applying Kong Consumer configuration..."
 kubectl apply -f kong-consumers.yaml
 
 # --- AI Proxy Routes ---
-echo "Applying AI Proxy HTTPRoutes..."
-kubectl apply -f kong-ai-route.yaml
-kubectl apply -f kong-ai-route-internal.yaml
+# ai-key-auth (plain key-auth) is referenced by the OSS routes and by the
+# anthropic/coder/gemma/MCP routes, so it must always exist. Per-request access
+# logging is handled globally by the opentelemetry plugin (see
+# kong-ai-tracing-plugin.yaml), which feeds the OTel Collector.
+kubectl apply -f kong-ai-plugins.yaml
 
-# --- Model list routes ---
-echo "Applying model list routes..."
-kubectl apply -f kong-ai-models-filtered.yaml
-kubectl apply -f kong-ai-route-models.yaml
+if [[ -f ${LICENSE_FILE} ]]; then
+  echo "Applying AI Proxy HTTPRoutes (Enterprise: multi-model + OIDC)..."
+  kubectl apply -f kong-ai-route.yaml
+  kubectl apply -f kong-ai-route-internal.yaml
 
+  echo "Applying model list routes (per-user filtering)..."
+  kubectl apply -f kong-ai-models-filtered.yaml
+  kubectl apply -f kong-ai-route-models.yaml
+else
+  echo "Applying AI Proxy HTTPRoutes (OSS: ai-proxy + key-auth)..."
+  kubectl apply -f kong-ai-models-response.yaml
+  kubectl apply -f kong-ai-routes-oss.yaml
+fi
 
 if [[ "${GEMINI_ENABLED}" == "true" ]]; then
-  kubectl apply -f kong-ai-route-gemini.yaml
+  if [[ -f ${LICENSE_FILE} ]]; then
+    kubectl apply -f kong-ai-route-gemini.yaml
+  else
+    kubectl apply -f kong-ai-route-gemini-oss.yaml
+  fi
 fi
 
 if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
@@ -695,7 +710,7 @@ if [[ "${GEMINI_ENABLED}" == "true" ]]; then
   echo "  [x] Google Gemini (gemini-2.5-flash) — free tier"
 fi
 if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
-  echo "  [x] Anthropic Claude (claude-haiku-3-5-20241022) — paid"
+  echo "  [x] Anthropic Claude (claude-haiku-4-5) — paid"
 fi
 echo ""
 echo "--- Consumer Groups ---"

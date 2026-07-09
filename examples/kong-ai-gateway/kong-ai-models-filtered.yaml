@@ -19,7 +19,7 @@ config:
         {id = "gemini-2.5-flash", object = "model", created = 1700000000, owned_by = "google"},
       }
       local anthropic_models = {
-        {id = "claude-haiku-3-5-20241022", object = "model", created = 1700000000, owned_by = "anthropic"},
+        {id = "claude-haiku-4-5", object = "model", created = 1700000000, owned_by = "anthropic"},
       }
 
       -- Determine user role

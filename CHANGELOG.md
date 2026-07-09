@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* **Kong AI Gateway showcase works in OSS mode (without `license.json`) again.** The `/ollama`, model-list and MCP HTTPRoutes referenced Enterprise-only plugins (`ai-proxy-advanced-multimodel`, `ai-key-auth-or-oidc`, `ai-oidc`, `ai-semantic-cache`) that are only installed with a license, so KIC never configured them. `setup.sh` now applies a dedicated OSS route set (`kong-ai-routes-oss.yaml`: plain `ai-proxy` pinned to `llama3.2:1b`, `key-auth`, static model list) when no license is present, plus an OSS Gemini route variant (`kong-ai-route-gemini-oss.yaml`). The internal HTTP listener on port 8000 (needed by OpenWebUI → Kong) and the `ai-http-log` plugin are now created unconditionally instead of only in the Enterprise/monitoring branches.
+* `examples/kong-ai-gateway`: the Anthropic route referenced a `ai-key-auth` KongPlugin that was never defined (leftover from the rename to `ai-key-auth-or-oidc`) — the plain OSS `key-auth` plugin now exists under that name (in `kong-ai-plugins.yaml`) and the MCP routes use it too, so unauthenticated requests to `/mcp` are rejected instead of passing through as the anonymous consumer.
+* `examples/kong-ai-gateway`: the Anthropic provider used the invalid model ID `claude-haiku-3-5-20241022` (correct ID was `claude-3-5-haiku-20241022`, which has meanwhile been retired by Anthropic) — replaced with `claude-haiku-4-5` in the ai-proxy plugin, the failover targets, the model lists and the docs.
 * `examples/velero/setup.sh` and `docs/showcases/velero.md`: the SeaweedFS `weed shell` bucket commands no longer target the removed `seaweedfs-0` StatefulSet pod — they now select the all-in-one pod by label (`app.kubernetes.io/component=seaweedfs-all-in-one`).
 
 ## [1.5.0] - 2026-06-14

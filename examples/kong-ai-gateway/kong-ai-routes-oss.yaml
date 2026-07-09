@@ -1,0 +1,89 @@
+# OSS route set (no Enterprise license): plain ai-proxy pinned to llama3.2:1b +
+# plain key-auth. No OIDC / ACL / semantic-cache (those are Enterprise-only).
+# Per-request access logging is handled globally by the opentelemetry plugin.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-oss
+  namespace: kong
+plugin: ai-proxy
+config:
+  route_type: "llm/v1/chat"
+  model:
+    provider: openai
+    name: llama3.2:1b
+    options:
+      upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+      input_cost: 500
+      output_cost: 1500
+---
+# External chat route (ai.example.com/ollama)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-proxy-ollama-oss
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-proxy-oss,ai-key-auth
+    konghq.com/strip-path: "true"
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  hostnames:
+    - "ai.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ollama
+      timeouts:
+        backendRequest: "300s"
+      backendRefs:
+        - name: kong-gateway-admin
+          port: 8001
+---
+# Internal chat route (no hostname — matches OpenWebUI → Kong on :8000)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-proxy-ollama-oss-internal
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-proxy-oss,ai-key-auth
+    konghq.com/strip-path: "true"
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ollama
+      timeouts:
+        backendRequest: "300s"
+      backendRefs:
+        - name: kong-gateway-admin
+          port: 8001
+---
+# Static model list (request-termination via ai-models-response), internal route
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ai-models-oss-internal
+  namespace: kong
+  annotations:
+    konghq.com/plugins: ai-key-auth,ai-models-response
+spec:
+  parentRefs:
+    - name: kong
+      namespace: kong
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /ollama/v1/models
+      backendRefs:
+        - name: kong-gateway-admin
+          port: 8001

@@ -34,7 +34,7 @@ Multiple local models and cloud providers are supported, each with its own Kong 
 | qwen2.5-coder:1.5b (Ollama) | `/coder/v1/chat/completions` | Code generation | Free (local) |
 | gemma3:1b (Ollama) | `/gemma/v1/chat/completions` | Alternative chat | Free (local) |
 | Google Gemini (gemini-2.5-flash) | `/gemini/v1/chat/completions` | Cloud — fast | Free tier / Optional |
-| Anthropic Claude (claude-haiku-3-5) | `/anthropic/v1/chat/completions` | Cloud — quality | Paid / Optional |
+| Anthropic Claude (claude-haiku-4-5) | `/anthropic/v1/chat/completions` | Cloud — quality | Paid / Optional |
 
 ## Preconditions
 
@@ -81,6 +81,8 @@ kubectl create secret generic anthropic-api-key \
 kubectl apply -f kong-ai-plugin-anthropic.yaml
 kubectl apply -f kong-ai-route-anthropic.yaml
 ```
+
+> **Note:** Without an Enterprise license, apply `kong-ai-route-gemini-oss.yaml` instead of `kong-ai-route-gemini.yaml` (the Enterprise variant references OIDC and semantic-cache plugins that only exist with a license).
 
 ## DNS preparation
 
@@ -199,7 +201,9 @@ curl -k -H "apikey: lead-key-12345" \
   https://ai.example.com:8081/gemini/v1/chat/completions
 ```
 
-### Model list per consumer
+### Model list per consumer (Enterprise)
+
+Per-user model filtering requires the Enterprise setup (Keycloak + OIDC consumer mapping). In OSS mode, `/ollama/v1/models` returns a static list containing `llama3.2:1b` for every authenticated consumer.
 
 ```bash
 # dev-user sees Ollama models only
@@ -265,6 +269,16 @@ OpenWebUI → Kong /ollama/v1/chat/completions
 Each target in the `ai-proxy-advanced` plugin has a `model_alias` matching the model name that clients send. Kong routes the request to the correct provider based on the `model` field in the request body — no separate routes needed.
 
 All providers expose an OpenAI-compatible interface via Kong, so any OpenAI client (like OpenWebUI) can use them transparently.
+
+**OSS mode (no `license.json`)** — `ai-proxy-advanced`, `openid-connect`, `ai-semantic-cache` and `ai-rate-limiting-advanced` are Enterprise plugins. Without a license, `setup.sh` applies `kong-ai-routes-oss.yaml` instead:
+
+| Aspect | Enterprise | OSS |
+|--------|-----------|-----|
+| Internal chat route (OpenWebUI) | `ai-proxy-advanced` multi-model (`model_alias`) | plain `ai-proxy` pinned to `llama3.2:1b` |
+| Authentication | API key **or** OIDC token (`ai-key-auth-or-oidc` + `ai-oidc`) | API key only (`ai-key-auth`) |
+| Model list (`/v1/models`) | per-user filtered (`ai-models-filtered`) | static `llama3.2:1b` (`ai-models-response`) |
+| Gemini / Anthropic | via OpenWebUI and external routes | external routes only (`curl`), ACL-protected |
+| Failover `/ai`, semantic cache, prompt guard, token rate limiting | ✔ | — |
 
 ### Model Recommendations
 

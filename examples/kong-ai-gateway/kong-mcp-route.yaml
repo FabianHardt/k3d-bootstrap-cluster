@@ -25,7 +25,7 @@ metadata:
   namespace: kong
   annotations:
     konghq.com/strip-path: "false"
-    konghq.com/plugins: ai-key-auth-or-oidc,mcp-rate-limit
+    konghq.com/plugins: ai-key-auth,mcp-rate-limit
 spec:
   parentRefs:
     - name: kong
@@ -50,7 +50,7 @@ metadata:
   namespace: kong
   annotations:
     konghq.com/strip-path: "false"
-    konghq.com/plugins: ai-key-auth-or-oidc,mcp-rate-limit
+    konghq.com/plugins: ai-key-auth,mcp-rate-limit
 spec:
   parentRefs:
     - name: kong

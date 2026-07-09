@@ -51,7 +51,7 @@ config:
         header_value: "{vault://my-env/ANTHROPIC_API_KEY}"
       model:
         provider: anthropic
-        name: claude-haiku-3-5-20241022
+        name: claude-haiku-4-5
         options:
           max_tokens: 4096
           anthropic_version: "2023-06-01"

@@ -1,0 +1,13 @@
+# ai-key-auth: plain key-auth (works without Enterprise license).
+# Enterprise routes use ai-key-auth-or-oidc (key-auth with anonymous
+# fallback + OIDC) instead — see kong-ai-plugins-key-auth-anonymous.yaml.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-key-auth
+  namespace: kong
+plugin: key-auth
+config:
+  key_names:
+    - apikey
+    - authorization
