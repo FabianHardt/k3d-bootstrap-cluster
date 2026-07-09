@@ -7,8 +7,6 @@ controller:
       tls:
         client:
           enabled: true
-      repository: kong/kubernetes-ingress-controller
-      tag: 3.5.6
 
 gateway:
   env:
@@ -28,9 +26,9 @@ gateway:
     enabled: true
     minReplicas: 2
     maxReplicas: 2
+  # image.tag is injected from ../../kong-versions.env via helm --set
   image:
     repository: kong/kong-gateway
-    tag: 3.14.0.1
   serviceMonitor:
     enabled: true
     labels:

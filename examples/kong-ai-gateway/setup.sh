@@ -15,6 +15,9 @@ DEPLOY_KUMA="${DEPLOY_KUMA:-}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
+# Central Kong component versions (single source of truth)
+source "$(dirname "${BASH_SOURCE[0]}")/../../kong-versions.env"
+
 # --- Preconditions ---
 echo "Checking prerequisites..."
 
@@ -171,7 +174,7 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
 
   echo "Upgrading Kong with Enterprise features (Manager UI, Admin API)..."
   # shellcheck disable=SC2086
-  helm upgrade kong kong/ingress --version 0.24.0 --values ../kong-gateway/values.yaml --namespace kong ${HELM_EXTRA_ARGS}
+  helm upgrade kong kong/ingress --version "${KONG_INGRESS_CHART_VERSION}" --values ../kong-gateway/values.yaml --namespace kong --set gateway.image.tag="${KONG_GATEWAY_VERSION}" --set controller.ingressController.image.repository=kong/kubernetes-ingress-controller --set controller.ingressController.image.tag="${KONG_KIC_VERSION}" ${HELM_EXTRA_ARGS}
   kubectl wait deployment kong-gateway -n kong --for=condition=Available=true --timeout=120s
 
   echo "Applying Kong Manager and Admin routes..."
