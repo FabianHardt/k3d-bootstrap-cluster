@@ -203,8 +203,6 @@ fi
 echo ""
 echo "Applying Kong AI Gateway plugins..."
 
-kubectl apply -f kong-ai-plugins.yaml
-
 if [[ "${GEMINI_ENABLED}" == "true" ]]; then
   echo "Applying Gemini AI proxy plugin..."
   kubectl apply -f kong-ai-plugin-gemini.yaml
@@ -383,16 +381,17 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
 
   kubectl label configmap grafana-dashboard-ai -n monitoring grafana_dashboard=true --overwrite
 
-  echo "Deploying AI Metrics Exporter..."
-  kubectl apply -f ai-metrics-exporter.yaml
+  echo "Deploying OTel Collector (turns Kong AI access logs into per-user metrics)..."
+  # k3d nodes pull the wrong arch for this tag; preload the host-arch image.
+  OTEL_IMAGE="otel/opentelemetry-collector-contrib:0.156.0"
+  OTEL_ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+  K3D_CLUSTER="$(kubectl config current-context 2>/dev/null | sed 's/^k3d-//')"
+  docker pull --quiet --platform "linux/${OTEL_ARCH}" "${OTEL_IMAGE}" >/dev/null 2>&1 || true
+  k3d image import "${OTEL_IMAGE}" -c "${K3D_CLUSTER}" >/dev/null 2>&1 || true
+  kubectl apply -f otel-collector.yaml
+  kubectl rollout status deployment/otel-collector -n monitoring --timeout=120s
 
-  echo "Waiting for AI Metrics Exporter to be ready..."
-  kubectl wait deployment ai-metrics-exporter -n monitoring --for=condition=Available=true --timeout=120s
-
-  echo "Applying Kong http-log plugin for token metrics..."
-  kubectl apply -f kong-http-log-plugin.yaml
-
-  echo "Applying Kong OpenTelemetry tracing plugin (global)..."
+  echo "Applying Kong OpenTelemetry plugin (traces → Tempo, access logs → collector)..."
   kubectl apply -f kong-ai-tracing-plugin.yaml
 fi
 
@@ -470,7 +469,7 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
 
   if [[ "${MONITORING_ENABLED}" == "true" ]]; then
     echo "Restarting monitoring pods for Kuma sidecar injection..."
-    kubectl rollout restart deployment/prometheus-server deployment/grafana deployment/ai-metrics-exporter -n monitoring
+    kubectl rollout restart deployment/prometheus-server deployment/grafana deployment/otel-collector -n monitoring
     kubectl rollout restart statefulset/tempo -n monitoring
   fi
 
@@ -481,7 +480,7 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
     kubectl wait deployment prometheus-server -n monitoring --for=condition=Available=true --timeout=120s
     kubectl rollout status statefulset/tempo -n monitoring --timeout=120s
     kubectl wait deployment grafana -n monitoring --for=condition=Available=true --timeout=120s
-    kubectl wait deployment ai-metrics-exporter -n monitoring --for=condition=Available=true --timeout=120s
+    kubectl wait deployment otel-collector -n monitoring --for=condition=Available=true --timeout=120s
   fi
 
   # Force KIC to re-read service-upstream annotations.
@@ -494,7 +493,7 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
     kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream="true" 2>/dev/null || true
   done
   if [[ "${MONITORING_ENABLED}" == "true" ]]; then
-    for SVC in grafana prometheus-server ai-metrics-exporter tempo; do
+    for SVC in grafana prometheus-server otel-collector tempo; do
       kubectl annotate svc "$SVC" -n monitoring konghq.com/service-upstream="true" --overwrite 2>/dev/null || true
     done
   fi

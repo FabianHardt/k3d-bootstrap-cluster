@@ -4,7 +4,7 @@ metadata:
   name: ai-proxy-failover
   namespace: kong
   annotations:
-    konghq.com/plugins: ai-proxy-advanced-failover,ai-key-auth-or-oidc,ai-oidc,ai-force-nostream,ai-semantic-cache,ai-http-log
+    konghq.com/plugins: ai-proxy-advanced-failover,ai-key-auth-or-oidc,ai-oidc,ai-semantic-cache
     konghq.com/strip-path: "true"
 spec:
   parentRefs:

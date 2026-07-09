@@ -26,6 +26,10 @@ config:
         name: llama3.2:1b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+          # $/1M tokens — demo rates (formerly the exporter's PRICING table) so
+          # Kong emits usage.cost; simulated on-prem GPU/energy cost.
+          input_cost: 500
+          output_cost: 1500
     # Priority 2: Google Gemini (cloud, free tier)
     - route_type: llm/v1/chat
       weight: 50
@@ -36,6 +40,9 @@ config:
       model:
         provider: gemini
         name: gemini-2.5-flash
+        options:
+          input_cost: 150
+          output_cost: 600
     # Priority 3: Anthropic Claude (cloud, paid)
     - route_type: llm/v1/chat
       weight: 10
@@ -48,3 +55,5 @@ config:
         options:
           max_tokens: 4096
           anthropic_version: "2023-06-01"
+          input_cost: 1000
+          output_cost: 5000

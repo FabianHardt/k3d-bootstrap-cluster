@@ -13,3 +13,6 @@ config:
   model:
     provider: gemini
     name: gemini-2.5-flash
+    options:
+      input_cost: 150
+      output_cost: 600

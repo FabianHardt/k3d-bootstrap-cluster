@@ -1,5 +1,8 @@
-# Global OpenTelemetry tracing plugin (applied to all routes automatically)
-# Sends traces to Tempo via OTLP/HTTP — same pattern as kong-monitoring-plugin.yaml
+# Global OpenTelemetry plugin (applied to all routes automatically):
+#   - traces  → Tempo (distributed tracing)
+#   - access_logs → OTel Collector, carrying the AI token/cost stats + the user
+#     identity as attributes, which the collector's sum connector turns into the
+#     per-user Prometheus metrics (replaces the old ai-metrics-exporter).
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
@@ -22,3 +25,35 @@ config:
     inject:
       - w3c
   sampling_strategy: parent_probability_fallback
+  # Ship access logs to the collector. Token counts come from the AI plugin's
+  # log_statistics (kong.log.serialize().ai.proxy.usage.*) — works for streaming
+  # too, so no response-body parsing and no ai-force-nostream needed.
+  access_logs:
+    endpoint: "http://otel-collector.monitoring.svc.cluster.local:4318/v1/logs"
+    custom_attributes_by_lua:
+      # User identity: OpenWebUI-forwarded email local-part, else Kong consumer.
+      consumer: |
+        local s = kong.log.serialize()
+        local h = (s.request or {}).headers or {}
+        local email = h["x-openwebui-user-email"]
+        if email then return (email:match("^[^@]+")) end
+        local c = s.consumer or {}
+        return c.custom_id or c.username or "anonymous"
+      provider: |
+        return ((((kong.log.serialize().ai or {}).proxy or {}).meta or {}).provider_name)
+      model: |
+        return ((((kong.log.serialize().ai or {}).proxy or {}).meta or {}).request_model)
+      prompt_tokens: |
+        local u = (((kong.log.serialize().ai or {}).proxy or {}).usage) or {}
+        return u.prompt_tokens
+      completion_tokens: |
+        local u = (((kong.log.serialize().ai or {}).proxy or {}).usage) or {}
+        return u.completion_tokens
+      total_tokens: |
+        local u = (((kong.log.serialize().ai or {}).proxy or {}).usage) or {}
+        return u.total_tokens
+      cost: |
+        local u = (((kong.log.serialize().ai or {}).proxy or {}).usage) or {}
+        return u.cost
+      requests: |
+        if (((kong.log.serialize().ai or {}).proxy or {}).usage) then return 1 end

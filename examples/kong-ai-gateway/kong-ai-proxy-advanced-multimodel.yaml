@@ -21,18 +21,24 @@ config:
         name: llama3.2:1b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+          input_cost: 500
+          output_cost: 1500
     - route_type: llm/v1/chat
       model:
         provider: openai
         name: qwen2.5-coder:1.5b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+          input_cost: 500
+          output_cost: 1500
     - route_type: llm/v1/chat
       model:
         provider: openai
         name: gemma3:1b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+          input_cost: 500
+          output_cost: 1500
     - route_type: llm/v1/chat
       auth:
         param_name: key
@@ -41,3 +47,6 @@ config:
       model:
         provider: gemini
         name: gemini-2.5-flash
+        options:
+          input_cost: 150
+          output_cost: 600

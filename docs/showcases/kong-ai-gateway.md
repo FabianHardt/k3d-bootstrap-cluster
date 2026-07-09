@@ -13,7 +13,7 @@ This showcase demonstrates how to use **Kong AI Gateway** as a centralized proxy
 │ (OpenWebUI)│    │                      │  │    ┌─────────────────┐
 └────────────┘    │  - ai-proxy plugin   │  ├───▶│  Google Gemini  │  Optional, free tier
                   │  - key-auth plugin   │  │    └─────────────────┘
-                  │  - http-log (metrics)│  │    ┌─────────────────┐
+                  │  - opentelemetry     │  │    ┌─────────────────┐
                   │  - rate-limit (Ent.) │  └───▶│  Anthropic API  │  Optional, paid
                   │  - prompt-guard (E.) │       └─────────────────┘
                   └──────────────────────┘
@@ -21,9 +21,9 @@ This showcase demonstrates how to use **Kong AI Gateway** as a centralized proxy
         ┌────────────────┼────────────────┐
         ▼                ▼                ▼
    RAG Pipeline    Monitoring        Token Metrics
-   Docs → Embed    Prometheus →      http-log →
-   → ChromaDB →    Grafana           AI Metrics
-   Context         Dashboard         Exporter
+   Docs → Embed    Prometheus →      OTel access logs →
+   → ChromaDB →    Grafana           OTel Collector
+   Context         Dashboard         (sum connector)
 ```
 
 Multiple local models and cloud providers are supported, each with its own Kong route:
@@ -154,7 +154,7 @@ Place a `license.json` file in the `examples/kong-ai-gateway/` directory before 
 | Kong AI Proxy Plugins | KongPlugin CRD | `kong` |
 | Key Authentication | KongPlugin CRD | `kong` |
 | Demo Consumer | KongConsumer CRD | `kong` |
-| AI Metrics Exporter (optional) | Deployment manifest | `monitoring` |
+| OTel Collector (optional) | Deployment manifest | `monitoring` |
 | Prometheus (optional) | Helm chart | `monitoring` |
 | Grafana (optional) | Helm chart | `monitoring` |
 | Kong Prometheus Plugin (optional) | KongClusterPlugin CRD | cluster-wide |
@@ -360,7 +360,11 @@ When monitoring is enabled, the following components are deployed:
 | `kong_upstream_latency_ms` | LLM provider response latency histogram |
 | `kong_kong_latency_ms` | Kong processing latency histogram |
 
-**AI Metrics Exporter** — a lightweight Python service that receives LLM response data from Kong's `http-log` plugin and exposes token-level metrics:
+**Per-user LLM token metrics — no custom exporter.** Kong's `opentelemetry`
+plugin ships access logs to an **OTel Collector**; each record carries the AI
+plugin's `log_statistics` token counts plus `provider`/`model`/`consumer`
+attributes (set via `custom_attributes_by_lua`). The Collector's `sum` connector
+turns them into these Prometheus counters — config, not code:
 
 | Metric | Description |
 |--------|-------------|
@@ -370,11 +374,14 @@ When monitoring is enabled, the following components are deployed:
 | `ai_llm_requests_total` | Total LLM requests by provider, model, consumer |
 | `ai_llm_estimated_cost_usd` | Estimated cost in USD by provider, model, consumer |
 
-The exporter resolves the actual user identity from OpenWebUI's `X-OpenWebUI-User-Email` header (forwarded by `ENABLE_FORWARD_USER_INFO_HEADERS`). For direct API access, the Kong consumer's `custom_id` (matching the Keycloak username) is used. This ensures consistent consumer labels (`dev`, `lead`, `admin`) regardless of the access path.
+The user identity comes from OpenWebUI's `X-OpenWebUI-User-Email` header
+(forwarded by `ENABLE_FORWARD_USER_INFO_HEADERS`), falling back to the Kong
+consumer's `custom_id` — same consumer labels (`dev`, `lead`, `admin`) as before.
+Cost is computed by Kong from the per-model `input_cost`/`output_cost` rates.
 
-The exporter also parses responses from multiple providers: OpenAI/Ollama format (`choices` + `usage`), Gemini format (`candidates` + `usageMetadata`), and Anthropic format (`content` + `usage.input_tokens/output_tokens`).
-
-> **Note:** Token metrics require non-streaming responses. The `ai-proxy-advanced` plugin on the internal route disables streaming by default. For streaming requests via direct API, token counts are not available.
+Because token counts come from Kong (not from parsing the response body),
+**streaming works** — no `ai-force-nostream` hack — and all providers are handled
+uniformly (the AI plugin normalizes OpenAI/Ollama, Gemini and Anthropic usage).
 
 The pre-installed **Kong AI Gateway** Grafana dashboard includes:
 

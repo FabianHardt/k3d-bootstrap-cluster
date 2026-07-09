@@ -392,7 +392,7 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true, "otel_scope_name": true, "otel_scope_version": true, "otel_scope_schema_url": true },
             "renameByName": {
               "provider": "Provider",
               "model": "Model",

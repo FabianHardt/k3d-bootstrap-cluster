@@ -1,0 +1,110 @@
+# OTel Collector — turns Kong's AI access-log records into the per-user LLM
+# Prometheus metrics that used to come from the custom ai-metrics-exporter.
+#
+# Kong's opentelemetry plugin (kong-ai-tracing-plugin.yaml) ships access logs
+# here via OTLP/HTTP; each record carries the token counts (from the AI plugin's
+# log_statistics) plus provider/model/consumer as attributes (set via
+# custom_attributes_by_lua). The sum connector aggregates them into the exact
+# same metric names + labels the Grafana dashboard already expects — so no
+# custom code and no response-body parsing.
+#
+# Pinned to a multi-arch version tag that includes the `sum` connector (0.116.0
+# does not). setup.sh `k3d image import`s the host-arch image, because k3d nodes
+# otherwise pull the wrong architecture for this tag and crashloop ("exec format").
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector
+  namespace: monitoring
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+    connectors:
+      sum:
+        logs:
+          ai_llm_prompt_tokens_total:
+            source_attribute: prompt_tokens
+            attributes: [{key: provider}, {key: model}, {key: consumer}]
+          ai_llm_completion_tokens_total:
+            source_attribute: completion_tokens
+            attributes: [{key: provider}, {key: model}, {key: consumer}]
+          ai_llm_tokens_total:
+            source_attribute: total_tokens
+            attributes: [{key: provider}, {key: model}, {key: consumer}]
+          ai_llm_requests_total:
+            source_attribute: requests
+            attributes: [{key: provider}, {key: model}, {key: consumer}]
+          ai_llm_estimated_cost_usd:
+            source_attribute: cost
+            attributes: [{key: provider}, {key: model}, {key: consumer}]
+    exporters:
+      prometheus:
+        endpoint: 0.0.0.0:8889
+        # keep metric names verbatim (no _total/unit suffixing) so they match the dashboard
+        add_metric_suffixes: false
+    service:
+      telemetry:
+        logs:
+          level: warn
+      pipelines:
+        logs:
+          receivers: [otlp]
+          exporters: [sum]
+        metrics:
+          receivers: [sum]
+          exporters: [prometheus]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: monitoring
+  labels:
+    app: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.156.0
+          args: ["--config=/etc/otel/config.yaml"]
+          ports:
+            - {containerPort: 4318, name: otlp-http}
+            - {containerPort: 8889, name: metrics}
+          volumeMounts:
+            - name: cfg
+              mountPath: /etc/otel
+          resources:
+            requests: {memory: "128Mi", cpu: "50m"}
+            limits: {memory: "512Mi"}
+      volumes:
+        - name: cfg
+          configMap:
+            name: otel-collector
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: monitoring
+  labels:
+    app: otel-collector
+  annotations:
+    konghq.com/service-upstream: "true"
+spec:
+  selector:
+    app: otel-collector
+  ports:
+    - {name: otlp-http, port: 4318, targetPort: 4318, appProtocol: http}
+    - {name: metrics, port: 8889, targetPort: 8889, appProtocol: http}

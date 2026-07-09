@@ -29,10 +29,10 @@ extraScrapeConfigs: |
     scrape_interval: 10s
     static_configs:
       - targets: ['kong-gateway-metrics.kong.svc.cluster.local:8100']
-  - job_name: 'ai-metrics-exporter'
+  - job_name: 'otel-collector'
     scrape_interval: 10s
     static_configs:
-      - targets: ['ai-metrics-exporter.monitoring.svc.cluster.local:9090']
+      - targets: ['otel-collector.monitoring.svc.cluster.local:8889']
   - job_name: 'kuma-dataplanes'
     scrape_interval: 15s
     metrics_path: /metrics

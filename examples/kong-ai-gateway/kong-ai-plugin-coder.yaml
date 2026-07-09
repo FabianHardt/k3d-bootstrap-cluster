@@ -11,3 +11,5 @@ config:
     name: qwen2.5-coder:1.5b
     options:
       upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+      input_cost: 500
+      output_cost: 1500
