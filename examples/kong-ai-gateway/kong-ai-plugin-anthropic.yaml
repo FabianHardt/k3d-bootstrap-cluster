@@ -6,6 +6,9 @@ metadata:
 plugin: ai-proxy
 config:
   route_type: "llm/v1/chat"
+  logging:
+    log_statistics: true
+    log_payloads: false
   auth:
     header_name: "x-api-key"
     header_value: "{vault://my-env/ANTHROPIC_API_KEY}"

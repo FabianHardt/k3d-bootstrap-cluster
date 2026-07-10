@@ -6,6 +6,9 @@ metadata:
 plugin: ai-proxy
 config:
   route_type: "llm/v1/chat"
+  logging:
+    log_statistics: true
+    log_payloads: false
   auth:
     param_name: "key"
     param_value: "{vault://my-env/GEMINI_API_KEY}"

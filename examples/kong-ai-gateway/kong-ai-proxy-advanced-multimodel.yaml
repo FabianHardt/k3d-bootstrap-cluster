@@ -16,6 +16,9 @@ config:
   # fail with `unknown field model_alias` on a fresh install.
   targets:
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       model:
         provider: openai
         name: llama3.2:1b
@@ -24,6 +27,9 @@ config:
           input_cost: 500
           output_cost: 1500
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       model:
         provider: openai
         name: qwen2.5-coder:1.5b
@@ -32,6 +38,9 @@ config:
           input_cost: 500
           output_cost: 1500
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       model:
         provider: openai
         name: gemma3:1b
@@ -40,6 +49,9 @@ config:
           input_cost: 500
           output_cost: 1500
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       auth:
         param_name: key
         param_value: "{vault://my-env/GEMINI_API_KEY}"

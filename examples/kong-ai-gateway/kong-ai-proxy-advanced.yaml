@@ -20,6 +20,9 @@ config:
   targets:
     # Priority 1: Local Ollama (free, sovereign)
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       weight: 100
       model:
         provider: openai
@@ -32,6 +35,9 @@ config:
           output_cost: 1500
     # Priority 2: Google Gemini (cloud, free tier)
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       weight: 50
       auth:
         param_name: "key"
@@ -45,6 +51,9 @@ config:
           output_cost: 600
     # Priority 3: Anthropic Claude (cloud, paid)
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       weight: 10
       auth:
         header_name: "x-api-key"

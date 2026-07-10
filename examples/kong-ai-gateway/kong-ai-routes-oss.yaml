@@ -9,6 +9,9 @@ metadata:
 plugin: ai-proxy
 config:
   route_type: "llm/v1/chat"
+  logging:
+    log_statistics: true
+    log_payloads: false
   model:
     provider: openai
     name: llama3.2:1b
