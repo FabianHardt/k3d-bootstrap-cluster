@@ -163,8 +163,9 @@ rawLicenseString: '$(cat "${LICENSE_FILE}")'
 
   echo "License applied. Waiting for Kong to recognize Enterprise license..."
   for _ in $(seq 1 30); do
-    PLUGIN_COUNT=$(curl -sk https://kong-admin.example.com:8081/ 2>/dev/null | jq '.plugins.available_on_server | length' 2>/dev/null)
-    if [[ "${PLUGIN_COUNT}" -gt 50 ]]; then
+    # '|| true' so a not-yet-reachable admin endpoint doesn't abort under errexit
+    PLUGIN_COUNT=$(curl -sk https://kong-admin.example.com:8081/ 2>/dev/null | jq '.plugins.available_on_server | length' 2>/dev/null || true)
+    if [[ "${PLUGIN_COUNT:-0}" -gt 50 ]]; then
       echo "Enterprise license active (${PLUGIN_COUNT} plugins available)."
       break
     fi
