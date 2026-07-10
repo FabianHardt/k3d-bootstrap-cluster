@@ -18,10 +18,10 @@ server:
     - "web.enable-remote-write-receiver"
   resources:
     requests:
-      memory: "256Mi"
+      memory: "1Gi"
       cpu: "100m"
     limits:
-      memory: "512Mi"
+      memory: "3Gi"
       cpu: "500m"
 
 extraScrapeConfigs: |
