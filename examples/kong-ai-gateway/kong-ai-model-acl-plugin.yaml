@@ -65,3 +65,23 @@ config:
           message = "Model '" .. body.model .. "' is not available for your access tier."
         })
       end
+    - |
+      -- Strip "tools"/"tool_choice" for models that don't do function-calling
+      -- (Ollama gemma3). OpenWebUI attaches tools whenever an MCP tool server is
+      -- enabled, and Ollama rejects them for such models ("does not support tools").
+      -- Runs for every caller (OpenWebUI and direct API) before ai-proxy proxies.
+      local cjson = require("cjson.safe")
+      if kong.request.get_method() ~= "POST" then return end
+      local body = kong.request.get_body("application/json")
+      if not body or not body.model then return end
+      if body.tools == nil and body.tool_choice == nil then return end
+      local model = tostring(body.model):lower()
+      local no_tool_models = { "gemma" }
+      local strip = false
+      for _, m in ipairs(no_tool_models) do
+        if model:find(m, 1, true) then strip = true break end
+      end
+      if not strip then return end
+      body.tools = nil
+      body.tool_choice = nil
+      kong.service.request.set_raw_body(cjson.encode(body))
