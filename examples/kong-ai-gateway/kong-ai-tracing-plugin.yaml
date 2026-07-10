@@ -40,7 +40,12 @@ config:
         local c = s.consumer or {}
         return c.custom_id or c.username or "anonymous"
       provider: |
-        return ((((kong.log.serialize().ai or {}).proxy or {}).meta or {}).provider_name)
+        -- Kong reports the local Ollama upstream as provider "openai" (it speaks the
+        -- OpenAI-compatible API); the demo/dashboard call it "ollama". There is no real
+        -- OpenAI provider here, so map it back for a consistent provider label.
+        local p = ((((kong.log.serialize().ai or {}).proxy or {}).meta or {}).provider_name)
+        if p == nil or p == "openai" then return "ollama" end
+        return p
       model: |
         return ((((kong.log.serialize().ai or {}).proxy or {}).meta or {}).request_model)
       prompt_tokens: |
