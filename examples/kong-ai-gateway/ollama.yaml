@@ -36,10 +36,10 @@ spec:
               protocol: TCP
           resources:
             requests:
-              memory: "2Gi"
+              memory: "4Gi"
               cpu: "1000m"
             limits:
-              memory: "4Gi"
+              memory: "12Gi"
               cpu: "4000m"
           volumeMounts:
             - name: ollama-data
