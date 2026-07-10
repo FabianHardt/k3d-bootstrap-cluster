@@ -4,7 +4,7 @@ metadata:
   name: ai-proxy-gemini-internal
   namespace: kong
   annotations:
-    konghq.com/plugins: ai-model-acl,ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc
+    konghq.com/plugins: ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc
     konghq.com/strip-path: "true"
 spec:
   parentRefs:
