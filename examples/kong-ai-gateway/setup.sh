@@ -333,6 +333,9 @@ kubectl apply -f kong-consumers.yaml
 kubectl apply -f kong-ai-plugins.yaml
 
 if [[ -f ${LICENSE_FILE} ]]; then
+  echo "Applying per-user model ACL enforcement (for shared-consumer OpenWebUI users)..."
+  kubectl apply -f kong-ai-model-acl-plugin.yaml
+
   echo "Applying AI Proxy HTTPRoutes (Enterprise: multi-model + OIDC)..."
   kubectl apply -f kong-ai-route.yaml
   kubectl apply -f kong-ai-route-internal.yaml

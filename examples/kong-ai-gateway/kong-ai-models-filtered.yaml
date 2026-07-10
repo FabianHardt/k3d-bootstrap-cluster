@@ -1,6 +1,11 @@
-# /v1/models list, filtered by the consumer's Kong Consumer Group membership.
-# Single source of truth = the same Consumer Groups the acl plugin enforces on
-# the provider routes (kong-consumers.yaml). No hardcoded email/role maps.
+# /v1/models list, filtered by the user's tier (Kong Consumer Group membership).
+#
+# Two access paths, one source of truth (Consumer Groups):
+#   - Direct API (per-user key = own consumer): kong.client.get_consumer_groups()
+#   - OpenWebUI (shared key + forwarded X-OpenWebUI-User-Email): resolve the
+#     forwarded user's consumer (by custom_id = email local-part) and look up its
+#     consumer groups via the local Admin API (cached). OpenWebUI can't forward
+#     the per-user OIDC token, so the header is the only per-user signal.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -10,30 +15,53 @@ plugin: post-function
 config:
   access:
     - |
-      local cjson = require("cjson")
+      local cjson = require("cjson.safe")
 
-      -- Base tier: always available (local Ollama models).
       local base = {
         {id = "llama3.2:1b",        object = "model", created = 1700000000, owned_by = "ollama"},
         {id = "qwen2.5-coder:1.5b", object = "model", created = 1700000000, owned_by = "ollama"},
         {id = "gemma3:1b",          object = "model", created = 1700000000, owned_by = "ollama"},
       }
-      -- Extra models unlocked by Consumer Group membership (ordered).
       local tiers = {
         {group = "gemini-access",    models = {{id = "gemini-2.5-flash", object = "model", created = 1700000000, owned_by = "google"}}},
         {group = "anthropic-access", models = {{id = "claude-haiku-4-5", object = "model", created = 1700000000, owned_by = "anthropic"}}},
       }
 
+      -- consumer groups for a consumer identified by custom_id (email local-part),
+      -- via the local Admin API, cached 30s.
+      local function fetch_groups(custom_id)
+        local http = require("resty.http")
+        local httpc = http.new(); httpc:set_timeout(2000)
+        local set = {}
+        local r1 = httpc:request_uri("http://127.0.0.1:8001/consumers?custom_id=" .. custom_id)
+        if r1 and r1.status == 200 then
+          local d = cjson.decode(r1.body)
+          local c = d and d.data and d.data[1]
+          if c and c.id then
+            local r2 = httpc:request_uri("http://127.0.0.1:8001/consumers/" .. c.id .. "/consumer_groups")
+            if r2 and r2.status == 200 then
+              local d2 = cjson.decode(r2.body)
+              for _, g in ipairs((d2 and d2.data) or {}) do set[g.name] = true end
+            end
+          end
+        end
+        return set
+      end
+
       local member = {}
-      for _, g in ipairs(kong.client.get_consumer_groups() or {}) do
-        member[g.name] = true
+      local email = kong.request.get_header("X-OpenWebUI-User-Email")
+      if email then
+        local custom_id = email:match("^[^@]+") or email
+        member = kong.cache:get("ai_cg:" .. custom_id, { ttl = 30 }, fetch_groups, custom_id) or {}
+      else
+        for _, g in ipairs(kong.client.get_consumer_groups() or {}) do member[g.name] = true end
       end
 
       local models = {}
       for _, m in ipairs(base) do models[#models + 1] = m end
-      for _, tier in ipairs(tiers) do
-        if member[tier.group] then
-          for _, m in ipairs(tier.models) do models[#models + 1] = m end
+      for _, t in ipairs(tiers) do
+        if member[t.group] then
+          for _, m in ipairs(t.models) do models[#models + 1] = m end
         end
       end
 

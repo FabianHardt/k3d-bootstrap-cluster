@@ -1,0 +1,67 @@
+# Per-user model ENFORCEMENT for OpenWebUI users on the shared-consumer /ollama
+# multimodel route. Must be a pre-function so it runs BEFORE ai-proxy-advanced
+# proxies the request. OpenWebUI forwards X-OpenWebUI-User-Email (all users share
+# one key), so we gate on that: resolve the forwarded user's Kong Consumer Groups
+# (by custom_id = email local-part, via the local Admin API, cached) — same
+# source of truth as ai-models-filtered. Requests without the header are direct
+# API calls (own per-consumer key) and are governed by the route-level acl plugin.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-model-acl
+  namespace: kong
+plugin: pre-function
+config:
+  access:
+    - |
+      local cjson = require("cjson.safe")
+
+      local requires = {
+        {match = "gemini", group = "gemini-access"},
+        {match = "claude", group = "anthropic-access"},
+      }
+
+      if kong.request.get_method() ~= "POST" then return end
+      local email = kong.request.get_header("X-OpenWebUI-User-Email")
+      if not email then return end  -- direct API: governed by route-level acl
+
+      local path = kong.request.get_path() or ""
+      if path:find("/embeddings", 1, true) then return end
+
+      local body = kong.request.get_body("application/json")
+      if not body or not body.model then return end
+      local model = tostring(body.model):lower()
+
+      local needed
+      for _, r in ipairs(requires) do
+        if model:find(r.match, 1, true) then needed = r.group; break end
+      end
+      if not needed then return end  -- base (Ollama) model: allowed for everyone
+
+      local function fetch_groups(custom_id)
+        local http = require("resty.http")
+        local httpc = http.new(); httpc:set_timeout(2000)
+        local set = {}
+        local r1 = httpc:request_uri("http://127.0.0.1:8001/consumers?custom_id=" .. custom_id)
+        if r1 and r1.status == 200 then
+          local d = cjson.decode(r1.body)
+          local c = d and d.data and d.data[1]
+          if c and c.id then
+            local r2 = httpc:request_uri("http://127.0.0.1:8001/consumers/" .. c.id .. "/consumer_groups")
+            if r2 and r2.status == 200 then
+              local d2 = cjson.decode(r2.body)
+              for _, g in ipairs((d2 and d2.data) or {}) do set[g.name] = true end
+            end
+          end
+        end
+        return set
+      end
+
+      local custom_id = email:match("^[^@]+") or email
+      local member = kong.cache:get("ai_cg:" .. custom_id, { ttl = 30 }, fetch_groups, custom_id) or {}
+
+      if not member[needed] then
+        return kong.response.exit(403, {
+          message = "Model '" .. body.model .. "' is not available for your access tier."
+        })
+      end
