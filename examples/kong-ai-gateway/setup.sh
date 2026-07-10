@@ -161,17 +161,21 @@ metadata:
 rawLicenseString: '$(cat "${LICENSE_FILE}")'
 " | kubectl apply -f -
 
-  echo "License applied. Waiting for Kong to recognize Enterprise license..."
-  for _ in $(seq 1 30); do
-    # '|| true' so a not-yet-reachable admin endpoint doesn't abort under errexit
-    PLUGIN_COUNT=$(curl -sk https://kong-admin.example.com:8081/ 2>/dev/null | jq '.plugins.available_on_server | length' 2>/dev/null || true)
-    if [[ "${PLUGIN_COUNT:-0}" -gt 50 ]]; then
-      echo "Enterprise license active (${PLUGIN_COUNT} plugins available)."
+  echo "License applied. Waiting for Kong to recognize the Enterprise license..."
+  # Poll the actual admission webhook with an enterprise-only plugin (server
+  # dry-run). This needs no reachable admin endpoint and tests exactly what the
+  # later enterprise-plugin applies (ai-semantic-cache, ...) depend on.
+  LICENSE_ACTIVE=false
+  for _ in $(seq 1 60); do
+    if kubectl apply --dry-run=server -f kong-ai-semantic-cache-plugin.yaml >/dev/null 2>&1; then
+      echo "Enterprise license active."
+      LICENSE_ACTIVE=true
       break
     fi
-    echo "  waiting... (plugins: ${PLUGIN_COUNT:-?})"
-    sleep 2
+    echo "  waiting for license activation..."
+    sleep 3
   done
+  [[ "${LICENSE_ACTIVE}" == "true" ]] || echo "  WARNING: license not confirmed active after 180s; enterprise plugins may fail."
 
   echo "Upgrading Kong with Enterprise features (Manager UI, Admin API)..."
   # shellcheck disable=SC2086
