@@ -301,7 +301,9 @@ ${FAILOVER_TARGETS}" | kubectl apply -f -
   # --- AI Proxy Advanced (Multi-Model) ---
   echo ""
   echo "Applying AI Proxy Advanced multi-model plugin..."
-  kubectl apply -f kong-ai-proxy-advanced-multimodel.yaml
+  # First pass: strip model_alias (Enterprise-schema, not yet accepted pre-license).
+  # The second pass at the end re-applies the file verbatim once the license is active.
+  sed '/^ *model_alias:/d' kong-ai-proxy-advanced-multimodel.yaml | kubectl apply -f -
 
   # --- AI Semantic Cache (Redis Stack + nomic-embed-text) ---
   echo ""
@@ -654,51 +656,10 @@ if [[ -f ${LICENSE_FILE} ]]; then
   # each target's model_alias instead of round-robin distributing blindly
   # (which would fail with "cannot use own model - must be: X" on mismatch).
   echo "Enabling per-model routing on AI Proxy Advanced (model_alias)..."
-  cat <<'EOF' | kubectl apply -f -
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: ai-proxy-advanced-multimodel
-  namespace: kong
-plugin: ai-proxy-advanced
-config:
-  balancer:
-    algorithm: round-robin
-    connect_timeout: 10000
-    read_timeout: 300000
-    write_timeout: 300000
-  targets:
-    - route_type: llm/v1/chat
-      model:
-        provider: openai
-        name: llama3.2:1b
-        model_alias: llama3.2:1b
-        options:
-          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
-    - route_type: llm/v1/chat
-      model:
-        provider: openai
-        name: qwen2.5-coder:1.5b
-        model_alias: qwen2.5-coder:1.5b
-        options:
-          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
-    - route_type: llm/v1/chat
-      model:
-        provider: openai
-        name: gemma3:1b
-        model_alias: gemma3:1b
-        options:
-          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
-    - route_type: llm/v1/chat
-      auth:
-        param_name: key
-        param_value: "{vault://my-env/GEMINI_API_KEY}"
-        param_location: query
-      model:
-        provider: gemini
-        name: gemini-2.5-flash
-        model_alias: gemini-2.5-flash
-EOF
+  # Second pass: re-apply the full plugin (now including model_alias) verbatim.
+  # The license schema is active, so model_alias is accepted; logging.log_statistics
+  # and input/output_cost are preserved because we apply the same file, not a subset.
+  kubectl apply -f kong-ai-proxy-advanced-multimodel.yaml
 fi
 
 # --- Done ---
