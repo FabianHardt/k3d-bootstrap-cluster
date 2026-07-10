@@ -46,6 +46,9 @@ data:
         endpoint: 0.0.0.0:8889
         # keep metric names verbatim (no _total/unit suffixing) so they match the dashboard
         add_metric_suffixes: false
+        # keep AI series exposed for 1h of idle (default 5m) so the dashboard's
+        # per-user token/cost panels don't blank out between demo requests
+        metric_expiration: 1h
     service:
       telemetry:
         logs:
