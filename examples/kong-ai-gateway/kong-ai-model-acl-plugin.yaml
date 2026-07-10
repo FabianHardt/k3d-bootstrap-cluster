@@ -1,10 +1,19 @@
-# Per-user model ENFORCEMENT for OpenWebUI users on the shared-consumer /ollama
-# multimodel route. Must be a pre-function so it runs BEFORE ai-proxy-advanced
-# proxies the request. OpenWebUI forwards X-OpenWebUI-User-Email (all users share
-# one key), so we gate on that: resolve the forwarded user's Kong Consumer Groups
-# (by custom_id = email local-part, via the local Admin API, cached) — same
-# source of truth as ai-models-filtered. Requests without the header are direct
-# API calls (own per-consumer key) and are governed by the route-level acl plugin.
+# Per-request handling on the /ollama multimodel routes, before ai-proxy-advanced
+# proxies (hence a pre-function). Two independent access functions:
+#   1. Per-user model ENFORCEMENT for OpenWebUI users. OpenWebUI forwards
+#      X-OpenWebUI-User-Email (all users share one key), so we gate on that:
+#      resolve the forwarded user's Kong Consumer Groups (by custom_id = email
+#      local-part, via the local Admin API, cached) — same source of truth as
+#      ai-models-filtered. Requests without the header are direct API calls (own
+#      per-consumer key) and are governed by the route-level acl plugin.
+#   2. Strip "tools" for models that don't support function-calling (gemma3).
+#
+# Both read the request JSON via read_json_body(): OpenWebUI's real requests
+# (system prompt + tool schemas + history) exceed client_body_buffer_size and get
+# spooled to a temp file, where kong.request.get_body() returns nil — reading only
+# the in-memory buffer would silently skip enforcement AND the tools strip. We read
+# the raw body from memory or the temp file and decode it ourselves, then stash it
+# in kong.ctx.shared so the second function reuses it.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -16,19 +25,36 @@ config:
     - |
       local cjson = require("cjson.safe")
 
+      -- Robustly read the request JSON: in-memory buffer OR temp file (large bodies).
+      local function read_json_body()
+        ngx.req.read_body()
+        local raw = ngx.req.get_body_data()
+        if not raw then
+          local fname = ngx.req.get_body_file()
+          if fname then
+            local f = io.open(fname, "rb")
+            if f then raw = f:read("*a"); f:close() end
+          end
+        end
+        if raw and raw ~= "" then return cjson.decode(raw) end
+        return nil
+      end
+
+      if kong.request.get_method() ~= "POST" then return end
+      local body = read_json_body()
+      kong.ctx.shared.ai_req_body = body  -- reused by the tools-strip function
+
       local requires = {
         {match = "gemini", group = "gemini-access"},
         {match = "claude", group = "anthropic-access"},
       }
 
-      if kong.request.get_method() ~= "POST" then return end
       local email = kong.request.get_header("X-OpenWebUI-User-Email")
       if not email then return end  -- direct API: governed by route-level acl
 
       local path = kong.request.get_path() or ""
       if path:find("/embeddings", 1, true) then return end
 
-      local body = kong.request.get_body("application/json")
       if not body or not body.model then return end
       local model = tostring(body.model):lower()
 
@@ -72,7 +98,7 @@ config:
       -- Runs for every caller (OpenWebUI and direct API) before ai-proxy proxies.
       local cjson = require("cjson.safe")
       if kong.request.get_method() ~= "POST" then return end
-      local body = kong.request.get_body("application/json")
+      local body = kong.ctx.shared.ai_req_body  -- read once by the ACL function above
       if not body or not body.model then return end
       if body.tools == nil and body.tool_choice == nil then return end
       local model = tostring(body.model):lower()
