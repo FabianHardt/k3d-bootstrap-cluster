@@ -118,6 +118,15 @@ metadata:
   namespace: kong
 spec:
   secretName: example-com-tls
+  # Label the generated secret with konghq.com/secret=true so the Kong Operator's
+  # embedded ControlPlane (kong-gateway-operator example) caches it — its Secret
+  # informer is label-filtered, and without this the Gateway HTTPS listener fails
+  # with 'getGatewayCerts: Secret not found'. Harmless for the KIC-based examples.
+  # secretTemplate (not a manual kubectl label) because cert-manager strips labels
+  # it does not manage on every (re)issue.
+  secretTemplate:
+    labels:
+      konghq.com/secret: "true"
   issuerRef:
     kind: ClusterIssuer
     name: openbao-issuer
