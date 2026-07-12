@@ -1,21 +1,13 @@
-# ai-force-nostream: Forces stream:false in request body so Kong receives
-# complete responses for token metrics and correct Content-Length.
-# Requires KONG_UNTRUSTED_LUA=on in Kong gateway config.
+# ai-key-auth: plain key-auth (works without Enterprise license).
+# Enterprise routes use ai-key-auth-or-oidc (key-auth with anonymous
+# fallback + OIDC) instead — see kong-ai-plugins-key-auth-anonymous.yaml.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
-  name: ai-force-nostream
+  name: ai-key-auth
   namespace: kong
-plugin: pre-function
+plugin: key-auth
 config:
-  access:
-    - |
-      local body = kong.request.get_raw_body()
-      if body and #body > 0 then
-        local cjson = require("cjson.safe")
-        local json = cjson.decode(body)
-        if json then
-          json.stream = false
-          kong.service.request.set_raw_body(cjson.encode(json))
-        end
-      end
+  key_names:
+    - apikey
+    - authorization

@@ -28,6 +28,11 @@ service:
 ollama:
   enabled: false
 
+# We set ENABLE_OLLAMA_API/OLLAMA_* ourselves via extraEnvVars below; this stops
+# the chart from also emitting its own ENABLE_OLLAMA_API (server-side apply rejects
+# the duplicate env key).
+ollamaUrlsFromExtraEnv: true
+
 pipelines:
   enabled: false
 

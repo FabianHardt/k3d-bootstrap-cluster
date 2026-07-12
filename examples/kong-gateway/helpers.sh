@@ -2,7 +2,8 @@
 
 LICENSE_FILE=license.json
 
-KONG_INGRESS_CHART_VERSION=0.24.0
+# Central Kong component versions (single source of truth)
+source "$(dirname "${BASH_SOURCE[0]}")/../../kong-versions.env"
 # kong/kong sub-chart version bundled in kong/ingress ${KONG_INGRESS_CHART_VERSION}
 KONG_SUBCHART_VERSION=3.2.0
 
@@ -21,7 +22,10 @@ rm -rf "${TMPDIR}"
 kubectl apply -f gateway-class.yaml
 kubectl apply -f gateway.yaml
 
-helm upgrade --install kong kong/ingress --version "${KONG_INGRESS_CHART_VERSION}" --values values.yaml --namespace kong
+helm upgrade --install kong kong/ingress --version "${KONG_INGRESS_CHART_VERSION}" --values values.yaml --namespace kong \
+  --set gateway.image.tag="${KONG_GATEWAY_VERSION}" \
+  --set controller.ingressController.image.repository=kong/kubernetes-ingress-controller \
+  --set controller.ingressController.image.tag="${KONG_KIC_VERSION}"
 
 if [[ -f ${LICENSE_FILE} ]]; then
 echo "${LICENSE_FILE} exists. Using it!"

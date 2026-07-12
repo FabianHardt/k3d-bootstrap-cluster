@@ -1,7 +1,9 @@
+# Image tags are injected at install time from ../kong-versions.env via helm
+# --set (gateway.image.tag, controller.ingressController.image.tag). Do not pin
+# versions here — bump them in kong-versions.env.
 gateway:
   image:
     repository: kong/kong-gateway
-    tag: "3.13.0.2"
   proxy:
     type: LoadBalancer
   manager:
@@ -11,8 +13,3 @@ gateway:
     type: ClusterIP
     http:
       enabled: true
-
-controller:
-  ingressController:
-    repository: kong/kubernetes-ingress-controller
-    tag: "3.5.6"

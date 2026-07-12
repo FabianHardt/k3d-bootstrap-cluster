@@ -20,14 +20,24 @@ config:
   targets:
     # Priority 1: Local Ollama (free, sovereign)
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       weight: 100
       model:
         provider: openai
         name: llama3.2:1b
         options:
           upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
+          # $/1M tokens — demo rates (formerly the exporter's PRICING table) so
+          # Kong emits usage.cost; simulated on-prem GPU/energy cost.
+          input_cost: 500
+          output_cost: 1500
     # Priority 2: Google Gemini (cloud, free tier)
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       weight: 50
       auth:
         param_name: "key"
@@ -36,15 +46,23 @@ config:
       model:
         provider: gemini
         name: gemini-2.5-flash
+        options:
+          input_cost: 150
+          output_cost: 600
     # Priority 3: Anthropic Claude (cloud, paid)
     - route_type: llm/v1/chat
+      logging:
+        log_statistics: true
+        log_payloads: false
       weight: 10
       auth:
         header_name: "x-api-key"
         header_value: "{vault://my-env/ANTHROPIC_API_KEY}"
       model:
         provider: anthropic
-        name: claude-haiku-3-5-20241022
+        name: claude-haiku-4-5
         options:
           max_tokens: 4096
           anthropic_version: "2023-06-01"
+          input_cost: 1000
+          output_cost: 5000

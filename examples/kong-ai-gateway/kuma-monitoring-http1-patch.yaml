@@ -1,7 +1,7 @@
 # Force HTTP/1.1 on outbound clusters for monitoring services
 # Same pattern as kuma-gateway-http1-patch.yaml — required because
 # Kuma gateway dataplanes default all outbound clusters to HTTP/2.
-# Grafana, Prometheus, Tempo (Query/OTLP), and AI-Metrics-Exporter only speak HTTP/1.1.
+# Grafana, Prometheus, Tempo (Query/OTLP), and the OTel Collector only speak HTTP/1.1.
 apiVersion: kuma.io/v1alpha1
 kind: MeshProxyPatch
 metadata:
@@ -54,10 +54,11 @@ spec:
                   explicitHttpConfig:
                     httpProtocolOptions: {}
 ---
+# OTel Collector Prometheus metrics (port 8889) — scraped by prometheus-server
 apiVersion: kuma.io/v1alpha1
 kind: MeshProxyPatch
 metadata:
-  name: http1-ai-exporter
+  name: http1-otel-metrics
   namespace: kuma-cp
   labels:
     kuma.io/mesh: default
@@ -69,7 +70,34 @@ spec:
       - cluster:
           operation: Patch
           match:
-            name: ai-metrics-exporter_monitoring_svc_9090
+            name: otel-collector_monitoring_svc_8889
+            origin: outbound
+          jsonPatches:
+            - op: replace
+              path: /typedExtensionProtocolOptions
+              value:
+                envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+                  "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+                  explicitHttpConfig:
+                    httpProtocolOptions: {}
+---
+# OTel Collector OTLP HTTP receiver (port 4318) — Kong ships AI access logs here
+apiVersion: kuma.io/v1alpha1
+kind: MeshProxyPatch
+metadata:
+  name: http1-otel-logs
+  namespace: kuma-cp
+  labels:
+    kuma.io/mesh: default
+spec:
+  targetRef:
+    kind: Mesh
+  default:
+    appendModifications:
+      - cluster:
+          operation: Patch
+          match:
+            name: otel-collector_monitoring_svc_4318
             origin: outbound
           jsonPatches:
             - op: replace

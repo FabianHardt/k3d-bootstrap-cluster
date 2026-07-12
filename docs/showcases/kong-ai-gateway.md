@@ -13,7 +13,7 @@ This showcase demonstrates how to use **Kong AI Gateway** as a centralized proxy
 │ (OpenWebUI)│    │                      │  │    ┌─────────────────┐
 └────────────┘    │  - ai-proxy plugin   │  ├───▶│  Google Gemini  │  Optional, free tier
                   │  - key-auth plugin   │  │    └─────────────────┘
-                  │  - http-log (metrics)│  │    ┌─────────────────┐
+                  │  - opentelemetry     │  │    ┌─────────────────┐
                   │  - rate-limit (Ent.) │  └───▶│  Anthropic API  │  Optional, paid
                   │  - prompt-guard (E.) │       └─────────────────┘
                   └──────────────────────┘
@@ -21,9 +21,9 @@ This showcase demonstrates how to use **Kong AI Gateway** as a centralized proxy
         ┌────────────────┼────────────────┐
         ▼                ▼                ▼
    RAG Pipeline    Monitoring        Token Metrics
-   Docs → Embed    Prometheus →      http-log →
-   → ChromaDB →    Grafana           AI Metrics
-   Context         Dashboard         Exporter
+   Docs → Embed    Prometheus →      OTel access logs →
+   → ChromaDB →    Grafana           OTel Collector
+   Context         Dashboard         (sum connector)
 ```
 
 Multiple local models and cloud providers are supported, each with its own Kong route:
@@ -34,7 +34,7 @@ Multiple local models and cloud providers are supported, each with its own Kong 
 | qwen2.5-coder:1.5b (Ollama) | `/coder/v1/chat/completions` | Code generation | Free (local) |
 | gemma3:1b (Ollama) | `/gemma/v1/chat/completions` | Alternative chat | Free (local) |
 | Google Gemini (gemini-2.5-flash) | `/gemini/v1/chat/completions` | Cloud — fast | Free tier / Optional |
-| Anthropic Claude (claude-haiku-3-5) | `/anthropic/v1/chat/completions` | Cloud — quality | Paid / Optional |
+| Anthropic Claude (claude-haiku-4-5) | `/anthropic/v1/chat/completions` | Cloud — quality | Paid / Optional |
 
 ## Preconditions
 
@@ -81,6 +81,8 @@ kubectl create secret generic anthropic-api-key \
 kubectl apply -f kong-ai-plugin-anthropic.yaml
 kubectl apply -f kong-ai-route-anthropic.yaml
 ```
+
+> **Note:** Without an Enterprise license, apply `kong-ai-route-gemini-oss.yaml` instead of `kong-ai-route-gemini.yaml` (the Enterprise variant references OIDC and semantic-cache plugins that only exist with a license).
 
 ## DNS preparation
 
@@ -154,7 +156,7 @@ Place a `license.json` file in the `examples/kong-ai-gateway/` directory before 
 | Kong AI Proxy Plugins | KongPlugin CRD | `kong` |
 | Key Authentication | KongPlugin CRD | `kong` |
 | Demo Consumer | KongConsumer CRD | `kong` |
-| AI Metrics Exporter (optional) | Deployment manifest | `monitoring` |
+| OTel Collector (optional) | Deployment manifest | `monitoring` |
 | Prometheus (optional) | Helm chart | `monitoring` |
 | Grafana (optional) | Helm chart | `monitoring` |
 | Kong Prometheus Plugin (optional) | KongClusterPlugin CRD | cluster-wide |
@@ -199,7 +201,9 @@ curl -k -H "apikey: lead-key-12345" \
   https://ai.example.com:8081/gemini/v1/chat/completions
 ```
 
-### Model list per consumer
+### Model list per consumer (Enterprise)
+
+Per-user model filtering requires the Enterprise setup (Keycloak + OIDC consumer mapping). In OSS mode, `/ollama/v1/models` returns a static list containing `llama3.2:1b` for every authenticated consumer.
 
 ```bash
 # dev-user sees Ollama models only
@@ -265,6 +269,16 @@ OpenWebUI → Kong /ollama/v1/chat/completions
 Each target in the `ai-proxy-advanced` plugin has a `model_alias` matching the model name that clients send. Kong routes the request to the correct provider based on the `model` field in the request body — no separate routes needed.
 
 All providers expose an OpenAI-compatible interface via Kong, so any OpenAI client (like OpenWebUI) can use them transparently.
+
+**OSS mode (no `license.json`)** — `ai-proxy-advanced`, `openid-connect`, `ai-semantic-cache` and `ai-rate-limiting-advanced` are Enterprise plugins. Without a license, `setup.sh` applies `kong-ai-routes-oss.yaml` instead:
+
+| Aspect | Enterprise | OSS |
+|--------|-----------|-----|
+| Internal chat route (OpenWebUI) | `ai-proxy-advanced` multi-model (`model_alias`) | plain `ai-proxy` pinned to `llama3.2:1b` |
+| Authentication | API key **or** OIDC token (`ai-key-auth-or-oidc` + `ai-oidc`) | API key only (`ai-key-auth`) |
+| Model list (`/v1/models`) | per-user filtered (`ai-models-filtered`) | static `llama3.2:1b` (`ai-models-response`) |
+| Gemini / Anthropic | via OpenWebUI and external routes | external routes only (`curl`), ACL-protected |
+| Failover `/ai`, semantic cache, prompt guard, token rate limiting | ✔ | — |
 
 ### Model Recommendations
 
@@ -360,7 +374,11 @@ When monitoring is enabled, the following components are deployed:
 | `kong_upstream_latency_ms` | LLM provider response latency histogram |
 | `kong_kong_latency_ms` | Kong processing latency histogram |
 
-**AI Metrics Exporter** — a lightweight Python service that receives LLM response data from Kong's `http-log` plugin and exposes token-level metrics:
+**Per-user LLM token metrics — no custom exporter.** Kong's `opentelemetry`
+plugin ships access logs to an **OTel Collector**; each record carries the AI
+plugin's `log_statistics` token counts plus `provider`/`model`/`consumer`
+attributes (set via `custom_attributes_by_lua`). The Collector's `sum` connector
+turns them into these Prometheus counters — config, not code:
 
 | Metric | Description |
 |--------|-------------|
@@ -370,11 +388,14 @@ When monitoring is enabled, the following components are deployed:
 | `ai_llm_requests_total` | Total LLM requests by provider, model, consumer |
 | `ai_llm_estimated_cost_usd` | Estimated cost in USD by provider, model, consumer |
 
-The exporter resolves the actual user identity from OpenWebUI's `X-OpenWebUI-User-Email` header (forwarded by `ENABLE_FORWARD_USER_INFO_HEADERS`). For direct API access, the Kong consumer's `custom_id` (matching the Keycloak username) is used. This ensures consistent consumer labels (`dev`, `lead`, `admin`) regardless of the access path.
+The user identity comes from OpenWebUI's `X-OpenWebUI-User-Email` header
+(forwarded by `ENABLE_FORWARD_USER_INFO_HEADERS`), falling back to the Kong
+consumer's `custom_id` — same consumer labels (`dev`, `lead`, `admin`) as before.
+Cost is computed by Kong from the per-model `input_cost`/`output_cost` rates.
 
-The exporter also parses responses from multiple providers: OpenAI/Ollama format (`choices` + `usage`), Gemini format (`candidates` + `usageMetadata`), and Anthropic format (`content` + `usage.input_tokens/output_tokens`).
-
-> **Note:** Token metrics require non-streaming responses. The `ai-proxy-advanced` plugin on the internal route disables streaming by default. For streaming requests via direct API, token counts are not available.
+Because token counts come from Kong (not from parsing the response body),
+**streaming works** — no `ai-force-nostream` hack — and all providers are handled
+uniformly (the AI plugin normalizes OpenAI/Ollama, Gemini and Anthropic usage).
 
 The pre-installed **Kong AI Gateway** Grafana dashboard includes:
 

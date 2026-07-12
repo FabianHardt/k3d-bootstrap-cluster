@@ -15,6 +15,9 @@ DEPLOY_KUMA="${DEPLOY_KUMA:-}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
+# Central Kong component versions (single source of truth)
+source "$(dirname "${BASH_SOURCE[0]}")/../../kong-versions.env"
+
 # --- Preconditions ---
 echo "Checking prerequisites..."
 
@@ -158,52 +161,56 @@ metadata:
 rawLicenseString: '$(cat "${LICENSE_FILE}")'
 " | kubectl apply -f -
 
-  echo "License applied. Waiting for Kong to recognize Enterprise license..."
-  for _ in $(seq 1 30); do
-    PLUGIN_COUNT=$(curl -sk https://kong-admin.example.com:8081/ 2>/dev/null | jq '.plugins.available_on_server | length' 2>/dev/null)
-    if [[ "${PLUGIN_COUNT}" -gt 50 ]]; then
-      echo "Enterprise license active (${PLUGIN_COUNT} plugins available)."
+  echo "License applied. Waiting for Kong to recognize the Enterprise license..."
+  # Poll the actual admission webhook with an enterprise-only plugin (server
+  # dry-run). This needs no reachable admin endpoint and tests exactly what the
+  # later enterprise-plugin applies (ai-semantic-cache, ...) depend on.
+  LICENSE_ACTIVE=false
+  for _ in $(seq 1 60); do
+    if kubectl apply --dry-run=server -f kong-ai-semantic-cache-plugin.yaml >/dev/null 2>&1; then
+      echo "Enterprise license active."
+      LICENSE_ACTIVE=true
       break
     fi
-    echo "  waiting... (plugins: ${PLUGIN_COUNT:-?})"
-    sleep 2
+    echo "  waiting for license activation..."
+    sleep 3
   done
+  [[ "${LICENSE_ACTIVE}" == "true" ]] || echo "  WARNING: license not confirmed active after 180s; enterprise plugins may fail."
 
   echo "Upgrading Kong with Enterprise features (Manager UI, Admin API)..."
   # shellcheck disable=SC2086
-  helm upgrade kong kong/ingress --version 0.24.0 --values ../kong-gateway/values.yaml --namespace kong ${HELM_EXTRA_ARGS}
+  helm upgrade kong kong/ingress --version "${KONG_INGRESS_CHART_VERSION}" --values ../kong-gateway/values.yaml --namespace kong --set gateway.image.tag="${KONG_GATEWAY_VERSION}" --set controller.ingressController.image.repository=kong/kubernetes-ingress-controller --set controller.ingressController.image.tag="${KONG_KIC_VERSION}" ${HELM_EXTRA_ARGS}
   kubectl wait deployment kong-gateway -n kong --for=condition=Available=true --timeout=120s
 
   echo "Applying Kong Manager and Admin routes..."
   kubectl apply -f ../kong-gateway/httproute-kong-manager.yaml
 
-  # Add HTTP listener without hostname filter for internal cluster routes (OpenWebUI → Kong).
-  # Gateway API listeners with hostname: *.example.com reject internal requests.
-  # Uses port 8000 (Kong's native proxy port) to avoid conflicting with Keycloak's port 80
-  # in Kuma's exclude-outbound-ports annotation — port 80 must stay in-mesh for mTLS.
-  echo "Adding internal HTTP listener to Gateway..."
-  kubectl patch svc kong-gateway-proxy -n kong --type=json -p='[
-    {"op": "add", "path": "/spec/ports/-", "value": {
-      "name": "kong-proxy-internal", "port": 8000, "targetPort": 8000, "protocol": "TCP"
-    }}
-  ]' 2>/dev/null || true
-  kubectl patch gateway kong -n kong --type=json -p='[
-    {"op": "add", "path": "/spec/listeners/-", "value": {
-      "name": "kong-http-internal",
-      "port": 8000,
-      "protocol": "HTTP",
-      "allowedRoutes": {"namespaces": {"from": "All"}}
-    }}
-  ]' 2>/dev/null || true
-
   echo "Kong Enterprise ready with Manager UI and Admin API."
 fi
+
+# --- Internal HTTP listener ---
+# Add HTTP listener without hostname filter for internal cluster routes (OpenWebUI → Kong).
+# Gateway API listeners with hostname: *.example.com reject internal requests.
+# Uses port 8000 (Kong's native proxy port) to avoid conflicting with Keycloak's port 80
+# in Kuma's exclude-outbound-ports annotation — port 80 must stay in-mesh for mTLS.
+echo "Adding internal HTTP listener to Gateway..."
+kubectl patch svc kong-gateway-proxy -n kong --type=json -p='[
+  {"op": "add", "path": "/spec/ports/-", "value": {
+    "name": "kong-proxy-internal", "port": 8000, "targetPort": 8000, "protocol": "TCP"
+  }}
+]' 2>/dev/null || true
+kubectl patch gateway kong -n kong --type=json -p='[
+  {"op": "add", "path": "/spec/listeners/-", "value": {
+    "name": "kong-http-internal",
+    "port": 8000,
+    "protocol": "HTTP",
+    "allowedRoutes": {"namespaces": {"from": "All"}}
+  }}
+]' 2>/dev/null || true
 
 # --- Kong AI Plugins ---
 echo ""
 echo "Applying Kong AI Gateway plugins..."
-
-kubectl apply -f kong-ai-plugins.yaml
 
 if [[ "${GEMINI_ENABLED}" == "true" ]]; then
   echo "Applying Gemini AI proxy plugin..."
@@ -258,7 +265,7 @@ if [[ -f ${LICENSE_FILE} ]]; then
         header_value: \"{vault://my-env/ANTHROPIC_API_KEY}\"
       model:
         provider: anthropic
-        name: claude-haiku-3-5-20241022
+        name: claude-haiku-4-5
         options:
           max_tokens: 4096
           anthropic_version: \"2023-06-01\""
@@ -294,7 +301,9 @@ ${FAILOVER_TARGETS}" | kubectl apply -f -
   # --- AI Proxy Advanced (Multi-Model) ---
   echo ""
   echo "Applying AI Proxy Advanced multi-model plugin..."
-  kubectl apply -f kong-ai-proxy-advanced-multimodel.yaml
+  # First pass: strip model_alias (Enterprise-schema, not yet accepted pre-license).
+  # The second pass at the end re-applies the file verbatim once the license is active.
+  sed '/^ *model_alias:/d' kong-ai-proxy-advanced-multimodel.yaml | kubectl apply -f -
 
   # --- AI Semantic Cache (Redis Stack + nomic-embed-text) ---
   echo ""
@@ -319,18 +328,35 @@ echo "Applying Kong Consumer configuration..."
 kubectl apply -f kong-consumers.yaml
 
 # --- AI Proxy Routes ---
-echo "Applying AI Proxy HTTPRoutes..."
-kubectl apply -f kong-ai-route.yaml
-kubectl apply -f kong-ai-route-internal.yaml
+# ai-key-auth (plain key-auth) is referenced by the OSS routes and by the
+# anthropic/coder/gemma/MCP routes, so it must always exist. Per-request access
+# logging is handled globally by the opentelemetry plugin (see
+# kong-ai-tracing-plugin.yaml), which feeds the OTel Collector.
+kubectl apply -f kong-ai-plugins.yaml
 
-# --- Model list routes ---
-echo "Applying model list routes..."
-kubectl apply -f kong-ai-models-filtered.yaml
-kubectl apply -f kong-ai-route-models.yaml
+if [[ -f ${LICENSE_FILE} ]]; then
+  echo "Applying per-user model ACL enforcement (for shared-consumer OpenWebUI users)..."
+  kubectl apply -f kong-ai-model-acl-plugin.yaml
 
+  echo "Applying AI Proxy HTTPRoutes (Enterprise: multi-model + OIDC)..."
+  kubectl apply -f kong-ai-route.yaml
+  kubectl apply -f kong-ai-route-internal.yaml
+
+  echo "Applying model list routes (per-user filtering)..."
+  kubectl apply -f kong-ai-models-filtered.yaml
+  kubectl apply -f kong-ai-route-models.yaml
+else
+  echo "Applying AI Proxy HTTPRoutes (OSS: ai-proxy + key-auth)..."
+  kubectl apply -f kong-ai-models-response.yaml
+  kubectl apply -f kong-ai-routes-oss.yaml
+fi
 
 if [[ "${GEMINI_ENABLED}" == "true" ]]; then
-  kubectl apply -f kong-ai-route-gemini.yaml
+  if [[ -f ${LICENSE_FILE} ]]; then
+    kubectl apply -f kong-ai-route-gemini.yaml
+  else
+    kubectl apply -f kong-ai-route-gemini-oss.yaml
+  fi
 fi
 
 if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
@@ -383,16 +409,17 @@ if [[ "${DEPLOY_MONITORING}" =~ ^[Yy]$ ]]; then
 
   kubectl label configmap grafana-dashboard-ai -n monitoring grafana_dashboard=true --overwrite
 
-  echo "Deploying AI Metrics Exporter..."
-  kubectl apply -f ai-metrics-exporter.yaml
+  echo "Deploying OTel Collector (turns Kong AI access logs into per-user metrics)..."
+  # k3d nodes pull the wrong arch for this tag; preload the host-arch image.
+  OTEL_IMAGE="otel/opentelemetry-collector-contrib:0.156.0"
+  OTEL_ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+  K3D_CLUSTER="$(kubectl config current-context 2>/dev/null | sed 's/^k3d-//')"
+  docker pull --quiet --platform "linux/${OTEL_ARCH}" "${OTEL_IMAGE}" >/dev/null 2>&1 || true
+  k3d image import "${OTEL_IMAGE}" -c "${K3D_CLUSTER}" >/dev/null 2>&1 || true
+  kubectl apply -f otel-collector.yaml
+  kubectl rollout status deployment/otel-collector -n monitoring --timeout=120s
 
-  echo "Waiting for AI Metrics Exporter to be ready..."
-  kubectl wait deployment ai-metrics-exporter -n monitoring --for=condition=Available=true --timeout=120s
-
-  echo "Applying Kong http-log plugin for token metrics..."
-  kubectl apply -f kong-http-log-plugin.yaml
-
-  echo "Applying Kong OpenTelemetry tracing plugin (global)..."
+  echo "Applying Kong OpenTelemetry plugin (traces → Tempo, access logs → collector)..."
   kubectl apply -f kong-ai-tracing-plugin.yaml
 fi
 
@@ -470,7 +497,7 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
 
   if [[ "${MONITORING_ENABLED}" == "true" ]]; then
     echo "Restarting monitoring pods for Kuma sidecar injection..."
-    kubectl rollout restart deployment/prometheus-server deployment/grafana deployment/ai-metrics-exporter -n monitoring
+    kubectl rollout restart deployment/prometheus-server deployment/grafana deployment/otel-collector -n monitoring
     kubectl rollout restart statefulset/tempo -n monitoring
   fi
 
@@ -481,7 +508,7 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
     kubectl wait deployment prometheus-server -n monitoring --for=condition=Available=true --timeout=120s
     kubectl rollout status statefulset/tempo -n monitoring --timeout=120s
     kubectl wait deployment grafana -n monitoring --for=condition=Available=true --timeout=120s
-    kubectl wait deployment ai-metrics-exporter -n monitoring --for=condition=Available=true --timeout=120s
+    kubectl wait deployment otel-collector -n monitoring --for=condition=Available=true --timeout=120s
   fi
 
   # Force KIC to re-read service-upstream annotations.
@@ -494,7 +521,7 @@ if [[ "${DEPLOY_KUMA}" =~ ^[Yy]$ ]]; then
     kubectl annotate svc "$SVC" -n ai-platform konghq.com/service-upstream="true" 2>/dev/null || true
   done
   if [[ "${MONITORING_ENABLED}" == "true" ]]; then
-    for SVC in grafana prometheus-server ai-metrics-exporter tempo; do
+    for SVC in grafana prometheus-server otel-collector tempo; do
       kubectl annotate svc "$SVC" -n monitoring konghq.com/service-upstream="true" --overwrite 2>/dev/null || true
     done
   fi
@@ -629,51 +656,10 @@ if [[ -f ${LICENSE_FILE} ]]; then
   # each target's model_alias instead of round-robin distributing blindly
   # (which would fail with "cannot use own model - must be: X" on mismatch).
   echo "Enabling per-model routing on AI Proxy Advanced (model_alias)..."
-  cat <<'EOF' | kubectl apply -f -
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: ai-proxy-advanced-multimodel
-  namespace: kong
-plugin: ai-proxy-advanced
-config:
-  balancer:
-    algorithm: round-robin
-    connect_timeout: 10000
-    read_timeout: 300000
-    write_timeout: 300000
-  targets:
-    - route_type: llm/v1/chat
-      model:
-        provider: openai
-        name: llama3.2:1b
-        model_alias: llama3.2:1b
-        options:
-          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
-    - route_type: llm/v1/chat
-      model:
-        provider: openai
-        name: qwen2.5-coder:1.5b
-        model_alias: qwen2.5-coder:1.5b
-        options:
-          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
-    - route_type: llm/v1/chat
-      model:
-        provider: openai
-        name: gemma3:1b
-        model_alias: gemma3:1b
-        options:
-          upstream_url: "http://ollama.ai-platform.svc.cluster.local:11434/v1/chat/completions"
-    - route_type: llm/v1/chat
-      auth:
-        param_name: key
-        param_value: "{vault://my-env/GEMINI_API_KEY}"
-        param_location: query
-      model:
-        provider: gemini
-        name: gemini-2.5-flash
-        model_alias: gemini-2.5-flash
-EOF
+  # Second pass: re-apply the full plugin (now including model_alias) verbatim.
+  # The license schema is active, so model_alias is accepted; logging.log_statistics
+  # and input/output_cost are preserved because we apply the same file, not a subset.
+  kubectl apply -f kong-ai-proxy-advanced-multimodel.yaml
 fi
 
 # --- Done ---
@@ -696,7 +682,7 @@ if [[ "${GEMINI_ENABLED}" == "true" ]]; then
   echo "  [x] Google Gemini (gemini-2.5-flash) — free tier"
 fi
 if [[ "${ANTHROPIC_ENABLED}" == "true" ]]; then
-  echo "  [x] Anthropic Claude (claude-haiku-3-5-20241022) — paid"
+  echo "  [x] Anthropic Claude (claude-haiku-4-5) — paid"
 fi
 echo ""
 echo "--- Consumer Groups ---"

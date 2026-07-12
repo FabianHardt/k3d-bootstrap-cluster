@@ -5,6 +5,8 @@ metadata:
   namespace: kong
 plugin: acl
 config:
+  # Match membership in the Kong Consumer Group of the same name.
+  include_consumer_groups: true
   allow:
     - gemini-access
   hide_groups_header: true
@@ -16,6 +18,7 @@ metadata:
   namespace: kong
 plugin: acl
 config:
+  include_consumer_groups: true
   allow:
     - anthropic-access
   hide_groups_header: true

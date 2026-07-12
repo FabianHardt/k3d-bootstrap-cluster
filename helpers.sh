@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Central Kong component versions (single source of truth)
+source "$(dirname "${BASH_SOURCE[0]}")/kong-versions.env"
+
 # bold text (fall back to plain text when no terminal is attached, e.g. in CI)
 bold=$(tput bold 2>/dev/null || true)
 normal=$(tput sgr0 2>/dev/null || true)
@@ -231,8 +234,11 @@ print('\n---\n'.join(d for d in docs if not any(kind in d for kind in excluded_k
 
   helm upgrade --install kong kong/ingress \
     --namespace kong \
-    --version 0.24.0 \
-    --values manifests/kong-values.yaml
+    --version "${KONG_INGRESS_CHART_VERSION}" \
+    --values manifests/kong-values.yaml \
+    --set gateway.image.tag="${KONG_GATEWAY_VERSION}" \
+    --set controller.ingressController.image.repository=kong/kubernetes-ingress-controller \
+    --set controller.ingressController.image.tag="${KONG_KIC_VERSION}"
 
   kubectl -n kong wait --for=condition=Available=true --timeout=300s deployment/kong-gateway
 

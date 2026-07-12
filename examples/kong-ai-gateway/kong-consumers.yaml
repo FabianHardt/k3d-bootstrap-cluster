@@ -65,41 +65,27 @@ type: Opaque
 stringData:
   key: "Bearer admin-key-12345"
 ---
-# --- ACL Credentials ---
-apiVersion: v1
-kind: Secret
+# --- Consumer Groups = access tiers (single source of truth) ---
+# Membership drives BOTH route access (acl plugin with include_consumer_groups)
+# AND the /v1/models list (kong.client.get_consumer_groups()).
+apiVersion: configuration.konghq.com/v1beta1
+kind: KongConsumerGroup
 metadata:
-  name: lead-user-acl
+  name: gemini-access
   namespace: kong
-  labels:
-    konghq.com/credential: acl
-type: Opaque
-stringData:
-  group: "gemini-access"
+  annotations:
+    kubernetes.io/ingress.class: kong
 ---
-apiVersion: v1
-kind: Secret
+apiVersion: configuration.konghq.com/v1beta1
+kind: KongConsumerGroup
 metadata:
-  name: admin-user-acl-gemini
+  name: anthropic-access
   namespace: kong
-  labels:
-    konghq.com/credential: acl
-type: Opaque
-stringData:
-  group: "gemini-access"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: admin-user-acl-anthropic
-  namespace: kong
-  labels:
-    konghq.com/credential: acl
-type: Opaque
-stringData:
-  group: "anthropic-access"
+  annotations:
+    kubernetes.io/ingress.class: kong
 ---
 # --- Consumers ---
+# dev-user: base tier (Ollama only) — no groups
 apiVersion: configuration.konghq.com/v1
 kind: KongConsumer
 metadata:
@@ -113,6 +99,7 @@ credentials:
   - dev-user-key
   - dev-user-key-bearer
 ---
+# team-lead: + Gemini
 apiVersion: configuration.konghq.com/v1
 kind: KongConsumer
 metadata:
@@ -125,8 +112,10 @@ custom_id: lead
 credentials:
   - lead-user-key
   - lead-user-key-bearer
-  - lead-user-acl
+consumerGroups:
+  - gemini-access
 ---
+# admin-user: + Gemini + Anthropic
 apiVersion: configuration.konghq.com/v1
 kind: KongConsumer
 metadata:
@@ -139,5 +128,6 @@ custom_id: admin
 credentials:
   - admin-user-key
   - admin-user-key-bearer
-  - admin-user-acl-gemini
-  - admin-user-acl-anthropic
+consumerGroups:
+  - gemini-access
+  - anthropic-access

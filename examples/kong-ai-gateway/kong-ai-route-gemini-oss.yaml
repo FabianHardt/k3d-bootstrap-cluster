@@ -1,20 +1,25 @@
+# OSS Gemini route (no Enterprise license): plain ai-proxy + key-auth only.
+# The Enterprise variant (kong-ai-route-gemini.yaml) adds OIDC, ACL and
+# semantic-cache, which require a license.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: ai-proxy-gemini-internal
+  name: ai-proxy-gemini-oss
   namespace: kong
   annotations:
-    konghq.com/plugins: ai-proxy-gemini,ai-key-auth-or-oidc,ai-oidc
+    konghq.com/plugins: ai-proxy-gemini,ai-key-auth
     konghq.com/strip-path: "true"
 spec:
   parentRefs:
     - name: kong
       namespace: kong
+  hostnames:
+    - "ai.example.com"
   rules:
     - matches:
         - path:
             type: PathPrefix
-            value: /gemini-internal
+            value: /gemini
       backendRefs:
         - name: kong-gateway-admin
           port: 8001

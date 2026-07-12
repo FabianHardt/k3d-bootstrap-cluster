@@ -6,12 +6,17 @@ metadata:
 plugin: ai-proxy
 config:
   route_type: "llm/v1/chat"
+  logging:
+    log_statistics: true
+    log_payloads: false
   auth:
     header_name: "x-api-key"
     header_value: "{vault://my-env/ANTHROPIC_API_KEY}"
   model:
     provider: anthropic
-    name: claude-haiku-3-5-20241022
+    name: claude-haiku-4-5
     options:
       max_tokens: 4096
       anthropic_version: "2023-06-01"
+      input_cost: 1000
+      output_cost: 5000

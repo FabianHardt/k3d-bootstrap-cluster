@@ -1,3 +1,19 @@
+# Per-request handling on the /ollama multimodel routes, before ai-proxy-advanced
+# proxies (hence a pre-function). Two independent access functions:
+#   1. Per-user model ENFORCEMENT for OpenWebUI users. OpenWebUI forwards
+#      X-OpenWebUI-User-Email (all users share one key), so we gate on that:
+#      resolve the forwarded user's Kong Consumer Groups (by custom_id = email
+#      local-part, via the local Admin API, cached) — same source of truth as
+#      ai-models-filtered. Requests without the header are direct API calls (own
+#      per-consumer key) and are governed by the route-level acl plugin.
+#   2. Strip "tools" for models that don't support function-calling (gemma3).
+#
+# Both read the request JSON via read_json_body(): OpenWebUI's real requests
+# (system prompt + tool schemas + history) exceed client_body_buffer_size and get
+# spooled to a temp file, where kong.request.get_body() returns nil — reading only
+# the in-memory buffer would silently skip enforcement AND the tools strip. We read
+# the raw body from memory or the temp file and decode it ourselves, then stash it
+# in kong.ctx.shared so the second function reuses it.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -7,76 +23,91 @@ plugin: pre-function
 config:
   access:
     - |
-      -- Model-level ACL enforcement based on OpenWebUI user role headers.
-      -- Maps Keycloak roles (forwarded by OpenWebUI) to allowed model prefixes.
-      local role_models = {
-        ["ai-dev"]   = { "llama", "qwen", "gemma" },
-        ["ai-lead"]  = { "llama", "qwen", "gemma", "gemini" },
-        ["ai-admin"] = { "llama", "qwen", "gemma", "gemini", "claude" },
+      local cjson = require("cjson.safe")
+
+      -- Robustly read the request JSON: in-memory buffer OR temp file (large bodies).
+      local function read_json_body()
+        ngx.req.read_body()
+        local raw = ngx.req.get_body_data()
+        if not raw then
+          local fname = ngx.req.get_body_file()
+          if fname then
+            local f = io.open(fname, "rb")
+            if f then raw = f:read("*a"); f:close() end
+          end
+        end
+        if raw and raw ~= "" then return cjson.decode(raw) end
+        return nil
+      end
+
+      if kong.request.get_method() ~= "POST" then return end
+      local body = read_json_body()
+      kong.ctx.shared.ai_req_body = body  -- reused by the tools-strip function
+
+      local requires = {
+        {match = "gemini", group = "gemini-access"},
+        {match = "claude", group = "anthropic-access"},
       }
 
-      -- Only enforce on chat completion requests (POST with JSON body)
-      if kong.request.get_method() ~= "POST" then
-        return
+      local email = kong.request.get_header("X-OpenWebUI-User-Email")
+      if not email then return end  -- direct API: governed by route-level acl
+
+      local path = kong.request.get_path() or ""
+      if path:find("/embeddings", 1, true) then return end
+
+      if not body or not body.model then return end
+      local model = tostring(body.model):lower()
+
+      local needed
+      for _, r in ipairs(requires) do
+        if model:find(r.match, 1, true) then needed = r.group; break end
       end
+      if not needed then return end  -- base (Ollama) model: allowed for everyone
 
-      -- Skip ACL for embedding requests (RAG uses nomic-embed-text internally)
-      local path = kong.request.get_path()
-      if path and path:find("/embeddings", 1, true) then
-        return
-      end
-
-      local user_email = kong.request.get_header("X-OpenWebUI-User-Email")
-      if not user_email then
-        return  -- not from OpenWebUI, skip (API key ACL handles external requests)
-      end
-
-      local body, err = kong.request.get_body("application/json")
-      if not body or not body.model then
-        return
-      end
-
-      local model = body.model:lower()
-
-      -- Look up Keycloak role from Kong consumer (mapped via OIDC plugin)
-      -- Fallback: use X-OpenWebUI-User-Role if no consumer mapping
-      local role = nil
-      local consumer = kong.client.get_consumer()
-      if consumer then
-        -- Check consumer group memberships
-        local groups = kong.client.get_consumer_groups()
-        if groups then
-          for _, g in ipairs(groups) do
-            local gname = g.name or ""
-            if role_models[gname] then
-              role = gname
-              break
+      local function fetch_groups(custom_id)
+        local http = require("resty.http")
+        local httpc = http.new(); httpc:set_timeout(2000)
+        local set = {}
+        local r1 = httpc:request_uri("http://127.0.0.1:8001/consumers?custom_id=" .. custom_id)
+        if r1 and r1.status == 200 then
+          local d = cjson.decode(r1.body)
+          local c = d and d.data and d.data[1]
+          if c and c.id then
+            local r2 = httpc:request_uri("http://127.0.0.1:8001/consumers/" .. c.id .. "/consumer_groups")
+            if r2 and r2.status == 200 then
+              local d2 = cjson.decode(r2.body)
+              for _, g in ipairs((d2 and d2.data) or {}) do set[g.name] = true end
             end
           end
         end
+        return set
       end
 
-      -- Fallback: map OpenWebUI email to role (matches Keycloak users)
-      if not role then
-        local email_role_map = {
-          ["dev@example.com"]   = "ai-dev",
-          ["lead@example.com"]  = "ai-lead",
-          ["admin@example.com"] = "ai-admin",
-        }
-        role = email_role_map[user_email] or "ai-dev"
-      end
+      local custom_id = email:match("^[^@]+") or email
+      local member = kong.cache:get("ai_cg:" .. custom_id, { ttl = 30 }, fetch_groups, custom_id) or {}
 
-      local allowed = role_models[role] or role_models["ai-dev"]
-      local permitted = false
-      for _, prefix in ipairs(allowed) do
-        if model:find(prefix, 1, true) then
-          permitted = true
-          break
-        end
-      end
-
-      if not permitted then
+      if not member[needed] then
         return kong.response.exit(403, {
-          message = "Model '" .. body.model .. "' is not available for your role. Contact your admin for access."
+          message = "Model '" .. body.model .. "' is not available for your access tier."
         })
       end
+    - |
+      -- Strip "tools"/"tool_choice" for models that don't do function-calling
+      -- (Ollama gemma3). OpenWebUI attaches tools whenever an MCP tool server is
+      -- enabled, and Ollama rejects them for such models ("does not support tools").
+      -- Runs for every caller (OpenWebUI and direct API) before ai-proxy proxies.
+      local cjson = require("cjson.safe")
+      if kong.request.get_method() ~= "POST" then return end
+      local body = kong.ctx.shared.ai_req_body  -- read once by the ACL function above
+      if not body or not body.model then return end
+      if body.tools == nil and body.tool_choice == nil then return end
+      local model = tostring(body.model):lower()
+      local no_tool_models = { "gemma" }
+      local strip = false
+      for _, m in ipairs(no_tool_models) do
+        if model:find(m, 1, true) then strip = true break end
+      end
+      if not strip then return end
+      body.tools = nil
+      body.tool_choice = nil
+      kong.service.request.set_raw_body(cjson.encode(body))
