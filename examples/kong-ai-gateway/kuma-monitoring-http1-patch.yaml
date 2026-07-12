@@ -1,7 +1,7 @@
 # Force HTTP/1.1 on outbound clusters for monitoring services
 # Same pattern as kuma-gateway-http1-patch.yaml — required because
 # Kuma gateway dataplanes default all outbound clusters to HTTP/2.
-# Grafana, Prometheus, Tempo (Query/OTLP), and AI-Metrics-Exporter only speak HTTP/1.1.
+# Grafana, Prometheus, Tempo (Query/OTLP), and the OTel Collector only speak HTTP/1.1.
 apiVersion: kuma.io/v1alpha1
 kind: MeshProxyPatch
 metadata:
