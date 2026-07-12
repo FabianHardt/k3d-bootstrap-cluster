@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Kong component versions (chart + KIC) come from the central kong-versions.env.
+source "$(dirname "${BASH_SOURCE[0]}")/../../kong-versions.env"
+
 # include OpenBao setup first
 OPENBAO_EXISTS=$(kubectl get ns openbao || echo "false")
 
@@ -42,13 +45,31 @@ echo "\nInstall Kong Gateway Operator"
 helm repo add kong https://charts.konghq.com
 helm repo update kong
 
-helm upgrade --install kgo kong/gateway-operator -n kong-system --create-namespace --reset-values
+# The base cluster ships KIC-managed Kong (create-sample's deployKong, Helm release
+# "kong"); the Kong Operator manages its OWN Kong and its unified chart owns the same
+# configuration.konghq.com CRDs. Unlike the legacy gateway-operator chart (CRDs in
+# crds/, silently skipped if present), the new chart renders them as owned templates,
+# so Helm refuses to adopt the KIC-owned CRDs ("invalid ownership metadata"). Remove
+# the KIC install first — no Kong CRs exist yet on a fresh cluster, so this is safe.
+helm uninstall kong -n kong 2>/dev/null || true
+kubectl get crd -o name 2>/dev/null | grep 'configuration.konghq.com$' | xargs -r kubectl delete --ignore-not-found
 
-kubectl -n kong-system wait --for=condition=Available=true --timeout=120s deployment/kgo-gateway-operator-controller-manager
+# We install the Gateway API CRDs ourselves (experimental channel, above), so
+# disable the chart's own Gateway API CRD install — otherwise its server-side apply
+# conflicts with ours ("conflict ... gateway.networking.k8s.io/channel") and the
+# whole helm install aborts. The KO conversion webhook (enabled by default) keeps
+# the deprecated GatewayConfiguration v1beta1 appliable.
+helm upgrade --install kgo kong/kong-operator --version "${KONG_OPERATOR_CHART_VERSION}" \
+  -n kong-system --create-namespace --reset-values \
+  --set gwapi-standard-crds.enabled=false \
+  --set gwapi-experimental-crds.enabled=false
+
+kubectl -n kong-system wait --for=condition=Available=true --timeout=120s deployment/kgo-kong-operator-controller-manager
 
 # GatewayClass "kong" may already exist from kong-gateway example with a different controllerName — recreate it
 kubectl delete gatewayclass kong --ignore-not-found
-kubectl apply -f gateway-configuration.yaml
+# Inject the central KIC version into the control-plane image before applying.
+sed "s|__KONG_KIC_VERSION__|${KONG_KIC_VERSION}|" gateway-configuration.yaml | kubectl apply -f -
 
 echo "\nConfigure HTTPRoute for httpbin"
 kubectl apply -f httproute-httpbin.yaml

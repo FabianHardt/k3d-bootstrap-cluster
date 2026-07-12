@@ -39,7 +39,8 @@ spec:
         spec:
           containers:
             - name: controller
-              image: kong/kubernetes-ingress-controller:3.4
+              # __KONG_KIC_VERSION__ is replaced by setup.sh from kong-versions.env
+              image: kong/kubernetes-ingress-controller:__KONG_KIC_VERSION__
               env:
                 - name: CONTROLLER_LOG_LEVEL
                   value: debug
