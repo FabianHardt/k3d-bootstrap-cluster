@@ -126,7 +126,7 @@ spec:
   # it does not manage on every (re)issue.
   secretTemplate:
     labels:
-      konghq.com/secret: "true"
+      konghq.com/secret: 'true'
   issuerRef:
     kind: ClusterIssuer
     name: openbao-issuer
