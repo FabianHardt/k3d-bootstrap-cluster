@@ -39,7 +39,8 @@ spec:
         spec:
           containers:
             - name: controller
-              image: kong/kubernetes-ingress-controller:3.4
+              # __KONG_KIC_VERSION__ is replaced by setup.sh from kong-versions.env
+              image: kong/kubernetes-ingress-controller:__KONG_KIC_VERSION__
               env:
                 - name: CONTROLLER_LOG_LEVEL
                   value: debug
@@ -49,9 +50,11 @@ apiVersion: gateway.networking.k8s.io/v1
 metadata:
   name: kong
   namespace: kong
-  annotations:
-    cert-manager.io/cluster-issuer: "openbao-issuer"
-    cert-manager.io/common-name: "kong-gateway.example.com"
+  # No cert-manager.io annotations here: OpenBao's setup (run first) already issues
+  # the example-com-wildcard Certificate for *.example.com into the example-com-tls
+  # secret. Annotating the Gateway would make cert-manager's gateway-shim create a
+  # second Certificate pointing at the same secret — a conflict that leaves the
+  # HTTPS listener unresolved. We just reference the OpenBao-provided secret below.
 spec:
   gatewayClassName: kong
   listeners:
