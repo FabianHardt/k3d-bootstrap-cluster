@@ -49,7 +49,17 @@ All prompts can be skipped with `NON_INTERACTIVE=1`. Every default can be overri
 NON_INTERACTIVE=1 CLUSTER_NAME=ci CALICO_FLAG=No bash create-sample.sh
 ```
 
-Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CILIUM_FLAG` (Yes), `CALICO_FLAG` (No), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
+Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CILIUM_FLAG` (Yes), `CALICO_FLAG` (No), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No), and `K3D_EXTRA_VOLUMES` (empty; optional newline-separated `hostPath:containerPath` mounts). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
+
+During interactive setup, enter additional mounts one at a time; press Enter on an empty prompt to finish. Extra mounts are applied to every server and agent node. In non-interactive mode, set `K3D_EXTRA_VOLUMES` to newline-separated k3d mount mappings:
+
+```bash
+NON_INTERACTIVE=1 \
+K3D_EXTRA_VOLUMES=$'/host/root-ca.crt:/etc/ssl/certs/root-ca.crt\n/host/extra:/opt/extra' \
+bash create-sample.sh
+```
+
+Mount source paths must be available to the Docker engine used by k3d.
 
 ### More details
 
