@@ -104,6 +104,56 @@ configValues ()
   HTTPBIN_SAMPLE_FLAG=$(isYes ${INPUT_VALUE})
   read_value "Enable Cluster API (CAPI) support? ${yes_no}" "${CAPI_FLAG}"
   CAPI_FLAG=$(isYes ${INPUT_VALUE})
+  configureExtraVolumes
+}
+
+configureExtraVolumes ()
+{
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+  EXTRA_VOLUMES_YAML=""
+  local mount
+
+  if [[ -n "${K3D_EXTRA_VOLUMES:-}" ]]
+  then
+    while IFS= read -r mount
+    do
+      [[ -z "${mount}" ]] && continue
+      appendExtraVolume "${mount}"
+    done <<< "${K3D_EXTRA_VOLUMES}"
+    return
+  fi
+
+  if [[ "${NON_INTERACTIVE:-0}" = "1" ]]
+  then
+    return
+  fi
+
+  echo "Additional volume mounts are applied to every server and agent node."
+  echo "Enter each as hostPath:containerPath; leave blank to finish."
+  while true
+  do
+    read -r -p "Additional volume mount: " mount || break
+    [[ -z "${mount}" ]] && break
+    appendExtraVolume "${mount}"
+  done
+}
+
+appendExtraVolume ()
+{
+  local mount="${1}"
+  local host_path destination extra yaml_mount
+  IFS=: read -r host_path destination extra <<< "${mount}"
+  if [[ -z "${host_path}" || -z "${destination}" || -n "${extra}" ]]
+  then
+    echo "ERROR: invalid additional volume '${mount}'; expected hostPath:containerPath." >&2
+    exit 1
+  fi
+
+  yaml_mount=${mount//\'/\'\'}
+  EXTRA_VOLUMES_YAML+="  - volume: ${yaml_mount}"$'\n'
+  EXTRA_VOLUMES_YAML+="    nodeFilters:"$'\n'
+  EXTRA_VOLUMES_YAML+="      - servers:*"$'\n'
+  EXTRA_VOLUMES_YAML+="      - agents:*"$'\n'
 }
 
 isYes()
