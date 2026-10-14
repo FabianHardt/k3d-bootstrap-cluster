@@ -6,7 +6,7 @@ metadata:
 servers: ${SERVERS}
 agents: ${AGENTS}
 # Optional set explicit K3s (Kubernetes) version
-image: rancher/k3s:v1.37.1-k3s1
+# image: rancher/k3s:v1.37.1-k3s1
 ports:
   - port: ${HTTP_PORT}:80
     nodeFilters:
