@@ -13,6 +13,8 @@ CALICO_FLAG=${CALICO_FLAG:-No}
 DASHBOARD_FLAG=${DASHBOARD_FLAG:-No}
 HTTPBIN_SAMPLE_FLAG=${HTTPBIN_SAMPLE_FLAG:-Yes}
 CAPI_FLAG=${CAPI_FLAG:-No}
+# shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+K3S_VERSION=${K3S_VERSION:-}
 
 source helpers.sh
 
@@ -73,6 +75,10 @@ if (($DASHBOARD_FLAG == 1)); then
 fi
 
 if (($HTTPBIN_SAMPLE_FLAG == 1)); then
+  read_value "K3s image tag (blank for k3d default)" "${K3S_VERSION}"
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+  K3S_VERSION=${INPUT_VALUE}
+ [k3d-cluster-template.yaml#BE4D]
   top "Provisioning Persistent Volume"
   cat <<EOF | kubectl apply -f -
 apiVersion: v1

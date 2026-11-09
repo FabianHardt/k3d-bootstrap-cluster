@@ -73,6 +73,9 @@ configValues ()
   REGISTRY_FLAG=$(isYes "Yes")
   read_value "Cluster Name" "${CLUSTER_NAME}"
   CLUSTER_NAME=${INPUT_VALUE}
+  read_value "K3s image tag (blank for k3d default)" "${K3S_VERSION}"
+  # shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+  K3S_VERSION=${INPUT_VALUE}
   read_value "Number of Masters" "${SERVERS}"
   SERVERS=${INPUT_VALUE}
   read_value "Number of Workers" "${AGENTS}"

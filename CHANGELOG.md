@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* **Configurable k3s image tag for cluster creation.** `create-sample.sh` prompts for an optional tag and conditionally writes `image: rancher/k3s:<tag>` to `k3d-cluster.yaml`; leaving it blank preserves k3d's default image.
+
 * **Allow configuration of custom volume mounts.** Cluster setup now allows for environment-specific volume mounts with optional `K3D_EXTRA_VOLUMES` mappings. Mounts can be entered interactively or passed as newline-separated `hostPath:containerPath` entries and are attached to all server and agent nodes. This allows for example to configure custom CA certificates required by a company's security infrastructure.
 
 * **Kong AI Gateway per-user token metrics now come from OpenTelemetry instead of a custom exporter.** `examples/kong-ai-gateway` drops the Python `ai-metrics-exporter` (an `http-log` sink that parsed each provider's response body) and the `ai-force-nostream` hack. Kong's `opentelemetry` plugin now ships access logs — carrying the AI plugin's `log_statistics` token counts plus `provider`/`model`/`consumer` attributes (`custom_attributes_by_lua`) — to a new **OTel Collector** (`otel-collector.yaml`) whose `sum` connector emits the same `ai_llm_*` Prometheus metrics the Grafana dashboard already uses. Cost is computed by Kong from per-model `input_cost`/`output_cost` rates. Result: no bespoke code, streaming keeps working, and traces still flow to Tempo. Removed `ai-metrics-exporter.yaml`, `kong-http-log-plugin.yaml`, `kong-ai-nostream-plugin.yaml`, `kong-ai-plugins.yaml`; the prometheus scrape target and Kuma HTTP/1.1 patch were repointed to the collector.
