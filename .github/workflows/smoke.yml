@@ -55,7 +55,7 @@ jobs:
             flags: CILIUM_FLAG=No K3S_VERSION=v1.37.2-k3s1
             k3s_version: v1.37.2+k3s1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install k3d
         run: |
@@ -264,7 +264,7 @@ jobs:
               kubectl -n kafka wait kafka --all \
                 --for=condition=Ready --timeout=900s
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install k3d
         run: |
