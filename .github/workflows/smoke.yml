@@ -50,6 +50,10 @@ jobs:
           # k3s default Flannel CNI
           - variant: flannel
             flags: CILIUM_FLAG=No
+          # explicit k3s image tag instead of k3d's default
+          - variant: k3s-pinned
+            flags: CILIUM_FLAG=No K3S_VERSION=v1.37.2-k3s1
+            k3s_version: v1.37.2+k3s1
     steps:
       - uses: actions/checkout@v4
 
@@ -59,13 +63,21 @@ jobs:
             | TAG=${K3D_VERSION} bash
           k3d version
 
-      # nip.io resolution is flaky on runners; without it docker does not
-      # detect the loopback registry and refuses the plain-HTTP push
-      # ("server gave HTTP response to HTTPS client")
-      - name: Pin nip.io hostnames to loopback
+      # nip.io resolution is flaky on runners. The containerd image store
+      # (default since ubuntu-26.04 runners) no longer treats hostnames that
+      # resolve to loopback as insecure, so the plain-HTTP registry must be
+      # whitelisted explicitly ("server gave HTTP response to HTTPS client").
+      - name: Prepare local registry access
         run: |
           echo "127.0.0.1 registry-demo.127-0-0-1.nip.io demo.127-0-0-1.nip.io dashboard.127-0-0-1.nip.io" \
             | sudo tee -a /etc/hosts
+          sudo mkdir -p /etc/docker
+          [ -s /etc/docker/daemon.json ] || echo '{}' | sudo tee /etc/docker/daemon.json >/dev/null
+          jq '."insecure-registries" += ["registry-demo.127-0-0-1.nip.io:5002"]' /etc/docker/daemon.json \
+            | sudo tee /etc/docker/daemon.json.new >/dev/null
+          sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Docker {{.ServerVersion}}, driver {{.Driver}}, insecure: {{json .RegistryConfig.IndexConfigs}}'
 
       - name: Create cluster (non-interactive)
         run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
@@ -75,6 +87,18 @@ jobs:
         run: |
           kubectl -n kube-system rollout status daemonset/cilium --timeout=300s
           kubectl -n kube-system get pods -l k8s-app=cilium -o wide
+
+      - name: Verify pinned k3s version
+        if: matrix.k3s_version
+        run: |
+          kubectl get nodes -o wide
+          versions=$(kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}')
+          for v in ${versions}; do
+            if [ "${v}" != "${{ matrix.k3s_version }}" ]; then
+              echo "ERROR: node runs ${v}, expected ${{ matrix.k3s_version }}" >&2
+              exit 1
+            fi
+          done
 
       - name: Wait for httpbin rollout
         run: kubectl -n demo rollout status deployment/httpbin --timeout=300s
@@ -248,13 +272,21 @@ jobs:
             | TAG=${K3D_VERSION} bash
           k3d version
 
-      # nip.io resolution is flaky on runners; without it docker does not
-      # detect the loopback registry and refuses the plain-HTTP push
-      # ("server gave HTTP response to HTTPS client")
-      - name: Pin nip.io hostnames to loopback
+      # nip.io resolution is flaky on runners. The containerd image store
+      # (default since ubuntu-26.04 runners) no longer treats hostnames that
+      # resolve to loopback as insecure, so the plain-HTTP registry must be
+      # whitelisted explicitly ("server gave HTTP response to HTTPS client").
+      - name: Prepare local registry access
         run: |
           echo "127.0.0.1 registry-demo.127-0-0-1.nip.io demo.127-0-0-1.nip.io dashboard.127-0-0-1.nip.io" \
             | sudo tee -a /etc/hosts
+          sudo mkdir -p /etc/docker
+          [ -s /etc/docker/daemon.json ] || echo '{}' | sudo tee /etc/docker/daemon.json >/dev/null
+          jq '."insecure-registries" += ["registry-demo.127-0-0-1.nip.io:5002"]' /etc/docker/daemon.json \
+            | sudo tee /etc/docker/daemon.json.new >/dev/null
+          sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Docker {{.ServerVersion}}, driver {{.Driver}}, insecure: {{json .RegistryConfig.IndexConfigs}}'
 
       - name: Create cluster (non-interactive)
         run: env NON_INTERACTIVE=1 ${{ matrix.flags }} bash create-sample.sh
