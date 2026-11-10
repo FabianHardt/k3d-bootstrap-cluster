@@ -80,9 +80,6 @@ ports:
   - port: 8081:443
     nodeFilters:
       - loadbalancer
-  - port: 14222:4222
-    nodeFilters:
-      - loadbalancer
   - port: <RANDOM PORT>:30001
     nodeFilters:
       - agents:*
