@@ -13,6 +13,8 @@ CALICO_FLAG=${CALICO_FLAG:-No}
 DASHBOARD_FLAG=${DASHBOARD_FLAG:-No}
 HTTPBIN_SAMPLE_FLAG=${HTTPBIN_SAMPLE_FLAG:-Yes}
 CAPI_FLAG=${CAPI_FLAG:-No}
+# shellcheck disable=SC2034  # used via templateConfigFile (k3d-cluster-template.yaml)
+K3S_VERSION=${K3S_VERSION:-}
 
 source helpers.sh
 

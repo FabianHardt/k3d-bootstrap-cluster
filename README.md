@@ -29,7 +29,7 @@ bash create-sample.sh
 # you will be asked for your users password
 ```
 
-You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the CNI: **Cilium** (default) or **Calico** can be installed instead of the k3s default Flannel installation (Cilium and Calico are mutually exclusive). Traefik is disabled and **Kong Gateway (Gateway API)** is installed unconditionally as the cluster's sole ingress controller — it installs Gateway API CRDs, a `GatewayClass`, a `Gateway`, and Kong Ingress Controller via Helm.
+You will be asked some questions about the cluster deployment, like number of nodes, Ingress ports and the CNI: **Cilium** (default) or **Calico** can be installed instead of the k3s default Flannel installation (Cilium and Calico are mutually exclusive). The optional k3s image tag prompt defaults to blank; leave it blank to use k3d's default image, or enter a tag to set `image: rancher/k3s:<tag>` in the generated cluster configuration. See [available k3s tags on Docker Hub](https://hub.docker.com/r/rancher/k3s/tags). Traefik is disabled and **Kong Gateway (Gateway API)** is installed unconditionally as the cluster's sole ingress controller — it installs Gateway API CRDs, a `GatewayClass`, a `Gateway`, and Kong Ingress Controller via Helm.
 
 If you want classic Ingress alongside Kong, the [HAProxy showcase](docs/showcases/haproxy.md) installs HAProxy Ingress Controller as a secondary `IngressClass`.
 
@@ -49,7 +49,7 @@ All prompts can be skipped with `NON_INTERACTIVE=1`. Every default can be overri
 NON_INTERACTIVE=1 CLUSTER_NAME=ci CALICO_FLAG=No bash create-sample.sh
 ```
 
-Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CILIUM_FLAG` (Yes), `CALICO_FLAG` (No), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No), and `K3D_EXTRA_VOLUMES` (empty; optional newline-separated `hostPath:containerPath` mounts). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
+Available variables (with defaults): `CLUSTER_NAME` (demo), `SERVERS` (1), `AGENTS` (1), `HTTP_PORT` (8080), `HTTPS_PORT` (8081), `REGISTRY_PORT` (5002), `CILIUM_FLAG` (Yes), `CALICO_FLAG` (No), `DASHBOARD_FLAG` (No), `HTTPBIN_SAMPLE_FLAG` (Yes), `CAPI_FLAG` (No), `K3S_VERSION` (empty; uses k3d's default image), and `K3D_EXTRA_VOLUMES` (empty; optional newline-separated `hostPath:containerPath` mounts). This mode is used by the CI smoke tests in `.github/workflows/smoke.yml`.
 
 During interactive setup, enter additional mounts one at a time; press Enter on an empty prompt to finish. Extra mounts are applied to every server and agent node. In non-interactive mode, set `K3D_EXTRA_VOLUMES` to newline-separated k3d mount mappings:
 
@@ -135,8 +135,6 @@ Samples included under the **examples** folder:
   - Installation is documented here [README](docs/showcases/velero.md)
 - HAProxy Ingress Controller - https://haproxy-ingress.github.io
   - Installation is documented here [README](docs/showcases/haproxy.md)
-
-
 
 
 ### Troubleshooting

@@ -20,7 +20,7 @@ jobs:
       PR_NUMBER: ${{ github.event.number }}
     steps:
       - name: Checkout gh-pages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: gh-pages
           fetch-depth: 0
@@ -37,7 +37,7 @@ jobs:
             echo "No preview directory pr-${PR_NUMBER} found, nothing to do."
           fi
       - name: Update PR comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: docs-preview
           message: |
