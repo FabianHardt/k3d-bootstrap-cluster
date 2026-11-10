@@ -13,9 +13,6 @@ ports:
   - port: ${HTTPS_PORT}:443
     nodeFilters:
       - loadbalancer
-  - port: 14222:4222
-    nodeFilters:
-      - loadbalancer
   - port: ${HTTPBIN_NODEPORT}:30001
     nodeFilters:
       - agents:*
